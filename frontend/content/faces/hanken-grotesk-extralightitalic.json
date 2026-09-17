@@ -1,0 +1,68 @@
+{
+    "schema": 1,
+    "id": "hanken-grotesk-extralightitalic",
+
+    "_comment_family": [
+        "The light end of the family, and fitness-story's block face. See",
+        "hanken-grotesk-extrabolditalic.json, which is the cut that channel",
+        "picks its words out in and carries the note on what this typeface",
+        "used to be called.",
+        "",
+        "The full name (ID 4) is declared for the reason every Hanken pack",
+        "here declares it: ID 1 on this file is 'Hanken Grotesk ExtraLight',",
+        "which names a WEIGHT and not a cut, so the upright ExtraLight would",
+        "answer to it — and on a design that leans throughout, a block that",
+        "came back upright would not read as a variation, it would read as a",
+        "mistake.",
+        "",
+        "Weight 250, which is what the file's OS/2 table says. It is not one",
+        "of the round hundreds, and it is stated as found rather than rounded",
+        "to 200: the number is handed to the FontFace descriptor and to the",
+        "canvas font string, and a value that disagrees with the file is how",
+        "a browser is invited to synthesise a weight nobody drew. CSS has",
+        "accepted arbitrary numbers in 1-1000 since Fonts 4, so 250 is a",
+        "legal weight and not a trick.",
+        "",
+        "Registered at style normal, the same way rift and the other Hanken",
+        "packs are. The slant is drawn into the letterforms; declaring the",
+        "face italic as well would leave the canvas — which asks for normal —",
+        "either missing it or being handed a synthetic oblique of something",
+        "else."
+    ],
+    "family": "Hanken Grotesk ExtraLight Italic",
+    "weight": "250",
+
+    "file": "fonts/HankenGrotesk-ExtraLightItalic.ttf",
+    "format": "truetype",
+
+    "_comment_css": [
+        "Not declared in styles.css: this face arrived with a channel and is",
+        "registered from this JSON, which is the route content/README.md",
+        "describes. Nothing has to be added to the stylesheet for it."
+    ],
+    "css": false,
+
+    "_comment_local": [
+        "What the machine may already know the face by, tried after the file.",
+        "The first is the PostScript name and is also what the installer",
+        "registers the face under; the second is the Windows full name. Both",
+        "name this one cut rather than a weight or a family, so a machine",
+        "answering to either is answering with this file. Neither 'Hanken",
+        "Grotesk' nor 'Hanken Grotesk ExtraLight' is listed: the first is",
+        "shared with every other cut, and the second would let the upright",
+        "ExtraLight answer."
+    ],
+    "local": ["HankenGrotesk-ExtraLightItalic", "Hanken Grotesk ExtraLight Italic"],
+
+    "_comment_stack": [
+        "The fallbacks are damage limitation and never a design choice — a",
+        "title laid out against the wrong metrics is broken, not merely",
+        "different, which is what fontguard exists to catch before it is ever",
+        "drawn. Segoe UI Light for the reason telegraf-ultralight names it:",
+        "putting a 250-weight hairline behind Impact would make the one thing",
+        "that survives a missing file the furthest possible thing from it, and",
+        "Segoe UI Light is the nearest weight the machine can be relied on to",
+        "have."
+    ],
+    "stack": "'Hanken Grotesk ExtraLight Italic', 'Segoe UI Light', 'Segoe UI', Arial, sans-serif"
+}

@@ -1,0 +1,86 @@
+{
+    "schema": 1,
+    "id": "montserrat-extrabold",
+
+    "_comment_family": [
+        "The heavy half of expulsion-science's pair, and the half that",
+        "already had a name of its own. See the note in montserrat-bold.json,",
+        "which this pack is the counterpart of and which covers all three of",
+        "the Montserrat cuts in this folder.",
+        "",
+        "An ExtraBold is not one of the four styles the old family model has",
+        "room for, so the static build gives it a family of its own: name ID 1",
+        "here reads 'Montserrat ExtraBold' with 'Regular' as the subfamily,",
+        "and the real family shows up only in the typographic names (16/17) as",
+        "'Montserrat' + 'ExtraBold'. Declaring the full name is therefore not a",
+        "workaround on this side of the pair - it is the file's own family",
+        "name, and montserrat-semibold is in exactly the same position at the",
+        "other end. It is declared that way on all three so they read as one",
+        "decision rather than as some packs being careful and others not."
+    ],
+    "family": "Montserrat ExtraBold",
+    "weight": "800",
+
+    "_comment_weight": [
+        "800, which is the file's own usWeightClass and what the cut is",
+        "called. Asking for 900 on the strength of how loud a highlight ought",
+        "to be would invite a browser to synthesise a heavier face on top of",
+        "one that already has its own weight, and synthesised bold is the one",
+        "kind of emphasis that cannot be measured: the smear it adds is in no",
+        "metric the layout reads.",
+        "",
+        "One step over the block's 700, and that step is the whole of what a",
+        "picked word does on the channel set in this pair - see the highlight",
+        "note in channels/expulsion-science/channel.json, which is where that",
+        "is argued."
+    ],
+
+    "file": "fonts/Montserrat-ExtraBold.ttf",
+    "format": "truetype",
+
+    "_comment_css": [
+        "Not declared in styles.css: this face arrived with a channel and is",
+        "registered from this JSON, which is the route content/README.md",
+        "describes. Nothing has to be added to the stylesheet for it."
+    ],
+    "css": false,
+
+    "_comment_local": [
+        "What the machine may already know the face by, tried after the file.",
+        "The first is the Windows full name and the second the PostScript",
+        "name; both name this one cut rather than the family, so a machine",
+        "answering to either is answering with the ExtraBold - which is the",
+        "whole of what this face is for.",
+        "",
+        "'Montserrat' on its own is absent here for the reason it is absent",
+        "next door, and the consequence is sharper on this side: a highlight",
+        "that fell back to the family would be picked words set in whatever",
+        "weight the machine keeps as Montserrat's default, which on most",
+        "machines is the Regular - a highlight lighter than the block it is",
+        "supposed to be picked out of."
+    ],
+    "local": ["Montserrat ExtraBold", "Montserrat-ExtraBold"],
+
+    "_comment_stack": [
+        "Damage limitation, and a highlight's stack has one duty beyond the",
+        "usual: it must not end up drawing a picked word exactly as the words",
+        "either side of it are drawn - a failure that draws no attention to",
+        "itself.",
+        "",
+        "That duty is discharged the way raleway-bold discharges it, and for",
+        "the same reason. The difference between block and highlight here is a",
+        "WEIGHT, and weight travels in the font string beside the family",
+        "rather than inside it (see textProps in js/text.js): this face is",
+        "asked for at 800 and the block's at 700, so the two may share every",
+        "fallback and still come out one step apart wherever the substitute",
+        "family has the cuts. Falling through to the same entries is the",
+        "correct outcome rather than the failure it would be between two",
+        "unrelated hands.",
+        "",
+        "So the entries are the block's, each reached at 800. No Impact and no",
+        "Arial Black: this is a text sans and not a display cut, and a picked",
+        "word in a condensed grotesque inside a line of Segoe would not read",
+        "as emphasis but as a second channel."
+    ],
+    "stack": "'Montserrat ExtraBold', 'Segoe UI', Arial, sans-serif"
+}

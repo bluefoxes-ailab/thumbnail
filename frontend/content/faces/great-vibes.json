@@ -1,0 +1,90 @@
+{
+    "schema": 1,
+    "id": "great-vibes",
+
+    "_comment_family": [
+        "Great Vibes is a copperplate script and it ships as one style - there",
+        "is no Bold and no italic of it anywhere, so unlike the Cormorant pack",
+        "beside it there is no sibling for a bare family name to be confused",
+        "with. Name ID 1 is 'Great Vibes' and that is what gets declared, the",
+        "same position brittany-signature and special-elite are in.",
+        "",
+        "Weight 400, which is the file's own usWeightClass. A script hand has",
+        "no weight axis to ask along: there is one hand, and asking a browser",
+        "for a bold of it would only invite it to smear the one there is."
+    ],
+    "family": "Great Vibes",
+    "weight": "400",
+
+    "file": "fonts/GreatVibes-Regular.ttf",
+    "format": "truetype",
+
+    "_comment_metrics": [
+        "Two numbers about this face reach the channel that uses it, and both",
+        "are about how much room it takes rather than how it looks.",
+        "",
+        "It is drawn far taller and deeper than its em. Across the lower case",
+        "the ink runs from 629 units above the baseline to -351 below, on a",
+        "1000-unit em: at the Snapchat preset's 40px that is 25.2px up and",
+        "14.0px down, where Cormorant Garamond's own lower case gives 29.0 and",
+        "-11.3. Set together the two faces therefore ask for a band about 43px",
+        "tall, against the 27px a row of Telegraf capitals asks for on Hall of",
+        "Femme - which is what the card behind a caption on this channel is",
+        "sized to (see the shared band in js/text.js, and the block height note",
+        "in crowned-ladies-nw).",
+        "",
+        "The capitals are the extreme case and are why that channel does not",
+        "use them. They reach 861 up and -400 down - 34.4px and -16.0px at 40 -",
+        "and they are enormously wide with it: nineteen capitals measure 44%",
+        "wider here than the same capitals in Cormorant. A swash capital is",
+        "drawn to open a word, not to fill one."
+    ],
+
+    "_comment_css": [
+        "Not declared in styles.css: this face arrived with a channel and is",
+        "registered from this JSON, which is the route content/README.md",
+        "describes. Nothing has to be added to the stylesheet for it."
+    ],
+    "css": false,
+
+    "_comment_local": [
+        "What the machine may already know the face by, tried after the file,",
+        "and the first of them is also what the installer registers the file",
+        "under (engine.install_fonts takes the first entry).",
+        "",
+        "The full name (name ID 4) leads, because Windows keys installed fonts",
+        "by it and the registry entry the installer writes has to be a name a",
+        "local() could then resolve. The PostScript name follows, and the bare",
+        "family name last - safe to list here in a way it would not be on the",
+        "Cormorant pack, since there is only one cut of Great Vibes for it to",
+        "resolve to.",
+        "",
+        "None of the three is likely to fire. This is a Google font rather than",
+        "a face that arrives with Windows or with an office suite, so on a",
+        "machine that never ran the installer they resolve to nothing and the",
+        "stack below is what answers."
+    ],
+    "local": ["Great Vibes Regular", "GreatVibes-Regular", "Great Vibes"],
+
+    "_comment_stack": [
+        "The fallbacks are damage limitation and never a design choice - a",
+        "title laid out against the wrong metrics is broken rather than merely",
+        "different, which is what fontguard exists to catch before anything is",
+        "drawn. They are still chosen, and here the choice is as consequential",
+        "as brittany-signature's: this is a joined script, and every heavy",
+        "display cut the rest of this folder falls through is the furthest",
+        "possible thing from it. Impact behind this face would not be a",
+        "degraded highlight, it would be a different channel.",
+        "",
+        "So the stack stays a script all the way down, and it starts one step",
+        "nearer than brittany-signature's does. Edwardian Script ITC arrives",
+        "with Microsoft Office and is a copperplate hand like this one - a",
+        "formal, steeply sloped, high-contrast script rather than a casual",
+        "handwriting - so on a machine that has ever had Office the stand-in is",
+        "the same KIND of writing. Segoe Script is behind it as the one hand",
+        "every Windows 10 and 11 can be relied on to have, even though it is a",
+        "casual hand and not a copperplate, and the generic `cursive` is the",
+        "last thing that is still a script rather than a grotesque."
+    ],
+    "stack": "'Great Vibes', 'Edwardian Script ITC', 'Segoe Script', cursive"
+}

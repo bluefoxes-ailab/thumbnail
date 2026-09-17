@@ -1,0 +1,83 @@
+{
+    "schema": 1,
+    "id": "acumin-pro",
+
+    "_comment_family": [
+        "The Regular, and fitness-story-de's block face. Its picked words are",
+        "set in acumin-pro-bold — the same family's 700 — so the two are told",
+        "apart by weight alone.",
+        "",
+        "Acumin is Adobe's neo-grotesque: an Akzidenz descendant drawn on the",
+        "same bones as Helvetica, with a large x-height and flat, closed",
+        "terminals. That lineage is the whole of why the fallbacks below are",
+        "what they are, and it is the reason a missing file here does less",
+        "visible damage than it does to the display faces in this folder —",
+        "which is not the same as doing none.",
+        "",
+        "Declared as the bare family name, and this is the one pack in the",
+        "folder where that is the honest answer rather than a shortcut. The",
+        "two Acumin files share name ID 1 ('Acumin Pro') the way the two",
+        "Telegraf files share theirs, so by the rule telegraf-ultralight sets",
+        "out each should be declared under its full name instead — except",
+        "that this file's full name (ID 4) IS 'Acumin Pro'. A RIBBI family's",
+        "Regular has no name of its own to be declared under; the family name",
+        "is its full name, and inventing one would be declaring a face under",
+        "a name nothing on any machine answers to.",
+        "",
+        "What keeps that from colliding with the Bold is the weight. This",
+        "face is registered at 400 and the Bold declares a different CSS",
+        "family entirely ('Acumin Pro Bold', its own ID 4), so the canvas",
+        "asking for `400 40px \"Acumin Pro\"` can only reach this file and",
+        "nothing asks for 'Acumin Pro' at 700 at all. The one place the",
+        "sharing still costs something is `local` below, which is where it is",
+        "dealt with.",
+        "",
+        "Weight 400, which is what the file's OS/2 table says."
+    ],
+    "family": "Acumin Pro",
+    "weight": "400",
+
+    "file": "fonts/Acumin Pro Regular.otf",
+    "format": "opentype",
+
+    "_comment_css": [
+        "Not declared in styles.css: this face arrived with a channel and is",
+        "registered from this JSON, which is the route content/README.md",
+        "describes. Nothing has to be added to the stylesheet for it."
+    ],
+    "css": false,
+
+    "_comment_local": [
+        "What the machine may already know the face by, tried after the file.",
+        "",
+        "One name and not the usual two. The PostScript name is here, and it",
+        "is also what the installer registers the face under (see",
+        "engine.install_fonts, which takes the first entry). The Windows full",
+        "name is deliberately absent, because for this cut it is the string",
+        "'Acumin Pro' — the family name the Bold carries as well. A machine",
+        "with the full Acumin family installed could answer that name with",
+        "any weight of it, and a fallback that may hand back the Bold is not",
+        "a fallback for the Regular. The PostScript name has no such",
+        "ambiguity: it names this cut and only this cut.",
+        "",
+        "The cost of dropping it is nothing on a machine this app installed",
+        "on — the installed copy is registered as 'AcuminPro-Regular', which",
+        "is the name that is still listed."
+    ],
+    "local": ["AcuminPro-Regular"],
+
+    "_comment_stack": [
+        "The fallbacks are damage limitation and never a design choice — a",
+        "caption laid out against the wrong metrics is broken, not merely",
+        "different, which is what fontguard exists to catch before it is ever",
+        "drawn. They are still chosen rather than copied: Acumin is an",
+        "Akzidenz-line grotesque, so Arial — a Helvetica clone from the same",
+        "line, present on every Windows this app runs on — is both the",
+        "nearest shape and the nearest set width, and Segoe UI stands behind",
+        "it. Impact and Arial Black are absent for telegraf-ultralight's",
+        "reason: they are heavy display cuts, and putting one behind a",
+        "400-weight text grotesque would make the one thing that survives a",
+        "missing file the furthest possible thing from it."
+    ],
+    "stack": "'Acumin Pro', Arial, 'Segoe UI', Helvetica, sans-serif"
+}

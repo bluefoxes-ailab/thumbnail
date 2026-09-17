@@ -1,0 +1,287 @@
+{
+    "schema": 1,
+    "id": "fight-source",
+    "name": "Fight Source",
+
+    "_comment_group": [
+        "One of the shows under the Snapchat heading cut to Hall of Femme's",
+        "design, sitting between Fitness Story and Determined. Placed by its",
+        "neighbours rather than by an ordinal, because packs under this",
+        "heading arrive, are renumbered and go: 'the fifth show' is a number",
+        "nothing checks, wrong the first time one is added above it and",
+        "silently so. Everything that makes it a Snapchat pack —",
+        "the frame fetch, the vertical output, the transcription, the rewrite,",
+        "the card the caption is set on — is Hall of Femme's and is stated in",
+        "the same numbers. What makes it a different show is the two things",
+        "that are visible from across a room: the face the words are set in,",
+        "and the colours they are set in.",
+
+        "Written as its own folder rather than as an override of its siblings,",
+        "for the reason content/README.md gives: a channel is a folder that",
+        "gets dropped in. The prose below therefore points at hall-of-femme",
+        "wherever the reasoning is the same, and states its own only where",
+        "this pack actually decides something."
+    ],
+    "order": 900,
+    "group": "Snapchat",
+
+    "_comment_capture": [
+        "The frame fetch, whole, from content/presets/snapchat-capture.json:",
+        "the slider's range, the 540x960 vertical output, the transcription,",
+        "and the rewrite that turns the transcript from speech into reported",
+        "information before anything is set.",
+
+        "Stated as a reference and not as numbers, because this channel has",
+        "nothing to say about any of it that its neighbours do not - and a",
+        "pack that restates a shared answer is a pack that can be missing a",
+        "piece of it. That is not hypothetical: channels arrived under this",
+        "heading captioning their frames with the transcript as spoken,",
+        "because the folder they were copied from predated `rewrite`."
+    ],
+
+    "capture": { "use": "snapchat-capture" },
+
+    "_comment_framing": [
+        "How the frames are chosen and cropped, from",
+        "content/presets/snapchat-framing.json: the picture is the product, so",
+        "it is fitted to the canvas centred and left alone, and no frame is",
+        "rejected for failing to leave a column beside the subject that this",
+        "channel never sets anything in."
+    ],
+
+    "framing": { "use": "snapchat-framing" },
+
+    "_comment_title": [
+        "Where this show parts company with the packs cut to the same design.",
+        "Hall of Femme sets its captions in Telegraf — a 200-weight hairline",
+        "for the block and the 800 for a picked word — on a hot pink card.",
+        "Fitness Story sets them in Hanken Grotesk, upright against italic, on",
+        "an electric blue one. Determined sets them in the Open Sans italic",
+        "with the Bold italic for a picked word, on an acid yellow one. This",
+        "one is set in exactly those two cuts, on a card that is black or white",
+        "and nothing else.",
+
+        "That last sentence is the thing to be honest about rather than to",
+        "write around: this pack and Determined are set identically, and the",
+        "palette is the whole of what tells them apart. Both arrived at the",
+        "same two cuts from different directions — that show wanted momentum",
+        "under a colour nobody can ignore, this one wanted a sentence said in",
+        "motion with no colour in the way — and one face pack serving both is",
+        "what faces/ is for. Two packs agreeing is not two copies of anything.",
+
+        "What they agree on is worth stating in this pack's own words. A block",
+        "set entirely in the italic is the same sentence said leaning forward",
+        "— the thing italic does before it means emphasis, which is why it",
+        "stops meaning emphasis once every word is in it. On a show cut from",
+        "footage of people fighting, that lean is the show: the caption is not",
+        "a label under a picture, it is a line said in motion.",
+
+        "Which is what settles the highlight, and it is the pack's other",
+        "decision. With the slant spent on the block there is nothing left for",
+        "a picked word to lean into, so the emphasis has to be WEIGHT: the",
+        "Bold italic, 700 against 400 — the same slant, at the family's bold.",
+        "It is not the family's loudest pair — the SemiBold at 600 sits between",
+        "them and was where this pack started — and 700 is what it settles on",
+        "because a highlight has to be visible from the distance the caption is",
+        "read at rather than under inspection. At 40px capitals on a flat",
+        "ground, 600 against 400 is a difference a reader finds after being",
+        "told there is one; 700 is one they see. It is still short of Hall of",
+        "Femme's 200 against 800, and deliberately: that pack changes voice at",
+        "a picked word, and this one presses the same voice harder.",
+
+        "Two things follow from the face that a reader coming from any of the",
+        "sibling packs will be looking for.",
+
+        "The first is that the slab is not holding the type up here, where on",
+        "Hall of Femme it is. That pack's card and its hairline are one",
+        "decision: a 200-weight face over an unknown",
+        "photograph disappears, and the card is what makes that weight a",
+        "choice rather than a risk. A 400-weight humanist sans does not need",
+        "rescuing that way. The card is kept regardless, because it is the",
+        "form this design IS — a statement laid on the picture rather than",
+        "words burned into it — and because with a palette this plain the card",
+        "is the only place the look lives at all.",
+
+        "The second is that an all-italic block is the one setting here where",
+        "the card is doing real work beyond the look. Slanted stems make a",
+        "ragged left edge of a stack of lines, and the same slant against an",
+        "unknown photograph makes the ragged edge look like an error. Against",
+        "a flat rectangle it looks like a decision — which is a second reason",
+        "this pack keeps the joined line boxes below rather than reaching for",
+        "a single card round the block: each box is cut to its own line, so",
+        "the shape steps with the sentence instead of leaving the lean sitting",
+        "in a rectangle of air.",
+
+        "What is this show's own, then, is the palette, and it is the one pack",
+        "under this heading whose colours are neutrals and nothing else. Every",
+        "other one owns a hue — a hot pink, an electric blue, an acid yellow, a",
+        "red — and offers it both ways round against the neutrals, so that the",
+        "PAIRING is the look. Killer Bites opens on the same white-on-black",
+        "this does and is the pack to compare against rather than the ones with",
+        "loud cards: it keeps a red in the list, and that one swatch is the",
+        "difference between a show that can go quiet and a show that has",
+        "nowhere else to go. Here what the user picks is not which of sixteen",
+        "combinations to use, it is which way round to read the same card. See",
+        "`colors` below, which is honest about what that costs.",
+
+        "Uppercased, which is snapchat-caption's answer rather than this",
+        "pack's, and is argued there. It costs this pack a little more than it",
+        "costs the others, and the trade is still the right way round: italic",
+        "capitals lose the descenders and the single-storey letterforms that",
+        "make a slanted lower case obviously italic, so what survives is the",
+        "slant itself. That is enough at 40px on a flat ground, and a caption",
+        "in lower case would be a different show — which is a live option under",
+        "this heading and not a hypothetical one, since Killer Bites overrides",
+        "the same key for exactly that reason."
+    ],
+    "title": {
+        "use": "snapchat-caption",
+
+        "face": "open-sans-italic",
+
+        "_comment_color": [
+            "The channel's own answer, and therefore what every frame is set",
+            "in until somebody presses a swatch: a frame stores no colour of",
+            "its own until it is given one, and this is what it falls back to",
+            "(see state.textColorFor). It is one of the two in `colors` below,",
+            "so the white swatch is the one that shows as chosen on an",
+            "untouched frame — the swatch is found by matching this value",
+            "rather than by being listed first.",
+
+            "White letters on the black card is the pairing this show opens",
+            "on, and it is the louder of the two the palette can make. Black",
+            "is the bigger surface here — a fifth of the frame, read before",
+            "anything set on it — and a black card on a photograph reads as",
+            "something laid deliberately on the picture rather than as a gap",
+            "in it; white type is what is unambiguously legible against it at",
+            "every size, in a way that does not depend on the still",
+            "underneath. The other way round is one swatch away."
+        ],
+        "color": "#FFFFFF",
+
+
+        "_comment_colors": [
+            "The two colours this show is set in, offered for the letters and",
+            "for the slab behind them — two buttons each in the title panel",
+            "(see editor.renderColorButtons). Nothing counts the lists, so a",
+            "row of two is a row of two; see `colors` in content/README.md.",
+
+            "The same two in both lists, which on its siblings is the whole",
+            "point and here is closer to a consequence. Their palettes are",
+            "four colours offered both ways round because sixteen pairings of",
+            "a brand hue and three neutrals are sixteen different cards. Two",
+            "colours make four combinations, of which two are a caption and",
+            "two are an empty rectangle, so what this panel really offers is",
+            "one switch: white on black, or black on white.",
+
+            "That is the brand and not a shortfall. A show called Fight Source",
+            "is cut from footage that is already loud — a palette that added a",
+            "colour to it would be a third thing shouting, and the one thing a",
+            "caption on a fight clip has to do is read. Black and white is the",
+            "pairing that reads over any still ever cut, which is exactly what",
+            "the three hues its siblings own cannot promise: a hot pink card",
+            "in a red corner, an acid yellow one under yellow lighting.",
+
+            "It also leaves the italic somewhere to be the loudest thing on",
+            "the card. On a coloured slab the colour is what is read first and",
+            "the type is what is read second; with the colour gone the lean is",
+            "the only thing left with a voice, which is the arrangement this",
+            "show wants.",
+
+            "Absolute black and absolute white, and here both of those exact",
+            "values matter rather than just the black. Hall of Femme's note",
+            "explains the black: a #111 that reads as black on a monitor turns",
+            "into a grey slab beside a genuinely black picture on a phone, and",
+            "there is nothing for a true black to be too harsh against because",
+            "the card is a flat shape, not a photograph seen through it. The",
+            "white is the same argument in the other direction — an off-white",
+            "card that is a card on a monitor is a dirty one against a blown",
+            "highlight, and the whole of this palette's job is to be the two",
+            "ends of the range rather than two greys near them.",
+
+            "Nothing stops the user setting white on white, or black on black.",
+            "That is not an oversight, and it is not worth a rule either: the",
+            "two lists are independent because the switch between them is the",
+            "feature, and an invisible caption is something the user can see",
+            "is invisible and fixes by pressing the other swatch.",
+
+            "`text` reaches the highlight as well as the block — see the note",
+            "on `colors` in js/channels.js. This channel's highlight is a",
+            "different CUT of the face and not a different colour, so what",
+            "colour the type is has one answer and not two, which is what",
+            "makes a palette this short usable at all; see `_comment_highlight`",
+            "below."
+        ],
+        "colors": {
+            "text": ["#FFFFFF", "#000000"],
+            "panel": ["#FFFFFF", "#000000"]
+        },
+
+        "_comment_highlight": [
+            "The two things the preset leaves to a pack: the face a picked word",
+            "is set in, and the colour it keeps. Everything else about the",
+            "highlight — word scope, colour mode, what a mixed row costs to",
+            "draw — is snapchat-caption's and is argued there.",
+
+            "The face is the Bold italic, 700 against the block's 400. The",
+            "argument for the weight is in `_comment_title` above: the slant",
+            "is the block's, so the emphasis has nowhere to go but weight, and",
+            "700 is the step a reader sees at the distance one of these frames",
+            "is actually looked at. Two slanted cuts also make the run joins",
+            "easier to get away with than an upright-to-italic pair does —",
+            "nothing changes angle across the space between two runs, so the",
+            "eye has no vertical stem to measure the gap against.",
+
+            "The colour is the block's. The recolour therefore draws a picked",
+            "word in exactly what its neighbours are drawn in, and the face is",
+            "the whole of the difference. Stated all the same, for the",
+            "fallback reason `color` above is stated — and moved to white with",
+            "it, since a highlight that changed colour as well as weight would",
+            "be two highlights.",
+
+            "That is not merely the tidier of two options on this pack, it is",
+            "the only one: with two colours in the palette, a highlight that",
+            "changed colour could only ever be the card's own fill, which is a",
+            "hole in the sentence rather than an emphasis."
+        ],
+        "highlight": {
+            "face": "open-sans-bolditalic",
+            "color": "#FFFFFF"
+        },
+
+        "_comment_panel": [
+            "The card is snapchat-caption's, in whichever of the two colours",
+            "the frame is wearing, and `fill` is the one thing that preset",
+            "leaves to a pack because it is the one thing about the card that",
+            "IS the brand. Here it is black.",
+
+            "This and `color` above are also the only place the opening look",
+            "is stated: the two lists in `colors` are written in one order so",
+            "the two rows of buttons read as the same palette twice, which",
+            "means neither of them can decide what an untouched frame wears.",
+
+            "Two of the shared numbers land differently on an all-italic block",
+            "than they do on the packs the preset was written against, and",
+            "neither is worth overriding. The padding of 12 is measured from",
+            "the ink, and slanted ink reaches further right at the cap line",
+            "than an upright's does, so a line sits a hair closer to the right",
+            "edge of its box than to the left — which reads as the slant, not",
+            "as a mistake, and is the reason not to go looking for a smaller",
+            "number. And the shadow has to survive being thrown by a white",
+            "slab onto a white wall, which on a palette that is half white is",
+            "a case this pack produces rather than imagines."
+        ],
+        "panel": { "fill": "#000000" }
+
+
+    },
+
+    "_comment_branding": [
+        "No dark gradient, for hall-of-femme's reason: it exists to hold a",
+        "title legible against the photograph, and this title is not against",
+        "the photograph at all — it is on a slab of its own. A scrim over",
+        "every still would darken forty pictures to solve a problem the card",
+        "has already solved."
+    ],
+    "branding": { "gradient": false }
+}

@@ -1,0 +1,68 @@
+{
+    "schema": 1,
+    "id": "chelsea-market-pro",
+
+    "_comment_family": [
+        "Chelsea Market Pro ships as a single cut - a Regular, and the file in",
+        "fonts/ is it. Unlike the two Telegraf packs or the two Open Sans ones",
+        "there is no sibling here for a bare family name to be confused with,",
+        "so what gets declared is the file's own name ID 1 rather than a full",
+        "name assembled from the cut.",
+        "",
+        "'Pro' is part of that name and not a decoration on it. There is a",
+        "plain 'Chelsea Market' out in the world, and a machine answering to",
+        "that name would be answering with some other file; the two are left as",
+        "two names for the same reason 'Telegraf' on its own is left out of the",
+        "packs next door.",
+        "",
+        "Weight 400, which is the file's own usWeightClass. The face LOOKS",
+        "heavy - it is blocky hand lettering with thick, evenly weighted",
+        "strokes and flat-cut terminals - and asking for 700 on the strength of",
+        "how it looks would invite a browser to synthesise a bold on top of a",
+        "face that has no lighter cut to be bolder than."
+    ],
+    "family": "Chelsea Market Pro",
+    "weight": "400",
+
+    "file": "fonts/Chelsea Market Pro Regular.otf",
+    "format": "opentype",
+
+    "_comment_css": [
+        "Not declared in styles.css: this face arrived with a channel and is",
+        "registered from this JSON, which is the route content/README.md",
+        "describes. Nothing has to be added to the stylesheet for it."
+    ],
+    "css": false,
+
+    "_comment_local": [
+        "What the machine may already know the face by, tried after the file.",
+        "The first is the PostScript name, which in this file is also the",
+        "Windows full name (name ID 4) - they are the same unspaced string,",
+        "where most faces here carry a spaced one for Windows and an unspaced",
+        "one for PostScript. It is what the installer registers the face under,",
+        "and Windows keys installed fonts by exactly that.",
+        "",
+        "The second is the Mac full name, which in this file is the family name",
+        "over again. Listing it is safe here and would not be on most of these",
+        "packs: a family name matches every cut of a family, and this family",
+        "has one cut, so anything a machine hands back under it is this face."
+    ],
+    "local": ["ChelseaMarketPro", "Chelsea Market Pro"],
+
+    "_comment_stack": [
+        "The fallbacks are damage limitation and never a design choice - a",
+        "title laid out against the wrong metrics is broken, not merely",
+        "different, which is what fontguard exists to catch before it is ever",
+        "drawn. They are still chosen rather than copied.",
+        "",
+        "Impact and Arial Black, which most of this folder falls back through,",
+        "are absent for telegraf-ultralight's reason turned the other way up:",
+        "they are heavy grotesques, and this is hand lettering. A caption that",
+        "lost the file and came back in Impact would not read as the same brand",
+        "in a worse font, it would read as a different channel. Segoe Print and",
+        "Comic Sans MS are the nearest upright hands a Windows machine can be",
+        "relied on to have, and the generic `cursive` behind them is what CSS",
+        "has for a hand where those are gone too."
+    ],
+    "stack": "'Chelsea Market Pro', 'Segoe Print', 'Comic Sans MS', cursive"
+}

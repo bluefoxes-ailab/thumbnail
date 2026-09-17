@@ -1,0 +1,94 @@
+{
+    "schema": 1,
+    "id": "cormorant-garamond-regular",
+
+    "_comment_family": [
+        "Cormorant Garamond ships as a family of weights - a Light, this",
+        "Regular, a Medium, a SemiBold and a Bold, each with an italic - and",
+        "every one of them carries 'Cormorant Garamond' as name ID 1. The one",
+        "file in fonts/ is the Regular. Asking for the bare family name would",
+        "therefore be asking for whichever cut a machine happens to have, and",
+        "the local() route below is precisely where that would happen, so the",
+        "full name (name ID 4) is what gets declared instead - the same answer",
+        "texturina-18pt-regular and the two Telegraf packs reached, for their",
+        "reason.",
+        "",
+        "It is worth more here than the single shipped file suggests. Cormorant",
+        "is one of the most widely installed families Google gives away, so a",
+        "machine already carrying the whole of it is an ordinary case rather",
+        "than a hypothetical one - and a SemiBold answering to the family name",
+        "would set this channel's captions in a weight nothing measured, on a",
+        "face whose entire character is how light it is.",
+        "",
+        "Weight 400, which is the file's own usWeightClass and what the cut is",
+        "called."
+    ],
+    "family": "Cormorant Garamond Regular",
+    "weight": "400",
+
+    "file": "fonts/CormorantGaramond-Regular.ttf",
+    "format": "truetype",
+
+    "_comment_metrics": [
+        "One number about this face reaches the channel that uses it, and it",
+        "is written down here because it is the face's and not the channel's.",
+        "",
+        "The x-height is 386 units of a 1000-unit em, against a cap height of",
+        "625. That is a Garamond: the lower case is small relative to the",
+        "capitals and the ascenders run well past them, which is what the",
+        "letterforms are for and not a defect to be corrected with a larger",
+        "size. At the Snapchat preset's stated 40px it comes out as a 15.4px",
+        "x-height where Telegraf UltraLight - what Hall of Femme sets the same",
+        "caption in - gives 20.0px, so the same sentence at the same stated",
+        "size reads smaller here than it does there.",
+        "",
+        "The capitals do not lose nearly as much: 25.0px against Telegraf's",
+        "26.6px, near enough the same. Which of the two numbers a channel",
+        "lands on is decided by `uppercase`, and crowned-ladies-nw is where",
+        "that decision and its reasons are written out."
+    ],
+
+    "_comment_css": [
+        "Not declared in styles.css: this face arrived with a channel and is",
+        "registered from this JSON, which is the route content/README.md",
+        "describes. Nothing has to be added to the stylesheet for it."
+    ],
+    "css": false,
+
+    "_comment_local": [
+        "What the machine may already know the face by, tried after the file,",
+        "and also the name the installer registers the file under when it puts",
+        "a copy into Windows (engine.install_fonts takes the first entry).",
+        "",
+        "The full name first and the PostScript name behind it, in that order,",
+        "because Windows keys installed fonts by name ID 4 - so the entry the",
+        "installer writes and the name a local() can resolve are the same",
+        "string. Both name this one cut rather than the family, which is the",
+        "whole point of the note above: 'Cormorant Garamond' on its own is",
+        "deliberately absent, because it is the name all ten cuts answer to."
+    ],
+    "local": ["Cormorant Garamond Regular", "CormorantGaramond-Regular"],
+
+    "_comment_stack": [
+        "The fallbacks are damage limitation and never a design choice - a",
+        "title laid out against the wrong metrics is broken rather than merely",
+        "different, which is what fontguard exists to catch before anything is",
+        "drawn. They are still chosen rather than copied, and the choice here",
+        "is texturina-18pt-regular's exactly, because the position is: a",
+        "literary serif that has to keep being a serif if its file goes",
+        "missing.",
+        "",
+        "Georgia first - the one serif on every Windows this app runs on that",
+        "was drawn for reading on a screen, with hairlines sturdy enough to",
+        "survive it. Times New Roman behind it as the floor: a poorer stand-in",
+        "for a face this light, since it was drawn for print at newspaper",
+        "sizes, but present everywhere and at least a serif.",
+        "",
+        "Impact and Arial Black, which most of this folder falls back through,",
+        "are absent for the reason they are absent there. They are heavy sans",
+        "display grotesques and this is the opposite of one, so falling back",
+        "to either would make the single thing that survives a missing file the",
+        "furthest possible thing from it."
+    ],
+    "stack": "'Cormorant Garamond Regular', Georgia, 'Times New Roman', serif"
+}

@@ -1,0 +1,40 @@
+{
+    "schema": 1,
+    "id": "telegraf-ultrabold",
+
+    "_comment_family": [
+        "The other end of the same family, and the reason both packs declare",
+        "a full name instead of 'Telegraf': the two files share name ID 1, so",
+        "the family alone names neither of them. See the note in",
+        "telegraf-ultralight.json, which this pack is the other half of.",
+        "",
+        "Weight 800 rather than 700, because that is what the cut is called",
+        "and what the file is: asking for 700 invites a browser to synthesise",
+        "the difference on top of a face that already has it."
+    ],
+    "family": "Telegraf UltraBold",
+    "weight": "800",
+
+    "file": "fonts/Telegraf UltraBold 800.otf",
+    "format": "opentype",
+
+    "_comment_css": [
+        "Not declared in styles.css: this face arrived with a channel and is",
+        "registered from this JSON, which is the route content/README.md",
+        "describes. Nothing has to be added to the stylesheet for it."
+    ],
+    "css": false,
+
+    "_comment_local": [
+        "What the machine may already know the face by, tried after the file.",
+        "The first is the PostScript name and is also what the installer",
+        "registers the face under; the second is the Windows full name. Both",
+        "name this one cut rather than the family, so a machine answering to",
+        "either is answering with this file. 'Telegraf' on its own is",
+        "deliberately absent: it is the name the UltraLight answers to as",
+        "well."
+    ],
+    "local": ["Telegraf-UltraBold", "Telegraf UltraBold"],
+
+    "stack": "'Telegraf UltraBold', Impact, 'Arial Black', sans-serif"
+}

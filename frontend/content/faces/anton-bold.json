@@ -1,0 +1,100 @@
+{
+    "schema": 1,
+    "id": "anton-bold",
+
+    "_comment_family": [
+        "Anton asked for at 700 — a weight this family DOES NOT HAVE as a",
+        "file, which is the whole of what makes this pack unusual and the",
+        "reason it is this long. Read it before setting anything else in it.",
+
+        "Anton is a single-weight family by design. There is one cut, it is",
+        "the Regular in fonts/, and there is no bold of it to ship: a channel",
+        "asking to pick its words out in 'Anton Bold' cannot be handed a",
+        "second file the way hall-of-femme is handed Telegraf's 200 and 800.",
+        "So this face is the same file asked for by a heavier name, and the",
+        "browser makes up the difference.",
+
+        "The family is 'Anton' and not an alias, and that is what does the",
+        "work. The stylesheet declares 'Anton' at font-weight 400 (see",
+        "styles.css) and nothing else on the machine answers to the name, so a",
+        "canvas asking for `700 40px \"Anton\"` matches that one 400 face and",
+        "Blink emboldens its outlines itself. Synthetic bold, in other words,",
+        "requested deliberately and by the only route there is."
+    ],
+    "family": "Anton",
+    "weight": "700",
+
+    "_comment_safety": [
+        "Why that is not the failure fontguard exists to catch, and why it",
+        "would be one under almost any other circumstance.",
+
+        "The thing fontguard is guarding against is a block laid out against",
+        "one face's metrics and drawn in another's — a title composed against",
+        "numbers that describe a font nobody can see. Nothing of that kind",
+        "happens here, because there is only ever one file. The measurement",
+        "and the draw go through the same font string (see `styleFor` and",
+        "`textProps` in js/text.js), so whatever the browser does to the",
+        "outlines it does to both halves at once: the advances a row is",
+        "stacked and broken on come back from the same call that paints it.",
+
+        "One caveat, and it is worth a sentence rather than a footnote. An",
+        "emboldened glyph is the 400 stroked outward, so it can spill a",
+        "fraction of a pixel past the ink bounds measured for it — a box",
+        "padded to a picked word therefore sits a hair tighter than the same",
+        "box round a word in a real bold cut would. At 40px on a box padded by",
+        "about five that is under a pixel, and it is a box, not a line break.",
+
+        "What this face must NOT be asked to carry is a highlight that is",
+        "weight and nothing else. Anton is already a heavy condensed display",
+        "face; stroking it outward by a fraction of its own weight is a",
+        "refinement, not a step somebody reads from across a room. The one",
+        "channel set in it picks its words out in near-black on a yellow box",
+        "and the weight is the third thing that changes, not the first (see",
+        "conspiracy-central). A channel wanting weight to be the highlight",
+        "should reach for a family that has two real cuts, the way",
+        "hall-of-femme does.",
+
+        "fontguard keys its check by family, so this face and anton.json",
+        "share one answer rather than being verified separately. That is",
+        "correct here for the same reason all of the above is: they are one",
+        "file, and verifying 'Anton' verifies both of them."
+    ],
+
+    "file": "fonts/Anton-Regular.ttf",
+    "format": "truetype",
+
+    "_comment_css": [
+        "Declared in styles.css, like anton.json beside it — and here that is",
+        "load-bearing rather than bookkeeping. Registering a second FontFace",
+        "under the family name 'Anton' at weight 700 is the one thing that",
+        "must not happen: the browser would then have an exact match at 700,",
+        "would stop emboldening, and would hand back the Regular's own",
+        "outlines. The 'bold' would come out pixel-identical to the block it",
+        "is meant to be picked out of, silently, with every measurement",
+        "agreeing.",
+
+        "`registerFace` in js/channels.js also skips a family that is already",
+        "present, so this is stated rather than relied upon — two answers to",
+        "one question, because the failure has no symptom to notice."
+    ],
+    "css": true,
+
+    "_comment_local": [
+        "What the machine may already know the face by. Unused while `css` is",
+        "true — the stylesheet's own declaration carries the same two local()",
+        "sources after the url() — and kept in step with anton.json so that",
+        "the two packs describing one file do not describe it differently."
+    ],
+    "local": ["Anton", "Anton-Regular"],
+
+    "_comment_stack": [
+        "The fallbacks are damage limitation and never a design choice: a",
+        "title laid out against the wrong metrics is broken rather than merely",
+        "different, which is what fontguard exists to catch before it is ever",
+        "drawn. Impact and Arial Black behind it because Anton is a heavy",
+        "condensed display cut and those are the nearest things a Windows",
+        "machine is certain to have. The same stack as anton.json, for the",
+        "reason `local` above is the same list."
+    ],
+    "stack": "'Anton', Impact, 'Arial Black', sans-serif"
+}

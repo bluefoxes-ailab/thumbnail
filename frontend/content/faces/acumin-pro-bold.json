@@ -1,0 +1,62 @@
+{
+    "schema": 1,
+    "id": "acumin-pro-bold",
+
+    "_comment_family": [
+        "The other end of the pair, and fitness-story-de's highlight face.",
+        "Read acumin-pro.json first: it is the half of this family the block",
+        "is set in, and the naming argument is stated there in full rather",
+        "than twice.",
+        "",
+        "The short of it: the two files share name ID 1 ('Acumin Pro'), so",
+        "the family alone names neither of them, and this one is declared",
+        "under its full name (ID 4) the way telegraf-ultrabold is. That the",
+        "Regular could not be is the asymmetry explained next door.",
+        "",
+        "Weight 700, which is what the file's OS/2 table says and what the",
+        "cut is. Asking for it by a name that only resolves to the Regular",
+        "would invite a browser to synthesise the difference on top of a face",
+        "that already has it — which is exactly what anton-bold does on",
+        "purpose, and it is worth knowing that this is the opposite case:",
+        "here the weight exists as a file and there is no reason to have a",
+        "browser guess at it.",
+        "",
+        "700 and not 800: 700 is the only bold Acumin Pro ships here, and a",
+        "descriptor of 800 against a 700 file is the same invitation in the",
+        "other direction."
+    ],
+    "family": "Acumin Pro Bold",
+    "weight": "700",
+
+    "file": "fonts/Acumin Pro Bold.otf",
+    "format": "opentype",
+
+    "_comment_css": [
+        "Not declared in styles.css: this face arrived with a channel and is",
+        "registered from this JSON, which is the route content/README.md",
+        "describes. Nothing has to be added to the stylesheet for it."
+    ],
+    "css": false,
+
+    "_comment_local": [
+        "What the machine may already know the face by, tried after the file.",
+        "The first is the PostScript name and is also what the installer",
+        "registers the face under; the second is the Windows full name. Both",
+        "name this one cut rather than the family, so a machine answering to",
+        "either is answering with this file — which is exactly what the",
+        "fallback route is for. Unlike the Regular this cut HAS a full name",
+        "of its own, so both routes are listed. 'Acumin Pro' on its own is",
+        "absent for the reason it is absent next door: it is the name the",
+        "Regular answers to as well."
+    ],
+    "local": ["AcuminPro-Bold", "Acumin Pro Bold"],
+
+    "_comment_stack": [
+        "acumin-pro's fallbacks, with nothing added. Arial has a real bold",
+        "and the canvas asks at 700, so the weight descriptor is what reaches",
+        "it — there is no need to name a specific heavy face the way",
+        "hanken-grotesk-extrabolditalic names Segoe UI Black, which it does",
+        "only because 800 is past where Segoe UI's own family stops."
+    ],
+    "stack": "'Acumin Pro Bold', Arial, 'Segoe UI', Helvetica, sans-serif"
+}

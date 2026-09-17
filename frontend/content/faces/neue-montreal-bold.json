@@ -1,0 +1,73 @@
+{
+    "schema": 1,
+    "id": "neue-montreal-bold",
+
+    "_comment_family": [
+        "The file's full name (name ID 4) rather than its family (ID 1), which",
+        "is 'Neue Montreal' - the same choice the two Telegraf packs make, and",
+        "for their reason turned around. Neue Montreal ships upstream as a",
+        "family running Thin to Bold with an italic beside each, so the family",
+        "name alone names none of them: a machine handed 'Neue Montreal' would",
+        "answer with whichever cut it happens to have, and the Regular at this",
+        "size is a caption laid out against stems that are not there. The app",
+        "carries the Bold only, so the Bold is what gets declared.",
+        "",
+        "That is a fact about what is in fonts/ and not about the family, in",
+        "the way league-spartan's note is: the day a second cut is dropped in",
+        "beside this one it needs its own pack declaring its own full name,",
+        "and nothing here has to change for it.",
+        "",
+        "Weight 700, which is what the file's OS/2 table says and what its",
+        "subfamily (ID 2) calls it. Asking for 800 or 900 here would invite a",
+        "browser to synthesise a weight this file does not contain, and a",
+        "synthesised weight is measured as well as drawn - the caption would",
+        "be laid out against letters nobody chose."
+    ],
+    "family": "Neue Montreal Bold",
+    "weight": "700",
+
+    "file": "fonts/NeueMontreal-Bold.otf",
+    "format": "opentype",
+
+    "_comment_css": [
+        "Not declared in styles.css. This face arrived with a channel and is",
+        "registered from this JSON at load time (see registerFace in",
+        "js/channels.js), which is the route content/README.md describes -",
+        "nothing has to be added to the stylesheet for it."
+    ],
+    "css": false,
+
+    "_comment_local": [
+        "What the machine may already know the face by, tried after the file,",
+        "and used by the installer as the name it registers this face under",
+        "(see engine.install_fonts, which takes the first).",
+        "",
+        "The PostScript name first, then the Windows full name. Both name this",
+        "one cut, so a machine answering to either is answering with these",
+        "letterforms. The family on its own is deliberately absent for the",
+        "reason given above - it is the name every other weight of Neue",
+        "Montreal answers to as well, and the fallback route exists to produce",
+        "this file's metrics or nothing."
+    ],
+    "local": ["NeueMontreal-Bold", "Neue Montreal Bold"],
+
+    "_comment_stack": [
+        "The fallbacks are damage limitation and never a design choice - a",
+        "caption laid out against the wrong metrics is broken rather than",
+        "merely different, which is what fontguard exists to catch before",
+        "anything is drawn. Chosen all the same: Neue Montreal is a",
+        "neo-grotesque, closed apertures and level terminals, which is the",
+        "family Helvetica belongs to and Arial is the copy of that every",
+        "Windows machine has. Segoe UI behind it for the machine that somehow",
+        "lacks even that, humanist rather than grotesque and so the second",
+        "choice rather than the first.",
+        "",
+        "Impact and Arial Black are absent for garet-book's reason: they are",
+        "display cuts drawn to be set enormous, and putting one behind a text",
+        "grotesque at caption size would make the one thing that survives a",
+        "missing file the furthest possible thing from it. The weight comes",
+        "from the font shorthand rather than from the stack, so Arial named",
+        "here is Arial Bold when this face is asked for."
+    ],
+    "stack": "'Neue Montreal Bold', Arial, 'Segoe UI', sans-serif"
+}

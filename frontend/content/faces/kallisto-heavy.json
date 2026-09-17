@@ -1,0 +1,73 @@
+{
+    "schema": 1,
+    "id": "kallisto-heavy",
+
+    "_comment_family": [
+        "The other end of the same family, and the pack kallisto-medium is the",
+        "other half of: read the note there first, because the reason both",
+        "declare a cut name instead of 'Kallisto' is stated once, in that one.",
+        "",
+        "The short of it is that the file has done the splitting itself. Its",
+        "Windows records carry 'Kallisto Heavy' as name ID 1 and as the full",
+        "name ID 4, with the bare 'Kallisto' left in the typographic family",
+        "(ID 16), so the name declared here answers with this cut and the",
+        "Medium beside it cannot answer to it. That is what lets one channel",
+        "be set in both at once (see `highlight.face` in js/channels.js):",
+        "fontguard keys its check by family, so each cut is verified in its",
+        "own right and a missing one is named in the banner by itself.",
+        "",
+        "Weight 900, which is the file's own usWeightClass and what the cut is",
+        "called. Asking for 700 would invite a browser to synthesise a",
+        "difference this file already has."
+    ],
+    "family": "Kallisto Heavy",
+    "weight": "900",
+
+    "file": "fonts/Kallisto Heavy.otf",
+    "format": "opentype",
+
+    "_comment_css": [
+        "Not declared in styles.css: this face arrived with a channel and is",
+        "registered from this JSON, which is the route content/README.md",
+        "describes. Nothing has to be added to the stylesheet for it."
+    ],
+    "css": false,
+
+    "_comment_local": [
+        "What the machine may already know the face by, tried after the file.",
+        "The first is the Windows full name (name ID 4) and the second the",
+        "PostScript name (ID 6); both name this one cut rather than a family",
+        "with cuts in it, and the first is what the installer registers the",
+        "copy it puts in the user's font folder under (see",
+        "engine.install_fonts). 'Kallisto' on its own is deliberately absent:",
+        "it is the name the Medium answers to as well."
+    ],
+    "local": ["Kallisto Heavy", "Kallisto-Heavy"],
+
+    "_comment_stack": [
+        "The fallbacks are damage limitation and never a design choice - see",
+        "the longer note in kallisto-medium, which the reasoning here is the",
+        "heavy end of.",
+        "",
+        "It lands somewhere better than that one does, and the numbers are why",
+        "this face gets its own list rather than the Medium's. Kallisto Heavy's",
+        "capitals average 0.768em; Arial Black's average 0.769em and Verdana",
+        "Bold's 0.765em. Both are within half a percent of the face they stand",
+        "in for, and both are black or bold cuts standing in for a 900 - which",
+        "is the rare case where a fallback keeps the weight AND the width, and",
+        "the picked words in a caption go on reading as picked words rather",
+        "than as a lighter face at a different size.",
+        "",
+        "Arial Black leads because it is the 900 of the two and is on every",
+        "Windows this app runs on. Verdana Bold behind it for the width, then",
+        "Segoe UI - which at the declared 900 resolves to Segoe UI Black,",
+        "0.689em and the narrowest of the three, so it is last of the named",
+        "faces rather than first.",
+        "",
+        "Impact is absent, alone among the heavy display faces a pack this",
+        "weight might reach for. At 0.509em it is a third narrower than what",
+        "these words were measured against: a picked word that came back in it",
+        "would not be a heavier word, it would be a shorter one."
+    ],
+    "stack": "'Kallisto Heavy', 'Arial Black', Verdana, 'Segoe UI', sans-serif"
+}

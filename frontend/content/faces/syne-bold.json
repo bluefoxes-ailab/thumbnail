@@ -1,0 +1,69 @@
+{
+    "schema": 1,
+    "id": "syne-bold",
+
+    "_comment_family": [
+        "Syne ships as a family - an Extra, a Bold, a Semi Bold and a Regular",
+        "- and every one of those files carries 'Syne' as name ID 1, with the",
+        "cut in the subfamily. Asking for 'Syne' alone would let any of them",
+        "answer, and this face is used as a HIGHLIGHT: a Regular answering in",
+        "its place would put a picked word in the same weight as a hand it is",
+        "supposed to be interrupting.",
+        "",
+        "So the full name (name ID 4) is what gets declared, the same way",
+        "gilroy-extrabold and the two Telegraf packs declare theirs. This file",
+        "spells it with a space and its PostScript name with a hyphen, and",
+        "both spellings are listed in `local` below rather than one of them",
+        "being tidied into the other.",
+        "",
+        "Weight 700, which is the file's own usWeightClass and what the cut is",
+        "called. Asking for 800 here would invite a browser to synthesise a",
+        "weight on top of a face that already has its own."
+    ],
+    "family": "Syne Bold",
+    "weight": "700",
+
+    "file": "fonts/Syne-Bold.ttf",
+    "format": "truetype",
+
+    "_comment_css": [
+        "Not declared in styles.css: this face arrived with a channel and is",
+        "registered from this JSON, which is the route content/README.md",
+        "describes. Nothing has to be added to the stylesheet for it."
+    ],
+    "css": false,
+
+    "_comment_local": [
+        "What the machine may already know the face by, tried after the file.",
+        "The first is the PostScript name and is also what the installer",
+        "registers the face under; the second is the Windows full name. Both",
+        "name this one cut rather than the family, so a machine answering to",
+        "either is answering with this file - which is exactly what the",
+        "fallback route is for. 'Syne' on its own is deliberately absent: it",
+        "is the family, and every other weight of it answers to that."
+    ],
+    "local": ["Syne-Bold", "Syne Bold"],
+
+    "_comment_stack": [
+        "Damage limitation, and the one thing it must not do is fall through",
+        "to the same face the block does. This face is a highlight: its whole",
+        "job is to be a visibly different hand from Brittany Signature on the",
+        "same line, and a stack that ended up at the same substitute would",
+        "leave a picked word identical to the words either side of it - a",
+        "failure that draws no attention to itself, which is the kind this app",
+        "has been bitten by before (see the note in marydale-bold.json).",
+        "",
+        "That is why the two stacks are written as opposites and converge",
+        "nowhere: brittany-signature falls through Segoe Script and Brush",
+        "Script into `cursive`, and this one falls through Segoe UI and Arial",
+        "into `sans-serif`. Whatever a machine is missing, the picked word",
+        "stays the grotesque and the block stays the hand.",
+        "",
+        "Impact and Arial Black are absent on purpose. Syne Bold is a display",
+        "grotesque, so they are at least the right genus - but they are far",
+        "heavier and much narrower than it is, and a highlight substituted by",
+        "something louder than the real one is a highlight that has changed",
+        "what the caption emphasises rather than merely how."
+    ],
+    "stack": "'Syne Bold', 'Segoe UI', Arial, sans-serif"
+}

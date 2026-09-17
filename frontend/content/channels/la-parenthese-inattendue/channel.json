@@ -1,0 +1,106 @@
+{
+    "schema": 1,
+    "id": "la-parenthese-inattendue",
+    "name": "La Parenthèse Inattendue",
+    "order": 60,
+    "group": "France TV",
+
+    "title": {
+        "face": "gilroy-extrabold",
+        "color": "#FFFFFF",
+
+        "_comment_shadow": [
+            "A hard shadow, not a soft one: no blur at all, so what lands",
+            "behind every letter is a second, solid black copy of it. That",
+            "crispness is the channel's look — a blurred version of the same",
+            "numbers reads as a printing fault rather than as a deliberate",
+            "second layer.",
+            "",
+            "1.5px, which is close enough to the letterform to read as weight",
+            "on the type rather than as a shape behind it. The fractional half",
+            "is deliberate and survives: nothing rounds an offset, and at 1px",
+            "the shadow lands exactly on the pixel grid and comes out as a",
+            "hard hairline instead of a shoulder.",
+            "",
+            "It is thrown to the LEFT and DOWN. Every other channel here that",
+            "carries a shadow throws it down and to the right; this one is the",
+            "exception, and the sign on offsetX is the whole of it."
+        ],
+        "shadow": { "color": "#000000", "blur": 0, "offsetX": -1.5, "offsetY": 1.5 },
+
+        "_comment_layout": [
+            "The line breaks are the user's, typed into one block, and the",
+            "renderer reproduces them exactly — see `freeform` in channels.js.",
+            "This channel's titles are written as sentences that break where",
+            "the writer wants them to break, which the three fixed line slots",
+            "cannot express.",
+            "",
+            "One size for the whole block follows from that. Fitting each line",
+            "to the full width would make a line's size a function of how many",
+            "characters happen to be in it, and with the breaks in the user's",
+            "hands that is a lever they would be pulling on constantly without",
+            "meaning to: adding a word to line 2 would resize line 2. At one",
+            "shared size a break moves words and nothing else."
+        ],
+        "layout": { "uniformSize": true, "freeform": true },
+
+        "_comment_highlight": [
+            "Per WORD, not per line — the user clicks the words themselves in",
+            "the panel, and each one gets its own green box. Two words picked",
+            "side by side get ONE box spanning both, the space between them",
+            "filled in (see pickedSpans in text.js).",
+            "",
+            "A picked word gives up its own hard shadow — the green box is",
+            "what lifts it off the photo, and shadowed letters inside a",
+            "shadowed box read as a printing fault. The words beside it keep",
+            "theirs, which is why a line with both kinds in it is drawn twice",
+            "(see the two-copy note in text.js).",
+            "",
+            "The box's own shadow is Supermission's letter shadow, to the",
+            "number: the same soft dark that lifts white type off a photo",
+            "there is what lifts this box off one here."
+        ],
+        "highlight": {
+            "mode": "box",
+            "scope": "word",
+            "fill": "#6E8601",
+            "color": "#FFFFFF",
+            "shadow": { "color": "rgba(0,0,0,0.8)", "blur": 12, "offsetX": 3, "offsetY": 3 }
+        },
+
+        "_comment_glow": [
+            "The Karens halo, offered rather than applied: `toggle` makes it a",
+            "button in the panel instead of part of the channel, off until the",
+            "user turns it on for a frame.",
+            "",
+            "Shared with Karens Unleashed through the preset on purpose. It is",
+            "one design used in two places — the same light, at the same",
+            "radius, stacked the same number of times — so a change to it is",
+            "meant to reach both. See superlove's glow for the opposite case,",
+            "where the overrides ate the preset and it was written out in full."
+        ],
+        "glow": { "use": "karen-glow", "toggle": true },
+
+        "_comment_movable": [
+            "The one channel whose title is placed by hand. Everywhere else the",
+            "block sits where the guidelines put it, which is the point of",
+            "having guidelines; here the photo is part of the composition and",
+            "the title is moved and sized around whatever is in it."
+        ],
+        "movable": true
+    },
+
+    "_comment_branding": [
+        "Title left, subject right — what the automatic framing already",
+        "produces, so neither flip is needed.",
+        "",
+        "No dark gradient. This channel's type carries its own contrast: a",
+        "hard black shadow on every letter, and a green box under whatever is",
+        "picked out. A gradient under all that is a dark smear across the",
+        "photo doing a job already done — and this is the one channel whose",
+        "title is placed against what is IN the photo, so anything that",
+        "changes the photo's own values fights the placement. Per frame it is",
+        "still a button away."
+    ],
+    "branding": { "gradient": false, "flipImage": false, "flipText": false }
+}

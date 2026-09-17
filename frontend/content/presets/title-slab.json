@@ -1,0 +1,25 @@
+{
+    "schema": 1,
+    "id": "title-slab",
+
+    "_comment": [
+        "The black slab a title is set on, shared by the channels that use one.",
+        "",
+        "Named rather than repeated per channel because it is one design, not",
+        "two that happen to match — a change to the border or the shadow is",
+        "meant to reach both, and two copies would drift the first time only",
+        "one was edited.",
+        "",
+        "The shadow falls straight down, with no sideways offset, because the",
+        "panel sits hard against one side of the frame: with the block on the",
+        "right, a shadow offset to the right ran off the canvas and was clipped",
+        "along its whole edge — the slab stopped reading as lifted on exactly",
+        "the side you look at first. Straight down is the one direction that",
+        "survives the block being on either side."
+    ],
+
+    "fill": "#000000",
+    "border": { "width": 6, "color": "#FFFFFF" },
+    "padding": 20,
+    "shadow": { "color": "rgba(0,0,0,0.55)", "blur": 20, "offsetX": 0, "offsetY": 8 }
+}

@@ -1,0 +1,65 @@
+{
+    "schema": 1,
+    "id": "proxima-nova-bold",
+
+    "_comment_family": [
+        "The other cut of the same family, and the reason both packs declare a",
+        "full name instead of 'Proxima Nova': the two files share name ID 16,",
+        "so the family alone names neither of them. See the note in",
+        "proxima-nova-black.json, which this pack is the other half of - it is",
+        "also where the third spelling, the 'Proxima Nova Rg' this file writes",
+        "into name ID 1, is explained and refused.",
+        "",
+        "Weight 700, which is the file's own usWeightClass and what the cut is",
+        "called.",
+        "",
+        "700 against the Black's 900 is a narrower gap than the pack this",
+        "design was cut from works with, and that is a fact about the channels",
+        "rather than about these files - beauty-hacks states it where it picks",
+        "the two, with the measurements, and every channel cut to that design",
+        "since names it there rather than restating it."
+    ],
+    "family": "Proxima Nova Bold",
+    "weight": "700",
+
+    "file": "fonts/proximanova_bold.otf",
+    "format": "opentype",
+
+    "_comment_css": [
+        "Not declared in styles.css: this face arrived with a channel and is",
+        "registered from this JSON at load time (see registerFace in",
+        "js/channels.js), which is the route content/README.md describes.",
+        "Nothing has to be added to the stylesheet for it."
+    ],
+    "css": false,
+
+    "_comment_local": [
+        "What the machine may already know the face by, tried after the file,",
+        "and used by the installer as the name it registers this face under",
+        "(see engine.install_fonts, which takes the first).",
+        "",
+        "The PostScript name first, then the Windows full name. Both name this",
+        "one cut rather than the family or the four-style group it was filed",
+        "in, so a machine answering to either is answering with this file."
+    ],
+    "local": ["ProximaNova-Bold", "Proxima Nova Bold"],
+
+    "_comment_stack": [
+        "The lighter half of the pair proxima-nova-black.json describes, and",
+        "written against it: that stack falls to Arial Black and this one",
+        "falls to Segoe UI Semibold, so a machine missing both files still",
+        "draws the two cuts at two weights rather than at one. Which of them",
+        "is the block and which is the picked word is the channel's, and every",
+        "channel carrying the pair answers it the same way: this cut is the",
+        "block and the Black is what a picked word climbs to. The fallback",
+        "pair does not have to know, because what it preserves is the gap.",
+        "",
+        "Arial Black and Impact are therefore absent on purpose, which is the",
+        "opposite of what a bold grotesque would normally fall through. Either",
+        "of them behind this face would land it in the same register as the",
+        "other cut's own fallback and take the difference between them away -",
+        "and on a channel whose highlight IS the difference in weight, that is",
+        "the whole of the highlight gone."
+    ],
+    "stack": "'Proxima Nova Bold', 'Segoe UI Semibold', 'Segoe UI', Arial, sans-serif"
+}

@@ -1,0 +1,132 @@
+{
+    "schema": 1,
+    "id": "superlove",
+    "name": "Superlove",
+    "order": 50,
+    "group": "QDS Karma",
+
+    "title": {
+        "face": "scale-condensed-bold",
+        "color": "#FFFFFF",
+
+        "_comment_shadow": [
+            "No drop shadow on the type. The slab under it is opaque and the",
+            "glow under that is what lifts the whole thing off the photo, so a",
+            "shadow would only be a smudge inside an object that already has an",
+            "edge of its own."
+        ],
+        "shadow": null,
+
+        "_comment_layout": [
+            "The one channel that is NOT justified. Every other channel fits",
+            "each line to the full width at its own size, so the block comes out",
+            "with two straight edges; here the whole block is set at one size",
+            "and a short line is allowed to be short, centred over the lines",
+            "around it.",
+            "",
+            "The slab is what makes the difference. Justified, it is a plain",
+            "rectangle and the type inside it has to be resized line by line to",
+            "keep it one; unjustified, the slab takes the shape of the words —",
+            "stepping in and out around a short line — and that silhouette is",
+            "the thing this channel is recognisable by. It also means the type",
+            "keeps one size, so nothing is enlarged for the sake of the edge."
+        ],
+        "layout": { "uniformSize": true },
+
+        "_comment_outline": [
+            "The keyline between the white letters and the slab. Thin on",
+            "purpose — it is there to stop the two reading as one another,",
+            "not to be seen as an outline."
+        ],
+        "outline": { "width": 3, "color": "#880230" },
+
+        "_comment_sticker": [
+            "The second, much wider outline, drawn under the letters and under",
+            "their keyline. At 25px it runs into itself between neighbouring",
+            "letters and between the lines, so the strokes stop being outlines",
+            "and become one solid block with the type cut into it.",
+            "",
+            "The gradient is mapped across that whole block, corner to corner:",
+            "bottom-left to top-right, in three bands rather than one even",
+            "fade. Red is the block's own colour and holds flat across the",
+            "middle 30%; the corners take 35% each, one coming up out of the",
+            "pale pink and one dropping into the deep red. Keeping a flat band",
+            "in the middle at all is the point — a wash between the same three",
+            "colours over the whole run would leave no field of red anywhere,",
+            "only a different colour in every letter."
+        ],
+        "sticker": {
+            "width": 25,
+            "fill": {
+                "from": [0, 1],
+                "to": [1, 0],
+                "stops": [
+                    { "at": 0,    "color": "#FEC2BC" },
+                    { "at": 0.35, "color": "#E60402" },
+                    { "at": 0.65, "color": "#E60402" },
+                    { "at": 1,    "color": "#900235" }
+                ]
+            }
+        },
+
+        "_comment_glow": [
+            "Built the way the Karens halo is — the shape drawn again underneath",
+            "and blurred, stacked three times so the falloff stays soft while",
+            "the core gains body — but written out here rather than taken from",
+            "the `karen-glow` preset.",
+            "",
+            "It started as that preset with overrides, and the overrides ate it:",
+            "different colour, different opacity, different radius, with only",
+            "the layer count left in common. A preset is for one design two",
+            "channels share, and this is no longer that design — sharing it",
+            "would only mean each channel's halo could be changed by an edit",
+            "aimed at the other one. Karens keeps the preset untouched.",
+            "",
+            "The radius is 15 against Karens' 55, and the gap is not as wide as",
+            "it looks: this halo is thrown by the SLAB and not by the letters",
+            "(what the renderer does wherever a sticker exists, since the slab",
+            "is the shape on screen and so the shape the light comes off), so it",
+            "starts from a shape 25px larger in every direction. It is meant to",
+            "read as light coming off the block, not as weather around it — the",
+            "block already has an edge of its own, and all this has to do is put",
+            "it in front of the photo rather than printed on it.",
+            "",
+            "The number that was actually chosen is the REACH: 19px of visible",
+            "light past the slab, which 15 happens to produce. Radius is not a",
+            "good handle on this halo, because `layers` stacks three passes at",
+            "full opacity and each one re-darkens the faint outer edge of the",
+            "one below into visibility — so the light carries about a quarter",
+            "further than the radius alone suggests, and halving the radius does",
+            "not halve what anyone sees. Anything that changes `layers` or",
+            "`opacity` changes the reach too, and the reach is the thing this",
+            "channel was tuned by."
+        ],
+        "glow": {
+            "blur": 15,
+            "opacity": 1,
+            "layers": 3,
+            "color": "#FDB4AE"
+        },
+
+        "_comment_highlight": [
+            "This channel has no highlight feature. Every line gets the same",
+            "treatment — white on the one slab — and there is nothing a",
+            "highlighted line could be that would not just look like a mistake",
+            "in the block. `null` says so outright, and the Highlight Line",
+            "buttons go dead for it rather than doing nothing visible."
+        ],
+        "highlight": null
+    },
+
+    "_comment_branding": [
+        "Title left, subject right — what the automatic framing already",
+        "produces, so neither flip is needed.",
+        "",
+        "No dark gradient behind the title, which is the one place this channel",
+        "departs from the default. The gradient exists to hold white type off a",
+        "bright photo; here the type is on an opaque slab that does that job",
+        "completely, so all a gradient would add is a dark smear across the",
+        "photo beside it. Per frame it is still a button away."
+    ],
+    "branding": { "gradient": false, "flipImage": false, "flipText": false }
+}

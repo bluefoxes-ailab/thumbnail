@@ -1,0 +1,210 @@
+{
+    "schema": 1,
+    "id": "noisy-dish",
+    "name": "Noisy Dish",
+
+    "_comment_group": [
+        "Another show under the Snapchat heading, built to Hall of Femme's",
+        "brief. Everything that makes it a Snapchat pack is Hall of Femme's and",
+        "is stated in the same two references: the frame fetch, the vertical",
+        "output, the transcription, the rewrite, and how the caption is set.",
+        "",
+        "Where it parts company with its neighbours is not the type at all, it",
+        "is the PICTURE. Every other channel under this heading delivers the",
+        "still edge to edge and puts a card of type on it. This one delivers",
+        "the still as a card of its own, lying on a ground the channel paints",
+        "- see `photo` below - and then sets the caption in nothing but white",
+        "letters, because the picture is now carrying all the graphic the frame",
+        "can hold.",
+        "",
+        "Written as its own folder rather than as an override of a sibling, for",
+        "the reason content/README.md gives: a channel is a folder that gets",
+        "dropped in. The prose below points at hall-of-femme wherever the",
+        "reasoning is the same and states its own where this pack decides",
+        "something."
+    ],
+    "order": 900,
+    "group": "Snapchat",
+
+    "_comment_capture": [
+        "The frame fetch, whole, from content/presets/snapchat-capture.json:",
+        "the slider's range, the 540x960 output, the transcription, and the",
+        "rewrite that turns the transcript from speech into report.",
+        "",
+        "Stated as a reference and not as numbers, because this channel has",
+        "nothing to say about any of it that its neighbours do not - and a pack",
+        "that restates a shared answer is a pack that can be missing a piece of",
+        "it."
+    ],
+    "capture": { "use": "snapchat-capture" },
+
+    "framing": { "use": "snapchat-framing" },
+
+    "_comment_photo": [
+        "The still, resized and laid on a painted ground. This is the whole of",
+        "what makes the channel look like itself, and the three parts of it are",
+        "one composition rather than three effects - see `photo` in",
+        "js/channels.js for what each key means and why the geometry is stated",
+        "the way it is.",
+        "",
+        "85% of the frame, centred. Both dimensions by the same fraction, which",
+        "is the only scaling that leaves the picture the picture: the still",
+        "arrives already cut to 540x960 (see snapchat-capture), so 0.85 is",
+        "459x816 and the crop the backend chose survives it intact. What the",
+        "margin is for is the ground: 41px of it down each side and 72px top",
+        "and bottom, which is a band of the gradient rather than a field of it",
+        "- enough to read as the frame's colour and as a deliberate edge, and",
+        "not so much that the still stops being the thing on screen.",
+        "",
+        "13px of corner radius, the same 13 the caption cards elsewhere under",
+        "this heading are rounded by (see snapchat-caption). Same reason, too:",
+        "a square-cornered picture inset on a coloured ground reads as a",
+        "letterbox, something the player did, and a rounded one reads as a",
+        "graphic somebody made.",
+        "",
+        "The backdrop runs on the diagonal: crimson in the bottom-left corner,",
+        "amber in the top-right. [0,1] to [1,0] is that corner to that corner,",
+        "measured across the canvas - the ramp is stated as the two ends of the",
+        "line it travels along and nothing about the size of what it crosses,",
+        "so it is the same statement whatever the card is sized to.",
+        "",
+        "A diagonal rather than a fall down the frame, and it is what makes the",
+        "margin worth having at 85%: a band this narrow crossed by a top-to-",
+        "bottom ramp is two flat stripes, one down each side, because the sides",
+        "are where nearly all of it is and each side is a single height. Run",
+        "corner to corner, every edge of that band travels through the whole",
+        "ramp instead, and the frame reads as one field of colour with a",
+        "picture lying on it.",
+        "",
+        "The tint is one colour and it is the join between the two halves of",
+        "the composition: a brick that is what the crimson and the amber have",
+        "in common, laid over the picture so the card looks lit by the ground",
+        "it is lying on instead of pasted onto it. Full strength along the",
+        "bottom edge of the card and gone by the top, which is the direction",
+        "every shade in this app is thrown in (see `scrim`) and the one that",
+        "puts the deepest colour where the picture meets the caption. It is a",
+        "treatment OF the photograph and is clipped to it, corners included -",
+        "that is what `tint` is for and what separates it from a scrim, which",
+        "would run out across the ground.",
+        "",
+        "To wash the whole picture evenly instead, give both stops the same",
+        "alpha; the direction and the fade are these two stops and nothing",
+        "else."
+    ],
+    "photo": {
+        "fillRatio": 0.85,
+        "radius": 13,
+        "backdrop": {
+            "from": [0, 1],
+            "to": [1, 0],
+            "stops": [
+                { "at": 0, "color": "#C2183A" },
+                { "at": 1, "color": "#F5A623" }
+            ]
+        },
+        "tint": {
+            "from": [0, 1],
+            "to": [0, 0],
+            "stops": [
+                { "at": 0, "color": "rgba(139,63,47,0.9)" },
+                { "at": 1, "color": "rgba(139,63,47,0)" }
+            ]
+        }
+    },
+
+    "_comment_title": [
+        "Bebas Neue, white, and nothing else. Every other decision about how a",
+        "caption is set under this heading - the size, where the lines break,",
+        "the capitals, where the block stands, that the user can drag it off a",
+        "face - is the Snapchat caption design and is stated once in",
+        "content/presets/snapchat-caption.json.",
+        "",
+        "Bebas has no lower case of its own, so the preset's capitals are the",
+        "face's own answer rather than a transformation laid over it (see",
+        "content/faces/bebas-neue.json).",
+        "",
+        "At the preset's 120px bottom margin the block sits inside the card,",
+        "48px up from its bottom edge, and grows upward from there however",
+        "long the caption runs. That is the deepest part of the tint, which is",
+        "what makes a card of its own unnecessary: the letters are on the one",
+        "band of the picture this channel has already painted a known colour,",
+        "rather than on an unknown photograph - which is the whole of the",
+        "argument the preset makes for a card in the first place.",
+        "",
+        "It is a margin the card can lose, though, and that is worth knowing",
+        "before either number is touched. The block is measured off the FRAME",
+        "and not off the card, so shrinking the picture moves the card's foot",
+        "up while the type stays where it is: at 0.70 the same caption crossed",
+        "the bottom edge and stood half in the ground. Nothing breaks when it",
+        "does - the amber below is the palest thing in the frame and the type",
+        "carries an opaque black shadow - but the two numbers are related and",
+        "the relation is not in either of them."
+    ],
+    "title": {
+        "use": "snapchat-caption",
+
+        "face": "bebas-neue",
+
+        "_comment_color": [
+            "Pure white, on every frame, with no palette offered beside it.",
+            "That is a brand decision rather than a missing feature: the",
+            "colour in this channel is the ground and the tint, and a second",
+            "colour in the type would be a third thing competing with them.",
+            "Hall of Femme hands two of its colours to the user because the",
+            "PAIRING of card and letters is what that show is; here there is",
+            "no card, so there is no pairing to offer."
+        ],
+        "color": "#FFFFFF",
+
+        "_comment_shadow": [
+            "Absolute black, at the app's own shadow geometry, and it is doing",
+            "real work rather than decorating. The preset drops the shadow",
+            "because its caption sits on a solid card in a colour somebody",
+            "picked; this one has no card and stands on the amber foot of the",
+            "gradient, so white letters need something under them again.",
+            "",
+            "Opaque rather than the 0.8 black everywhere else in this app: the",
+            "ground it has to hold the type against is a bright warm colour of",
+            "known contrast, not an unknown photograph, and against amber a",
+            "translucent shadow reads as a muddy edge instead of as a shadow."
+        ],
+        "shadow": { "color": "#000000", "blur": 12, "offsetX": 3, "offsetY": 3 },
+
+        "_comment_panel": [
+            "None. The preset's card is exactly what this channel does not",
+            "have: the still has already been shrunk to make room for a",
+            "coloured ground, and a slab of a third colour laid over that",
+            "ground would be a background in front of a background.",
+            "",
+            "Stated as null rather than left out, because the preset states",
+            "one and a pack that says nothing inherits it whole."
+        ],
+        "panel": null,
+
+        "_comment_highlight": [
+            "None either, and it follows from the two decisions above rather",
+            "than being a decision of its own. A highlight under this heading",
+            "is one of three things: another colour, another cut of the face,",
+            "or a box. The type here is always pure white, so a colour is out;",
+            "Bebas Neue ships as a single cut, so a second weight is out; and",
+            "a box is a background, which is the one thing this channel does",
+            "not have.",
+            "",
+            "The word buttons in the panel stay where they are and go dead,",
+            "with a tooltip saying whose decision that was (see",
+            "editor.renderWordButtons) - a live button that produced no",
+            "visible change would read as the app ignoring the click."
+        ],
+        "highlight": null
+    },
+
+    "_comment_branding": [
+        "No dark gradient. It exists to hold a title legible against the",
+        "photograph, and this title is not over the photograph at all - it is",
+        "below the card, on the channel's own ground. Left on, the backend",
+        "would darken the foot of every still to solve a problem that is not",
+        "in the picture, and darken the exact part of it the tint is already",
+        "spoken for."
+    ],
+    "branding": { "gradient": false }
+}

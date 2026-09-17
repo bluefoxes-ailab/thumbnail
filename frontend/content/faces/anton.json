@@ -1,0 +1,11 @@
+{
+    "schema": 1,
+    "id": "anton",
+    "family": "Anton",
+    "weight": "400",
+    "file": "fonts/Anton-Regular.ttf",
+    "format": "truetype",
+    "css": true,
+    "stack": "'Anton', Impact, 'Arial Black', sans-serif",
+    "local": ["Anton", "Anton-Regular"]
+}

@@ -1,0 +1,70 @@
+{
+    "schema": 1,
+    "id": "hanken-grotesk-semibolditalic",
+
+    "_comment_family": [
+        "The heavier of the two cuts fitness-story is set in, and the one its",
+        "picked words are drawn in. See hanken-grotesk-italic.json, which is",
+        "the block's face and carries the note on what this typeface used to",
+        "be called.",
+
+        "These two files do not share name ID 1 — this one says 'Hanken",
+        "Grotesk SemiBold' and the Italic says 'Hanken Grotesk' — so unlike",
+        "the two Telegraf packs they are not strictly forced to declare a full",
+        "name. They do anyway, and for a reason that outlives that detail: ID",
+        "1 here still names a WEIGHT and not a cut, so 'Hanken Grotesk",
+        "SemiBold' is a name the upright SemiBold answers to as well, and this",
+        "channel's block already leans. A picked word that came back upright",
+        "would not read as a different word, it would read as a mistake.",
+        "",
+        "The typographic family (name ID 16) is 'Hanken Grotesk' on both",
+        "files, which is the level at which they really are one family. That",
+        "is exactly why neither pack may be declared at it.",
+        "",
+        "Weight 600, which is what the file's OS/2 table says and what the cut",
+        "is. Asking for 700 invites a browser to synthesise the difference on",
+        "top of a face that already has most of it.",
+        "",
+        "Registered at style normal, the same way rift and the Italic beside",
+        "it are. The slant is drawn into the letterforms; declaring the face",
+        "italic as well would leave the canvas — which asks for normal —",
+        "either missing it or being handed a synthetic oblique of something",
+        "else. Normal means 'this file, as drawn'."
+    ],
+    "family": "Hanken Grotesk SemiBold Italic",
+    "weight": "600",
+
+    "file": "fonts/HankenGrotesk-SemiBoldItalic.ttf",
+    "format": "truetype",
+
+    "_comment_css": [
+        "Not declared in styles.css: this face arrived with a channel and is",
+        "registered from this JSON, which is the route content/README.md",
+        "describes. Nothing has to be added to the stylesheet for it."
+    ],
+    "css": false,
+
+    "_comment_local": [
+        "What the machine may already know the face by, tried after the file.",
+        "The first is the PostScript name and is also what the installer",
+        "registers the face under; the second is the Windows full name. Both",
+        "name this one cut rather than a weight or a family, so a machine",
+        "answering to either is answering with this file — which is exactly",
+        "what the fallback route is for. Neither 'Hanken Grotesk' nor 'Hanken",
+        "Grotesk SemiBold' is listed: the first is the Italic's, and the",
+        "second would let the upright SemiBold answer."
+    ],
+    "local": ["HankenGrotesk-SemiBoldItalic", "Hanken Grotesk SemiBold Italic"],
+
+    "_comment_stack": [
+        "The fallbacks are damage limitation and never a design choice — a",
+        "title laid out against the wrong metrics is broken, not merely",
+        "different, which is what fontguard exists to catch before it is ever",
+        "drawn. Segoe UI Semibold is named first because it is the nearest",
+        "weight every Windows this app runs on is certain to have, and because",
+        "falling through to plain Segoe UI would land a picked word at the",
+        "same weight as the block around it — which is the one failure that",
+        "would look like nothing had gone wrong at all."
+    ],
+    "stack": "'Hanken Grotesk SemiBold Italic', 'Segoe UI Semibold', 'Segoe UI', Arial, sans-serif"
+}

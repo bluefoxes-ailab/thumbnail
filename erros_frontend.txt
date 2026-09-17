@@ -1,0 +1,49 @@
+127.0.0.1 - - [05/Aug/2026 21:01:22] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [05/Aug/2026 21:01:24] "GET /vendor/raleway.css HTTP/1.1" 200 -
+127.0.0.1 - - [05/Aug/2026 21:01:25] "GET /styles.css HTTP/1.1" 200 -
+127.0.0.1 - - [05/Aug/2026 21:01:26] "GET /fonts/TradeGothicNextLTProHeavyCompressed.otf HTTP/1.1" 200 -
+127.0.0.1 - - [05/Aug/2026 21:01:26] "GET /vendor/fabric.min.js HTTP/1.1" 200 -
+127.0.0.1 - - [05/Aug/2026 21:01:28] "GET /js/main.js HTTP/1.1" 200 -
+127.0.0.1 - - [05/Aug/2026 21:01:29] "GET /logo.webp HTTP/1.1" 200 -
+127.0.0.1 - - [05/Aug/2026 21:01:30] "GET /vendor/fonts/raleway-400-latin.woff2 HTTP/1.1" 200 -
+127.0.0.1 - - [05/Aug/2026 21:01:31] "GET /vendor/fonts/raleway-900-latin.woff2 HTTP/1.1" 200 -
+127.0.0.1 - - [05/Aug/2026 21:01:33] "GET /fox.png HTTP/1.1" 200 -
+127.0.0.1 - - [05/Aug/2026 21:01:33] "GET /js/config.js HTTP/1.1" 200 -
+127.0.0.1 - - [05/Aug/2026 21:01:34] "GET /js/state.js HTTP/1.1" 200 -
+127.0.0.1 - - [05/Aug/2026 21:01:35] "GET /js/net.js HTTP/1.1" 200 -
+127.0.0.1 - - [05/Aug/2026 21:01:36] "GET /js/compose.js HTTP/1.1" 200 -
+127.0.0.1 - - [05/Aug/2026 21:01:37] "GET /js/ui.js HTTP/1.1" 200 -
+127.0.0.1 - - [05/Aug/2026 21:01:38] "GET /js/reframe.js HTTP/1.1" 200 -
+127.0.0.1 - - [05/Aug/2026 21:01:39] "GET /js/wide.js HTTP/1.1" 200 -
+127.0.0.1 - - [05/Aug/2026 21:01:41] "GET /js/editor.js HTTP/1.1" 200 -
+127.0.0.1 - - [05/Aug/2026 21:01:41] "GET /js/download.js HTTP/1.1" 200 -
+127.0.0.1 - - [05/Aug/2026 21:01:42] "GET /js/text.js HTTP/1.1" 200 -
+127.0.0.1 - - [05/Aug/2026 21:01:44] code 404, message File not found
+127.0.0.1 - - [05/Aug/2026 21:01:44] "GET /favicon.ico HTTP/1.1" 404 -
+127.0.0.1 - - [05/Aug/2026 21:02:40] "GET /vendor/fonts/raleway-700-latin.woff2 HTTP/1.1" 200 -
+127.0.0.1 - - [05/Aug/2026 21:02:42] "GET /fox.png HTTP/1.1" 200 -
+Serving /content/drive/MyDrive/Thumbnail_Maker/frontend on port 3000
+Traceback (most recent call last):
+  File "/content/drive/MyDrive/Thumbnail_Maker/frontend/serve.py", line 45, in <module>
+    httpd.serve_forever()
+  File "/usr/lib/python3.12/socketserver.py", line 240, in serve_forever
+    self._handle_request_noblock()
+  File "/usr/lib/python3.12/socketserver.py", line 318, in _handle_request_noblock
+    self.process_request(request, client_address)
+  File "/usr/lib/python3.12/socketserver.py", line 349, in process_request
+    self.finish_request(request, client_address)
+  File "/usr/lib/python3.12/socketserver.py", line 362, in finish_request
+    self.RequestHandlerClass(request, client_address, self)
+  File "/usr/lib/python3.12/http/server.py", line 676, in __init__
+    super().__init__(*args, **kwargs)
+  File "/usr/lib/python3.12/socketserver.py", line 766, in __init__
+    self.handle()
+  File "/usr/lib/python3.12/http/server.py", line 440, in handle
+    self.handle_one_request()
+  File "/usr/lib/python3.12/http/server.py", line 408, in handle_one_request
+    self.raw_requestline = self.rfile.readline(65537)
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/socket.py", line 720, in readinto
+    return self._sock.recv_into(b)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+KeyboardInterrupt

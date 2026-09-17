@@ -1,0 +1,74 @@
+{
+    "schema": 1,
+    "id": "raleway-bold",
+
+    "_comment_family": [
+        "The other end of the same family, and the reason both packs declare a",
+        "full name instead of 'Raleway': the two files share name ID 1, so the",
+        "family alone names neither of them - and the name it does not name",
+        "them with is one the interface has already claimed. See the note in",
+        "raleway-regular.json, which this pack is the other half of; both",
+        "halves of that argument apply here unchanged.",
+        "",
+        "Weight 700, which is the file's own usWeightClass and what the cut is",
+        "called. Asking for 800 or 900 on the strength of how loud a highlight",
+        "should be would invite a browser to synthesise a heavier face on top",
+        "of one that already has its own weight - and synthesised bold is the",
+        "one kind of emphasis that cannot be measured, since the smear it adds",
+        "is not in any metric the layout reads."
+    ],
+    "family": "Raleway Bold",
+    "weight": "700",
+
+    "file": "fonts/Raleway-Bold.ttf",
+    "format": "truetype",
+
+    "_comment_css": [
+        "Not declared in styles.css: this face arrived with a channel and is",
+        "registered from this JSON, which is the route content/README.md",
+        "describes. Nothing has to be added to the stylesheet for it."
+    ],
+    "css": false,
+
+    "_comment_local": [
+        "What the machine may already know the face by, tried after the file.",
+        "The first is the Windows full name (name ID 4) and the second the",
+        "PostScript name; both name this one cut rather than the family, so a",
+        "machine answering to either is answering with a Bold - which is the",
+        "whole of what this face is for. 'Raleway' on its own is deliberately",
+        "absent: the Regular answers to it, and so does the interface's own",
+        "webfont, and either one arriving here would be the highlight silently",
+        "set in the block's weight."
+    ],
+    "local": ["Raleway Bold", "Raleway-Bold"],
+
+    "_comment_stack": [
+        "Damage limitation, and a highlight's stack has one duty beyond the",
+        "usual: it must not end up drawing a picked word exactly as the words",
+        "either side of it are drawn - a failure that draws no attention to",
+        "itself, which is the kind this app has been bitten by before (see",
+        "american-typewriter-itc-pro-bold).",
+        "",
+        "That duty is discharged differently here than in marydale-bold, and",
+        "it is worth being plain about why. There the difference between block",
+        "and highlight was a HAND - two unrelated families - so the two stacks",
+        "had to stay apart entry by entry or the distinction vanished. Here the",
+        "difference is a WEIGHT, and weight travels in the font string beside",
+        "the family rather than inside it (see textProps in js/text.js): this",
+        "face is asked for at 700 and the block's at 400, so the two may share",
+        "every fallback and still come out heavy against light. Falling through",
+        "to the same family is the correct outcome rather than the failure it",
+        "would be next door.",
+        "",
+        "So the entries are the block's, and each is reached at 700. 'Raleway'",
+        "second is the interface's own vendored webfont, which declares a real",
+        "700 among its five weights (frontend/vendor/raleway.css), so a missing",
+        "file leaves both the typeface and the contrast intact. Segoe UI is on",
+        "every Windows this app runs on and has a Bold; Arial is the floor and",
+        "has one too. Impact and Arial Black are absent for the block's reason -",
+        "they are heavy display grotesques and this is a text sans - and for one",
+        "more: a picked word in Impact inside a line of Segoe would not read as",
+        "emphasis but as a second channel."
+    ],
+    "stack": "'Raleway Bold', 'Raleway', 'Segoe UI', Arial, sans-serif"
+}

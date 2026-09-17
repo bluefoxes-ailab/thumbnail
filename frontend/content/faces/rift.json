@@ -1,0 +1,48 @@
+{
+    "schema": 1,
+    "id": "rift",
+
+    "_comment_family": [
+        "The name Windows knows this file by, which is also the one the",
+        "@font-face registration below hands the canvas.",
+        "",
+        "The file is called Rift.otf and the family it belongs to is 'Rift',",
+        "but the cut inside it is Rift Bold Italic — italic angle -10, the",
+        "italic bits set in both head.macStyle and OS/2.fsSelection, and",
+        "'Rift-BoldItalic' as its PostScript name. Asking for 'Rift' alone",
+        "would let any other cut of the family that happens to be installed",
+        "answer, and a title laid out against a Regular's metrics is a title",
+        "laid out wrong. So the full name is what gets declared, the same way",
+        "gilroy-extrabold declares 'Gilroy ExtraBold' rather than 'Gilroy'.",
+        "",
+        "It is registered at style normal on purpose. The slant is drawn into",
+        "the letterforms; declaring the face italic as well would leave the",
+        "canvas — which asks for normal — either missing it or being handed a",
+        "synthetic oblique of something else. Normal means 'this file, as",
+        "drawn', which is what the two Laugh Society packs are set in."
+    ],
+    "family": "Rift Bold Italic",
+    "weight": "700",
+
+    "file": "fonts/Rift.otf",
+    "format": "opentype",
+
+    "_comment_css": [
+        "Not declared in styles.css: this face arrived with a channel and is",
+        "registered from this JSON, which is the route content/README.md",
+        "describes. Nothing has to be added to the stylesheet for it."
+    ],
+    "css": false,
+
+    "_comment_local": [
+        "What the machine may already know the face by, tried after the file.",
+        "The first is the Windows full name (name ID 4) and is also what the",
+        "installer registers the face under; the second is the PostScript",
+        "name. Both belong to this file rather than to the family at large, so",
+        "a machine answering to either is answering with this cut — which is",
+        "exactly what the fallback route is for."
+    ],
+    "local": ["Rift Bold Italic", "Rift-BoldItalic"],
+
+    "stack": "'Rift Bold Italic', Impact, 'Arial Black', sans-serif"
+}

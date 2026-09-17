@@ -1,0 +1,80 @@
+{
+    "schema": 1,
+    "id": "hanken-grotesk-italic",
+
+    "_comment_name": [
+        "HK Grotesk is what this typeface was called before it was renamed,",
+        "and it is still the name people ask for it by. It is not the name",
+        "the file answers to: the name table inside HankenGrotesk-Italic.ttf",
+        "says 'Hanken Grotesk', and the name table is the only thing Windows",
+        "and local() key on. So the pack is declared under what the file says",
+        "and the old name is written down here, once, so the next person",
+        "looking for HK Grotesk finds it."
+    ],
+
+    "_comment_family": [
+        "The block face of fitness-story, whose picked words are set in",
+        "hanken-grotesk-semibolditalic beside it. Both cuts lean — the slant",
+        "is the show's, not the highlight's — so the two are told apart by",
+        "weight alone, 400 against 600, and a swap between them is not a",
+        "different look, it is the highlight disappearing into the text.",
+        "",
+        "The full name (name ID 4) is what gets declared, the same way",
+        "telegraf-ultralight declares 'Telegraf UltraLight' rather than",
+        "'Telegraf'. ID 1 on this file is the bare 'Hanken Grotesk', which any",
+        "upright cut of the family installed on the machine would answer to,",
+        "and a block that came back upright is a block set in the wrong face.",
+        "Two distinct family names is also what lets one channel be set in",
+        "both at once, because fontguard keys its check by family and each cut",
+        "is then verified in its own right.",
+        "",
+        "Weight 400, which is what the file's OS/2 table says. This family's",
+        "italic is a slant and not a weight, and asking for anything else",
+        "invites a browser to synthesise a difference the file does not have.",
+        "",
+        "Registered at style normal on purpose, the same way rift is. The",
+        "slant is drawn into the letterforms; declaring the face italic as",
+        "well would leave the canvas — which asks for normal — either missing",
+        "it or being handed a synthetic oblique of something else. Normal",
+        "means 'this file, as drawn'."
+    ],
+    "family": "Hanken Grotesk Italic",
+    "weight": "400",
+
+    "file": "fonts/HankenGrotesk-Italic.ttf",
+    "format": "truetype",
+
+    "_comment_css": [
+        "Not declared in styles.css: this face arrived with a channel and is",
+        "registered from this JSON, which is the route content/README.md",
+        "describes. Nothing has to be added to the stylesheet for it."
+    ],
+    "css": false,
+
+    "_comment_local": [
+        "What the machine may already know the face by, tried after the file.",
+        "The first is the PostScript name and is also what the installer",
+        "registers the face under; the second is the Windows full name. Both",
+        "name this one cut rather than the family, so a machine answering to",
+        "either is answering with this file — which is exactly what the",
+        "fallback route is for. 'Hanken Grotesk' on its own is deliberately",
+        "absent: it is name ID 1 on this file, and every other cut of the",
+        "family answers to it too."
+    ],
+    "local": ["HankenGrotesk-Italic", "Hanken Grotesk Italic"],
+
+    "_comment_stack": [
+        "The fallbacks are damage limitation and never a design choice — a",
+        "title laid out against the wrong metrics is broken, not merely",
+        "different, which is what fontguard exists to catch before it is ever",
+        "drawn. They are still chosen rather than copied: most of the faces in",
+        "this folder fall back through Impact and Arial Black because most of",
+        "them are heavy display cuts, and this is not one. It is a 400-weight",
+        "grotesque set at caption size, and Segoe UI is the nearest thing to",
+        "that every Windows this app runs on is certain to have. It comes out",
+        "upright, because the face is registered at style normal and there is",
+        "nothing left to slant it — which is a title in the wrong face either",
+        "way, and fontguard is what stops one being drawn."
+    ],
+    "stack": "'Hanken Grotesk Italic', 'Segoe UI', Arial, sans-serif"
+}

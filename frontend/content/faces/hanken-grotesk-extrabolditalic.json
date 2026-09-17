@@ -1,0 +1,78 @@
+{
+    "schema": 1,
+    "id": "hanken-grotesk-extrabolditalic",
+
+    "_comment_name": [
+        "HK Grotesk is what this typeface was called before it was renamed,",
+        "and it is still the name people ask for it by. It is not the name",
+        "the file answers to: the name table inside the file says 'Hanken",
+        "Grotesk', and the name table is the only thing Windows and local()",
+        "key on. The pack is declared under what the file says; the old name",
+        "is written down here so the next person looking for HK Grotesk",
+        "finds it."
+    ],
+
+    "_comment_family": [
+        "The heavy end of the family, and the cut fitness-story picks its",
+        "words out in. That pack's block is",
+        "hanken-grotesk-extralightitalic — the other end of the same axis, 250",
+        "against 800 — so the two are told apart by weight alone, and a face",
+        "id typed wrong so that both resolve here is not a different look, it",
+        "is the highlight disappearing into the text.",
+        "",
+        "Every cut of this family that the app carries leans, so name ID 1",
+        "here ('Hanken Grotesk ExtraBold') names a WEIGHT rather than a cut:",
+        "it is a name the upright ExtraBold answers to as well, on a machine",
+        "that happens to have it. The full name (ID 4) is what gets declared",
+        "instead, the same way telegraf-ultrabold declares 'Telegraf",
+        "UltraBold' rather than 'Telegraf'. The typographic family (ID 16) is",
+        "the bare 'Hanken Grotesk' on all four cuts, which is the level at",
+        "which they really are one family and exactly why no pack may be",
+        "declared at it.",
+        "",
+        "Weight 800, which is what the file's OS/2 table says and what the cut",
+        "is. Asking for 700 invites a browser to synthesise the difference on",
+        "top of a face that already has it.",
+        "",
+        "Registered at style normal, the same way rift and the other Hanken",
+        "packs are. The slant is drawn into the letterforms; declaring the",
+        "face italic as well would leave the canvas — which asks for normal —",
+        "either missing it or being handed a synthetic oblique of something",
+        "else. Normal means 'this file, as drawn'."
+    ],
+    "family": "Hanken Grotesk ExtraBold Italic",
+    "weight": "800",
+
+    "file": "fonts/HankenGrotesk-ExtraBoldItalic.ttf",
+    "format": "truetype",
+
+    "_comment_css": [
+        "Not declared in styles.css: this face arrived with a channel and is",
+        "registered from this JSON, which is the route content/README.md",
+        "describes. Nothing has to be added to the stylesheet for it."
+    ],
+    "css": false,
+
+    "_comment_local": [
+        "What the machine may already know the face by, tried after the file.",
+        "The first is the PostScript name and is also what the installer",
+        "registers the face under; the second is the Windows full name. Both",
+        "name this one cut rather than a weight or a family, so a machine",
+        "answering to either is answering with this file — which is exactly",
+        "what the fallback route is for. Neither 'Hanken Grotesk' nor 'Hanken",
+        "Grotesk ExtraBold' is listed: the first is shared with every other",
+        "cut, and the second would let the upright ExtraBold answer."
+    ],
+    "local": ["HankenGrotesk-ExtraBoldItalic", "Hanken Grotesk ExtraBold Italic"],
+
+    "_comment_stack": [
+        "The fallbacks are damage limitation and never a design choice — a",
+        "title laid out against the wrong metrics is broken, not merely",
+        "different, which is what fontguard exists to catch before it is ever",
+        "drawn. Not Impact and Arial Black, which is where the display cuts in",
+        "this folder fall through to: this is a text grotesque set at caption",
+        "size, and Segoe UI Black is both the nearest weight and the nearest",
+        "proportion every Windows this app runs on is certain to have."
+    ],
+    "stack": "'Hanken Grotesk ExtraBold Italic', 'Segoe UI Black', 'Segoe UI', Arial, sans-serif"
+}

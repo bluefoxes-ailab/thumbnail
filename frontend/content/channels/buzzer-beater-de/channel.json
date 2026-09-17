@@ -1,0 +1,273 @@
+{
+    "schema": 1,
+    "id": "buzzer-beater-de",
+    "name": "Buzzer Beater DE",
+
+    "_comment_group": [
+        "One more show under the Snapchat heading. The heading names the",
+        "network these frames are cut FOR and the channel is the show they are",
+        "cut from, so another show cutting for the same network is one more",
+        "folder under it rather than a heading of its own.",
+
+        "Like every channel under this heading it is a frame fetcher rather",
+        "than a thumbnail maker: a video goes in and a numbered grid of",
+        "vertical stills comes out, each captioned with what was being said",
+        "over it.",
+
+        "It is cut to Hall of Femme's design, and that pack is the one to read",
+        "first: the frame fetch, the 540x960 vertical output, the",
+        "transcription, the rewrite that turns speech into report, the stated",
+        "40px, the twenty characters to a line, the freeform text box, the",
+        "block at the foot of the frame and the drag are all the same and are",
+        "named here rather than restated. Where it parts company with Hall of",
+        "Femme is the card - there is none - and for that half of it the packs",
+        "to read are conspiracy-central and fight-source-de, which are the two",
+        "other channels here that set their captions straight onto the",
+        "photograph.",
+
+        "The DE in the name is the account's, the way the DE in Hall of Femme",
+        "DE, Fitness Story DE and Fight Source DE is: it says which of the",
+        "brand's feeds this is and not what language the app is in. What lands",
+        "on the frames is whatever the video's own voice track was saying, put",
+        "through the transcription and the rewrite exactly as on every channel",
+        "here; nothing in this pack changes that, and everything the app itself",
+        "says is English like the rest of it (see CLAUDE.md).",
+
+        "The glyph check the DE feeds before this one made a habit of, and this",
+        "face passes it with the same footnote Fight Source DE's does. Garamond",
+        "Premier Pro Bold Italic Subhead carries 1268 codepoints - the umlauts,",
+        "the eszett and the low quotes German sets speech in among them - so a",
+        "caption is drawn from the file rather than from whatever the browser",
+        "substitutes for a missing glyph, which would be a different face at a",
+        "width nothing measured. The footnote is the capital eszett: U+1E9E is",
+        "not in the file, and is never asked for, because the preset's",
+        "`uppercase` goes through toUpperCase (see `cased` in js/text.js) and",
+        "JavaScript maps a lower-case eszett to SS rather than to its capital.",
+        "A face chosen for how it looks in English is not automatically a face",
+        "that can SET another language, and the check is two minutes against a",
+        "cmap."
+    ],
+    "_comment_order": [
+        "Last under the heading, which is where a new show goes: the numbers",
+        "are a running order rather than a ranking, and the foreign feeds have",
+        "been landing at the end of it since Hall of Femme DE took 920.",
+
+        "927 and not 926, which is the second time this has happened and is",
+        "worth recording as such. Fight Source DE's note says 924 was taken by",
+        "Re-belle between that pack being written and being saved; 926 was",
+        "taken by Beauty-Tipps between this one being written and being saved.",
+        "A shared number is not an error - the server breaks the tie",
+        "alphabetically by name (see serve.py) - it is simply an order nobody",
+        "chose, and Buzzer Beater DE would have sorted above Beauty-Tipps for",
+        "no reason. Two collisions in two new packs says the real answer is to",
+        "read the heading's last number at the moment of saving rather than at",
+        "the moment of writing."
+    ],
+    "order": 900,
+    "group": "Snapchat",
+
+    "_comment_capture": [
+        "The frame fetch, whole, from content/presets/snapchat-capture.json:",
+        "the slider's range, the 540x960 output, the transcription, and the",
+        "rewrite that turns it from speech into report. This channel has",
+        "nothing to say about any of it that its neighbours do not."
+    ],
+    "capture": { "use": "snapchat-capture" },
+
+    "framing": { "use": "snapchat-framing" },
+
+    "_comment_title": [
+        "What separates this show from the others under the heading: it is set",
+        "in Garamond Premier Pro Bold Italic Subhead, in one pale pink,",
+        "straight onto the photograph, with no card behind it and nothing",
+        "picked out of it.",
+
+        "Everything else - the size, where the lines break, the capitals, the",
+        "freeform box, where the block stands on the frame, the drag - is the",
+        "Snapchat caption design and is stated once, in",
+        "content/presets/snapchat-caption.json. This pack states what makes it",
+        "this show and then declines two whole shapes that preset draws, which",
+        "is what fight-source-de does and for the same reason.",
+
+        "Why no card. On Hall of Femme the slab and the hairline are one",
+        "decision: a 200-weight face over an unknown photograph disappears, and",
+        "the card is what turns that weight from a risk into a choice. This",
+        "show answers the same question the other way. A bold old-style italic",
+        "is a face with weight in its stems and real modelling in its curves,",
+        "and it is the SHAPE of it that has to be read - the slant, the",
+        "single-storey letterforms, the serifs - which a card of flat colour",
+        "does not help with and a fifth of the frame of pink would fight. What",
+        "is left is a sentence lying on the picture: no graphic, no second",
+        "shape, nothing between the words and the footage.",
+
+        "It is also the one pack under this heading where the width matters,",
+        "and it was measured before the face was settled on - on the canvas",
+        "the renderer uses, so the numbers include the kerning. Twenty mixed",
+        "capitals in this face come out 499px against the 486px a line has,",
+        "where Korolev Bold's come out 434 - so here the frame's width and the",
+        "preset's twenty characters land in the same place rather than the",
+        "characters binding first. Ordinary prose still fits, because the",
+        "spaces and the narrow letters an alphabet run has none of do most of",
+        "the work: nineteen characters of real sentence measure 433px. What it",
+        "means in practice is that an unusually wide line breaks at nineteen",
+        "instead of twenty, which the wrapper does on its own and nobody sees",
+        "(see the two ceilings in js/caption.js). The measurements themselves",
+        "are in content/faces/garamond-premier-pro-bold-italic-subhead.json.",
+
+        "Uppercased, for the reason every one of its neighbours is: at 40px",
+        "with twenty characters to a line the caption is three short beats",
+        "rather than a paragraph, and capitals are what those are set in. It",
+        "costs this face more than it costs the others, and that is worth being",
+        "honest about - an italic of this kind is drawn around its lower case,",
+        "and its capitals are the calmer half of it. They are still italic",
+        "capitals, which almost nothing else on Snapchat is, and the preset's",
+        "`uppercase` is the guideline a pack may break with a reason (Killer",
+        "Bites does). This show has no such reason yet; the day it decides its",
+        "lower case IS the brand, `uppercase: false` is one line in this file."
+    ],
+    "title": {
+        "use": "snapchat-caption",
+
+        "face": "garamond-premier-pro-bold-italic-subhead",
+
+        "_comment_color": [
+            "The pale pink, and it is what every frame is set in for good: this",
+            "channel offers no palette (see `_comment_colors` below), so this is",
+            "the colour rather than the colour a frame opens on.",
+
+            "There is no card for it to be read against, so what it is read",
+            "against is the footage, and this colour cuts the opposite way to",
+            "Fight Source DE's dark plum. A pale pink is near the top of the",
+            "lightness range: on night footage, on a dark crowd, on a shadowed",
+            "court it is the brightest thing in the frame, and on a blown-out",
+            "sky or a white jersey it is nearly gone. That is what the shadow",
+            "below is for, and it is the half of the problem a shadow can",
+            "actually solve - which is why this pack picks one up where Fight",
+            "Source DE could not.",
+
+            "If the show ever wants the other half solved, the two honest",
+            "remedies are the ones that change the brief rather than patch it:",
+            "a card, which is the decision `panel` declines, or a second colour",
+            "in a `colors` list for the user to switch to on a bright still.",
+            "Both are one edit to this file."
+        ],
+        "color": "#F9ACB1",
+
+        "_comment_colors": [
+            "Absent, deliberately, and worth the note because most of its",
+            "siblings under this heading have one and the next person to copy",
+            "this folder will wonder where it went.",
+
+            "Two of the three could not be offered even if somebody wanted them:",
+            "`colors.panel` needs a panel and there is none, and",
+            "`colors.highlight` needs a highlight and there is none either - the",
+            "rows are hidden rather than drawn dead (see editor.paletteOf).",
+
+            "The third is the decision fight-source-de argues and this pack",
+            "inherits whole. One colour is one swatch, and a row of one swatch",
+            "is a button that is already pressed - the one kind of control this",
+            "panel does not have anywhere, because a button that visibly does",
+            "nothing reads as the app ignoring the click. A palette is for a",
+            "channel where the CHOICE is part of the look, which is what Hall of",
+            "Femme's sixteen pairings are; it is not a way of showing that a",
+            "pack has a colour. The day this show has a second colour the list",
+            "is two strings in this file, and it becomes a palette by being one."
+        ],
+
+        "_comment_shadow": [
+            "Back, and this is the one place this pack contradicts a sentence",
+            "the preset writes. Every channel with a card sets `shadow` to null",
+            "on the argument that a drop shadow is what keeps type legible over",
+            "a photograph nobody chose the contrast of and there is no",
+            "photograph under those letters. The argument is right, and it is",
+            "exactly why dropping the card means picking the shadow back up:",
+            "there IS a photograph under these letters, on all forty stills.",
+
+            "It works here where it does not work on fight-source-de, and the",
+            "difference is the colour. A drop shadow separates type from a",
+            "picture by putting darkness behind it, which does nothing for a",
+            "near-black plum and everything for a pale pink - this is",
+            "conspiracy-central's case, one step off white.",
+
+            "The numbers are the skeleton's own (see BASE_TITLE_STYLE.shadow in",
+            "js/channels.js) rather than a fresh set invented here: they are",
+            "what every channel that sets light type on a photograph in this app",
+            "uses, and a pack with no measurement of its own should not carry a",
+            "number it merely guessed at. If anything here is ever revisited it",
+            "is this - a hard 3px offset was chosen under a heavy condensed",
+            "grotesque, and these letterforms are finer at the terminals - but",
+            "it should be revisited by looking at forty stills rather than by",
+            "reasoning about it, and softening it means blur up and offset down",
+            "rather than a different idea."
+        ],
+        "shadow": { "color": "rgba(0,0,0,0.8)", "blur": 12, "offsetX": 3, "offsetY": 3 },
+
+        "_comment_highlight": [
+            "None. Not a highlight that happens to look like the rest of the",
+            "block - none: `null` is how a channel says it has no highlight",
+            "FEATURE, and the word buttons in the title panel go dead with it",
+            "rather than offering a treatment nobody could see (see the note on",
+            "`highlight` in js/channels.js and editor.renderHlButtons).",
+
+            "Every other pack under this heading picks words out, and all of",
+            "them do it by changing something this show has no second of. Hall",
+            "of Femme changes weight, 200 against 800 of one family. Conspiracy",
+            "Central changes colour and puts a box under it. This show is one",
+            "cell of an optical-size family, in one colour, on no card - so a",
+            "highlight would have to introduce a second face or a second colour,",
+            "and either would be the show acquiring a feature rather than the",
+            "sentence gaining an emphasis.",
+
+            "There is a version of it this face makes tempting, and it is worth",
+            "naming so that it is declined on purpose: the roman of the same",
+            "family would pick words out of an italic the way laugh-society-2",
+            "picks its lines out, a change of voice rather than of volume. It is",
+            "not here because it is not in the brief and because it is a second",
+            "file in fonts/ as well as a second face on one block - the day the",
+            "show wants it, that is what it costs."
+        ],
+        "highlight": null,
+
+        "_comment_panel": [
+            "No card. The argument is in `_comment_title` above, and the",
+            "consequences are the `shadow` and the `highlight` beside it.",
+
+            "Stated as null rather than left out, because it cannot be left out:",
+            "`use` merges the preset UNDER this pack (see `expand` in",
+            "js/channels.js), so the card's shape, padding, corners and shadow",
+            "arrive from snapchat-caption.json whatever this pack says about",
+            "them. Null is how a pack cut from that preset declines the one part",
+            "of it that is a whole shape rather than a number.",
+
+            "The preset's `layout` survives intact and is what puts the block at",
+            "the foot of the frame, 120px up, where Hall of Femme's card stands.",
+            "That margin is measured to the first thing DRAWN, which on a pack",
+            "with no card and no box is the capitals themselves - so this show's",
+            "type sits a padding's worth lower than a panelled sibling's does,",
+            "exactly as Fight Source DE's does. It is the one visible difference",
+            "the missing card makes to where the words are, and it is small",
+            "enough to be worth leaving rather than correcting with a number",
+            "nobody measured."
+        ],
+        "panel": null
+    },
+
+    "_comment_branding": [
+        "No dark gradient, like every pack under this heading - and like",
+        "conspiracy-central and fight-source-de this needs its own sentence,",
+        "because the usual reason does not apply. The siblings with a card say",
+        "the gradient has nothing to do: their titles are on a card and not on",
+        "the photograph. This one's titles ARE on the photograph.",
+
+        "It still has nothing to do. The backend's gradient is a SIDE gradient",
+        "- full height, never past half the width, peaking on whichever side",
+        "the title column is (reframe_engine.apply_dark_gradient) - because it",
+        "was drawn for a landscape thumbnail with a headline set beside the",
+        "subject. There is no title column on a captured still: the block lies",
+        "across the width of the frame, and darkening one half of forty",
+        "pictures would shade half of every caption and leave the other half",
+        "exactly as it was. What holds this type off the photograph is its own",
+        "drop shadow, which is the tool for the job at this scale."
+    ],
+    "branding": { "gradient": false }
+}

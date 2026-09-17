@@ -1,0 +1,120 @@
+{
+    "schema": 1,
+    "id": "oh-my-goal-news",
+    "name": "Oh My Goal News",
+
+    "_comment_group": [
+        "The news feed of the brand in the folder beside this one, and a",
+        "channel in its own right rather than a mode of that one: it is a",
+        "separate account cutting separate videos, so the person picking a",
+        "channel at the top of the app picks this or Oh My Goal and never both.",
+        "",
+        "It looks exactly like Oh My Goal, and that is the brand rather than a",
+        "file nobody finished. The two accounts are one identity - the same",
+        "blue card, the same white type, the same face - and a news feed that",
+        "announced itself with a different colour would be a second brand for",
+        "no reason but that it is a second folder. What separates them is what",
+        "is in the video, which is not a thing a pack has any say over.",
+        "",
+        "So it repeats Oh My Goal's answers rather than pointing at them with",
+        "`use`. A preset is for a decision several channels SHARE, where a",
+        "change to it is meant to reach all of them (see the note at the top of",
+        "content/presets/snapchat-caption.json). These two merely agree today.",
+        "The day the news feed is given its own colour, a pack that stated its",
+        "own is edited in one place; a pack that borrowed its neighbour's would",
+        "have to be unpicked from it first.",
+        "",
+        "Read dr-football-us for the face and for why these channels have no",
+        "highlight, Hall of Femme for the frame fetch and the card, and Oh My",
+        "Goal for these two colours."
+    ],
+    "order": 900,
+    "group": "Snapchat",
+
+    "_comment_capture": [
+        "The frame fetch, whole, from content/presets/snapchat-capture.json:",
+        "the slider's range, the 540x960 output, the transcription, and the",
+        "rewrite that turns it from speech into report.",
+        "",
+        "A news feed might look like the one channel here with a reason to",
+        "keep the words as they were said, and it is worth saying why it does",
+        "not. The rewrite does not invent anything - it turns a sentence of",
+        "speech into the information that sentence carried, which is what a",
+        "caption over a still has to be whether the clip is a goal or an",
+        "announcement (see `capture.rewrite` in content/README.md). Quoting",
+        "the audio instead would put half-sentences on the frames."
+    ],
+    "capture": { "use": "snapchat-capture" },
+
+    "framing": { "use": "snapchat-framing" },
+
+    "_comment_title": [
+        "Set in League Spartan on the brand's electric blue card, in two",
+        "colours the user picks per frame - the same answers Oh My Goal gives,",
+        "for the reason given at the top of this file.",
+        "",
+        "Everything about how the words are set beyond those is the Snapchat",
+        "caption design and is stated once, in",
+        "content/presets/snapchat-caption.json."
+    ],
+    "title": {
+        "use": "snapchat-caption",
+
+        "face": "league-spartan",
+
+        "_comment_color": [
+            "The channel's own answer, and therefore what every frame is set in",
+            "until somebody presses a swatch (see state.textColorFor). It is",
+            "one of the two in `colors` below, so the white swatch is the one",
+            "that shows as chosen on an untouched frame.",
+            "",
+            "Absolute white, and against #312ED5 the exact value matters: an",
+            "off-white on a fully saturated blue does not read as a softer",
+            "white, it picks up the blue and reads as a caption printed",
+            "slightly out of register. Argued at length in oh-my-goal."
+        ],
+        "color": "#FFFFFF",
+
+        "_comment_colors": [
+            "The brand's two colours, offered for the letters and for the card",
+            "behind them - the pairing and its inverse.",
+            "",
+            "Why the same list appears twice, and why there are two rows rather",
+            "than three, is written out in dr-football-us. The short version of",
+            "the second: this channel has no highlight, so a third row would",
+            "recolour something that is never drawn, and a row like that is",
+            "hidden rather than drawn dead."
+        ],
+        "colors": {
+            "text": ["#312ED5", "#FFFFFF"],
+            "panel": ["#312ED5", "#FFFFFF"]
+        },
+
+        "_comment_highlight": [
+            "None. Every line of every caption on this channel is set the same",
+            "way, and the highlight buttons stand where they stand everywhere",
+            "else and go dead with a tooltip saying whose decision that was.",
+            "",
+            "dr-football-us is where this is argued: one cut of League Spartan",
+            "means the change of CUT every sibling picks its words out with is",
+            "not available, and neither of the two ways round it is worth",
+            "having on a caption that is already sitting on a solid card."
+        ],
+        "highlight": null,
+
+        "_comment_panel": [
+            "Electric blue, and the fill is the one thing about the card this",
+            "pack decides: its shape, its padding, its corners and its shadow",
+            "are the Snapchat caption design and come from the preset."
+        ],
+        "panel": { "fill": "#312ED5" }
+    },
+
+    "_comment_branding": [
+        "No dark gradient. It exists to hold a title legible against the",
+        "photograph, and this title is not against the photograph at all - it",
+        "is on a card of its own. A scrim over every still would darken forty",
+        "pictures to solve a problem the card has already solved."
+    ],
+    "branding": { "gradient": false }
+}

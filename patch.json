@@ -1,0 +1,96 @@
+{
+    "_comment": [
+        "Describes the patch currently being built, and nothing else. Emptied",
+        "after each release — it says what is new in THIS version, not what the",
+        "app is.",
+        "",
+        "Everything under backend/ and frontend/ (channel packs included) is",
+        "carried by every patch automatically and does not need naming here.",
+        "What goes here is the handful of things a patch has to ask the machine",
+        "to do rather than simply hand it:",
+        "",
+        "  notes             shown to the user when the update is offered",
+        "  min_app_version   refuse to apply on anything older; use it when a",
+        "                    version depends on a change an earlier patch made",
+        "  pip               libraries to install into the existing runtime",
+        "  models            weights to fetch, by URL, once",
+        "  fonts             a face to register with Windows as well as serve",
+        "  rebuild_launcher  true only when updater/launcher.py itself changed",
+        "  requires_setup    a sentence saying why a patch cannot do this one;",
+        "                    set it and the updater sends the user to the full",
+        "                    installer instead of half-applying something",
+        "",
+        "See installer/build_patch.py for the long version."
+    ],
+    "notes": [
+        "Extracting frames from a video no longer fails with a screenful of file paths ending in a ten-digit number",
+        "When ffmpeg does fail, the window now shows what ffmpeg itself said went wrong - a corrupt download, an unreadable file - instead of the command that was run",
+        "ffmpeg is now run in its own window-less console, so an extraction can no longer be killed part-way by a Ctrl+C or a console closing elsewhere on the machine",
+        "That is what the failure on Undercover CEO was: ffmpeg was stopped from outside rather than failing on its own, and the app reported it as an extraction error"
+    ],
+    "min_app_version": "0.0.0",
+    "_comment_pip": [
+        "The background-removal runtime. Ordinary install — measured against",
+        "this project's own pins it moves neither numpy nor opencv, so it needs",
+        "none of the --no-deps care simple-lama-inpainting does.",
+        "",
+        "...and the speech recognition the Snapchat captions are read from.",
+        "Same story: an ordinary install that moves neither numpy nor opencv,",
+        "which is exactly why it is faster-whisper and not openai-whisper —",
+        "that one pulls numba, and numba moves numpy. See requirements.txt.",
+        "",
+        "ctranslate2 is pinned under faster-whisper rather than left to it:",
+        "the version its own requirement resolves to crashes on load. See",
+        "requirements.txt for what was measured. The order matters — pip",
+        "would otherwise pull the broken one back over this pin.",
+        "",
+        "All three are listed here as well as in requirements.txt because a",
+        "patch does not re-run Setup: an installed runtime only gains a",
+        "library if the patch asks for it by name."
+    ],
+    "pip": [
+        "onnxruntime==1.20.1",
+        "faster-whisper==1.1.1",
+        "ctranslate2==4.5.0"
+    ],
+    "_comment_models": [
+        "The U2-Net weights the cutout is produced by. Fetched here rather than",
+        "carried, for the reason a patch is a megabyte at all: it is 176 MB of",
+        "file that never changes, and a machine that already has it skips this",
+        "entirely.",
+        "",
+        "It lands under backend/models/, which is named in",
+        "updater.KEEP_ACROSS_UPDATES — app/ is replaced wholesale by every",
+        "patch, and without that this would be re-downloaded by each one.",
+        "",
+        "The app can also fetch it itself, at startup, if this never runs (see",
+        "background_remover.preload). Declared here anyway so it arrives with",
+        "the update rather than in front of the user's first cutout.",
+        "",
+        "The Whisper weights the captions are read from are deliberately NOT",
+        "here. They are not one file but a directory, and they are named by",
+        "size rather than by URL — faster-whisper resolves them itself into",
+        "backend/models/whisper/, which is inside the same kept directory as",
+        "everything above. So they arrive the other way this list allows: the",
+        "app fetches them in its own startup warm-up (transcriber.preload),",
+        "once, on the first machine-lifetime that needs them. Until they land,",
+        "captured frames simply come back without captions."
+    ],
+    "models": [
+        {
+            "path": "backend/models/u2net.onnx",
+            "url": "https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2net.onnx",
+            "sha256": "8d10d2f3bb75ae3b6d527c77944fc5e7dcd94b29809d47a739a7a728a912b491",
+            "mb": 176
+        },
+        {
+            "path": "backend/models/text_detection_en_ppocrv3.onnx",
+            "url": "https://media.githubusercontent.com/media/opencv/opencv_zoo/main/models/text_detection_ppocr/text_detection_en_ppocrv3_2023may.onnx",
+            "sha256": "03f550c6b406fda8bf54bd8327815f6c7e2edd98cea02348c93d879254366587",
+            "mb": 3
+        }
+    ],
+    "fonts": [],
+    "rebuild_launcher": false,
+    "requires_setup": null
+}

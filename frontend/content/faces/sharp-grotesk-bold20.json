@@ -1,0 +1,41 @@
+{
+    "schema": 1,
+    "id": "sharp-grotesk-bold20",
+
+    "_comment_family": [
+        "Sharp Grotesk is a family of ninety-odd cuts: five weights across",
+        "many widths, numbered rather than named — 'Bold 20' is one width of",
+        "the Bold. The file's own typographic family is 'Sharp Grotesk' with",
+        "'Bold 20' as the subfamily, and asking for 'Sharp Grotesk' alone",
+        "would let any other of those cuts answer. At this family's spread of",
+        "widths that is not a subtle difference: a title measured against one",
+        "width and drawn in another overflows the block outright.",
+        "",
+        "So the full name is what is declared — the same reason",
+        "gilroy-extrabold declares its subfamily and rift declares its cut."
+    ],
+    "family": "Sharp Grotesk Bold 20",
+    "weight": "700",
+
+    "file": "fonts/SharpGrotesk-Bold20.otf",
+    "format": "opentype",
+
+    "_comment_css": [
+        "Not declared in styles.css: this face arrived with a channel and is",
+        "registered from this JSON, which is the route content/README.md",
+        "describes. Nothing has to be added to the stylesheet for it."
+    ],
+    "css": false,
+
+    "_comment_local": [
+        "What the machine may already know the face by, tried after the file.",
+        "The first is the Windows full name (name ID 4), which is also the",
+        "PostScript name here and what the installer registers the face",
+        "under; the second is the same name spaced the way a font menu lists",
+        "it. Both name this one cut rather than the family, so a machine",
+        "answering to either is answering with this file."
+    ],
+    "local": ["SharpGrotesk-Bold20", "Sharp Grotesk Bold 20"],
+
+    "stack": "'Sharp Grotesk Bold 20', Impact, 'Arial Black', sans-serif"
+}

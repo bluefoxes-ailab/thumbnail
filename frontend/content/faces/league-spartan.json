@@ -1,0 +1,66 @@
+{
+    "schema": 1,
+    "id": "league-spartan",
+
+    "_comment_family": [
+        "The family name straight out of the file's name table (ID 1), and it",
+        "is safe to ask for by family alone here in the way Bebas Neue's is",
+        "and Telegraf's is not: the app carries one cut of League Spartan.",
+        "There is no second weight sharing the name for a request to land on",
+        "by accident, so 'League Spartan' can only ever be this file's",
+        "letterforms.",
+        "",
+        "That is a fact about what is in fonts/ rather than about the family.",
+        "League Spartan ships upstream as a variable face running 100 to 900,",
+        "and the day a second cut is dropped in beside this one the two Telegraf",
+        "packs are the pattern to follow: each declares its own full name, so",
+        "neither can answer to the other's request.",
+        "",
+        "Weight 400, which is what the file's OS/2 table says and what its",
+        "subfamily (ID 2) calls it. Asking for anything else here would invite",
+        "a browser to synthesise a weight this file does not contain, and a",
+        "synthesised weight is measured as well as drawn - the caption would be",
+        "laid out against letters nobody chose."
+    ],
+    "family": "League Spartan",
+    "weight": "400",
+
+    "file": "fonts/LeagueSpartan-Regular.ttf",
+    "format": "truetype",
+
+    "_comment_css": [
+        "Not declared in styles.css. This face arrived with a channel and is",
+        "registered from this JSON at load time (see registerFace in",
+        "js/channels.js), which is the route content/README.md describes -",
+        "nothing has to be added to the stylesheet for it."
+    ],
+    "css": false,
+
+    "_comment_local": [
+        "What the machine may already know the face by, tried after the file",
+        "and used by the installer as the name it registers this face under",
+        "(see engine.install_fonts, which takes the first).",
+        "",
+        "The PostScript name first, then the Windows full name, then the",
+        "family. The family is included, unlike in the Telegraf packs, for the",
+        "reason given above: it names one cut here because there is only one,",
+        "so a machine answering to it is answering with these letterforms."
+    ],
+    "local": ["LeagueSpartan-Regular", "League Spartan Regular", "League Spartan"],
+
+    "_comment_stack": [
+        "The fallbacks are damage limitation and never a design choice - a",
+        "title laid out against the wrong metrics is broken rather than merely",
+        "different, which is what fontguard exists to catch before anything is",
+        "drawn. Chosen all the same: League Spartan is a geometric sans built",
+        "on the circle, so the nearest thing a Windows machine can be relied on",
+        "to have is Century Gothic, with Segoe UI behind it for the machine",
+        "that somehow lacks even that.",
+        "",
+        "Impact and Arial Black are absent for garet-book's reason - they are",
+        "heavy display cuts, and putting one behind a 400-weight geometric",
+        "would make the one thing that survives a missing file the furthest",
+        "possible thing from it."
+    ],
+    "stack": "'League Spartan', 'Century Gothic', 'Segoe UI', Arial, sans-serif"
+}

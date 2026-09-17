@@ -1,0 +1,290 @@
+{
+    "schema": 1,
+    "id": "conspiracy-central",
+    "name": "Conspiracy Central",
+
+    "_comment_group": [
+        "One more show under the Snapchat heading, and one more cut to Hall of",
+        "Femme's design. Everything that makes it a Snapchat pack is Hall of",
+        "Femme's and is taken from the same two presets rather than restated:",
+        "the frame fetch, the 540x960 vertical output, the transcription, the",
+        "rewrite that turns speech into report, the stated 40px, the twenty",
+        "characters to a line, the freeform text box, the drag.",
+
+        "What makes it a different show is three decisions, and two of them go",
+        "further than any pack under this heading has gone before. The face is",
+        "Anton. The card is GONE — the words are set straight onto the",
+        "photograph and only the picked ones get a background, in yellow. And",
+        "the block is hung from the top of the frame rather than stood on the",
+        "foot of it. Each is argued where it is stated.",
+
+        "The id is kebab-case ASCII because it is also the folder name and the",
+        "key everything else refers to; the name is the brand."
+    ],
+    "order": 900,
+    "group": "Snapchat",
+
+    "_comment_capture": [
+        "The frame fetch, whole, from content/presets/snapchat-capture.json:",
+        "the slider's range, the 540x960 output, the transcription, and the",
+        "rewrite that turns it from speech into report. This channel has",
+        "nothing to say about any of it that its neighbours do not."
+    ],
+    "capture": { "use": "snapchat-capture" },
+
+    "framing": { "use": "snapchat-framing" },
+
+    "_comment_title": [
+        "The whole of the difference between this show and its siblings, and",
+        "unlike most of them it is not only a swap of face and colour.",
+
+        "Set in Anton, near-white, with picked words in near-black on a yellow",
+        "box, across the HEAD of the frame. Everything else — the size, where",
+        "the lines break, the capitals, the freeform box, the drag — is the",
+        "Snapchat caption design and is stated once, in",
+        "content/presets/snapchat-caption.json.",
+
+        "Three things this pack overrides in that preset, and all three follow",
+        "from one decision. The card is dropped, so the type is over the",
+        "photograph; therefore the drop shadow comes back, because that is what",
+        "holds type legible over a photograph nobody chose the contrast of; and",
+        "therefore the highlight becomes a BOX rather than a recolour, because",
+        "with no card behind the block there is finally something to box",
+        "against.",
+
+        "Why drop the card. On Hall of Femme the slab and the hairline are one",
+        "decision: a 200-weight face over an unknown photograph disappears, and",
+        "the card is what makes that weight a choice rather than a risk. Anton",
+        "is the opposite face — a heavy condensed display cut that was drawn to",
+        "be read large over a picture — so it needs no rescuing, and a card",
+        "under it would be a fifth of the frame of flat colour spent on a",
+        "problem this face does not have. What is left when the card goes is",
+        "the yellow box, which now reads as the one graphic in the frame rather",
+        "than as a shape inside another shape.",
+
+        "Uppercased, for the reason every one of its neighbours is: at 40px",
+        "with twenty characters to a line the caption is three short beats",
+        "rather than a paragraph, and capitals are what those are set in. It",
+        "costs nothing here — Anton has no lower case anybody would call the",
+        "brand, and its capitals are the whole point of the face."
+    ],
+    "title": {
+        "use": "snapchat-caption",
+
+        "face": "anton",
+
+        "_comment_color": [
+            "Near-white, and it is what every frame is set in for good: this",
+            "channel offers no palette (see `_comment_colors` below), so this",
+            "is the colour rather than the colour a frame opens on.",
+
+            "#FEFEFD and not #FFFFFF, which is a real decision and not a typo",
+            "to be tidied away. It is a white with the faintest warmth left in",
+            "it, and against the yellow of the highlight box that is what keeps",
+            "the two from reading as one temperature — a pure white beside",
+            "#FAE414 looks blue by comparison. It is also the value the brand",
+            "states, and a brand that states a colour to five parts in a",
+            "thousand is stating that it is not white."
+        ],
+        "color": "#FEFEFD",
+
+        "_comment_shadow": [
+            "Back, and this is the one place this pack contradicts a sentence",
+            "the preset writes. Every other channel under this heading sets",
+            "`shadow` to null, on the argument that a drop shadow is what keeps",
+            "type legible over a photograph nobody chose the contrast of and",
+            "there is no photograph under those letters — there is a solid",
+            "card doing the job completely.",
+
+            "The argument is right, and it is exactly why dropping the card",
+            "means picking the shadow back up. There IS a photograph under",
+            "these letters, on all forty stills, and near-white type over an",
+            "unknown frame is the one thing a caption must never be: on a blown",
+            "sky it disappears.",
+
+            "The numbers are the skeleton's own (see BASE_TITLE_STYLE.shadow in",
+            "js/channels.js) rather than a fresh set invented here. They are",
+            "what every channel that sets white type on a photograph in this",
+            "app uses, which is the same job this is; a pack with no reason of",
+            "its own should not carry a number it merely agrees with, and where",
+            "it has to state one anyway it should state the one already in use."
+        ],
+        "shadow": { "color": "rgba(0,0,0,0.8)", "blur": 12, "offsetX": 3, "offsetY": 3 },
+
+        "_comment_colors": [
+            "Absent, deliberately, and worth the note because every sibling",
+            "under this heading has one and the next person to copy this folder",
+            "will wonder where it went.",
+
+            "Two of the three colours here could not be handed over even if",
+            "somebody wanted to. `colors.panel` needs a panel and there is none",
+            "(see the note on `colors` in js/channels.js), and `colors.text`",
+            "recolours the highlight along with the block unless `highlight` is",
+            "stated too — which on this channel would take the near-black off",
+            "the yellow, where the contrast between the two is the highlight.",
+
+            "The deeper reason is the one that would hold even without those:",
+            "this show's three colours are the brand and were given as the",
+            "brand. A palette is for a channel where the CHOICE is part of the",
+            "look, which is what Hall of Femme's sixteen pairings are; it is",
+            "not a way for a pack to avoid deciding."
+        ],
+
+        "_comment_highlight": [
+            "A picked word is set in Anton at 700, near-black, on a yellow box.",
+            "Three things change at once and that is the point — this is the",
+            "loudest highlight under the heading because it is the only one",
+            "with the photograph to shout over rather than a card to sit on.",
+
+            "Box mode, which is this pack's override of the preset's `color`.",
+            "The preset chose colour because there was nothing to box against:",
+            "its words are already on a solid ground of their own, and a box",
+            "inside a card is a shape inside a shape. With the card gone the",
+            "block is on the picture, and a box is the only version of a",
+            "highlight that survives being on the picture — a recolour of two",
+            "words in a block of near-white would be two words in a slightly",
+            "different white as far as anyone scrolling is concerned.",
+
+            "Word scope, inherited, for the preset's reason: a caption's line",
+            "breaks are wherever the sentence ran out of width, so picking a",
+            "LINE out picks out a fragment rather than a thought.",
+
+            "The face is Anton at 700, which Anton does not ship. The bold is",
+            "the browser emboldening the one cut there is, and the whole of",
+            "what that means — why it is safe, what it costs to the pixel, and",
+            "what it must never be asked to carry on its own — is written out",
+            "in content/faces/anton-bold.json rather than repeated here. The",
+            "short version is that it is the third thing that changes at a",
+            "picked word and not the first: what makes these words read is",
+            "near-black on yellow, and the weight is a reinforcement of it.",
+
+            "#020200 rather than #000000, for the reason `color` above is not",
+            "#FFFFFF: it is the value the brand states, it is a black with a",
+            "trace of warmth in it, and on #FAE414 that trace is what stops the",
+            "pairing looking like a print registration error. There is nothing",
+            "here for a true black to be too harsh against either way — the box",
+            "is a flat shape, not a photograph seen through it.",
+
+            "The box's own shadow is stated to the same numbers as the block's",
+            "letters, which is the one thing that has to be true of it: the box",
+            "and the words beside it are lying on the same photograph, and two",
+            "different shadows in one block is two light sources. Stated rather",
+            "than left to the skeleton, whose answer here is a softer, centred",
+            "halo (blur 20, no offset) — right for a box on a card, wrong",
+            "beside letters that are casting 3px down and to the right.",
+
+            "`padRatio` is left at the skeleton's 0.12, which is about five",
+            "pixels at this size. That is a highlighter's margin and not a",
+            "card's, which is what a box cut to one word wants — the preset",
+            "makes the same argument at greater length for the 12px it gives",
+            "the card it draws.",
+
+            "13px of corner radius, which is the number every rectangle under",
+            "this heading is rounded by: a square-cornered one reads as a crop",
+            "or a letterbox, something the player did, and a rounded one reads",
+            "as a graphic somebody made. Restated here rather than inherited",
+            "because the preset states it on the `panel` this pack does not",
+            "have, and the argument for it is an argument about rectangles",
+            "rather than about cards."
+        ],
+        "highlight": {
+            "mode": "box",
+            "face": "anton-bold",
+            "color": "#020200",
+            "fill": "#FAE414",
+            "radius": 13,
+            "shadow": { "color": "rgba(0,0,0,0.8)", "blur": 12, "offsetX": 3, "offsetY": 3 }
+        },
+
+        "_comment_panel": [
+            "No card. The argument is in `_comment_title` above, and the two",
+            "consequences are the `shadow` and the `highlight` beside it.",
+
+            "Stated as null rather than left out, because it cannot be left",
+            "out: `use` merges the preset UNDER this pack (see `expand` in",
+            "js/channels.js), so the card's shape, padding, corners and shadow",
+            "arrive from snapchat-caption.json whatever this pack says about",
+            "them. Null is how a pack cut from that preset declines the one",
+            "part of it that is a whole shape rather than a number."
+        ],
+        "panel": null,
+
+        "layout": {
+            "_comment": [
+                "The preset's block, with the one thing this show measures",
+                "differently: it is hung from the top of the frame instead of",
+                "stood on the foot of it.",
+
+                "Everything else is inherited and argued there — nearly the",
+                "full width, a stated 40px so that forty stills cut from one",
+                "video are one set rather than forty type sizes, twenty",
+                "characters as the second ceiling on where the lines break,",
+                "`freeform` because a caption is a sentence and not three typed",
+                "beats, and the renderer's own 10px between the lines.",
+
+                "vAlign `top`. The foot of a vertical still is where a player",
+                "puts its own captions and where burned-in speech usually goes,",
+                "which is why every pack under this heading is there — and it",
+                "is also, on a phone, where the player's furniture is and where",
+                "a viewer's thumb rests. A caption at the head of the frame is",
+                "read before the picture rather than after it, which is the",
+                "register this show wants: the claim first, the footage as the",
+                "evidence for it. It is the same reasoning that puts these",
+                "captions at an end of the frame at all rather than across the",
+                "middle, applied to the other end.",
+
+                "topRatio is 50px off the head of a 960-tall frame, written as",
+                "the fraction every layout number here is written as",
+                "(50 / 960 = 0.052083). Small on purpose, and it can afford to",
+                "be where the bottom margin cannot: 0.125 at the foot is 120px",
+                "because a vertical video is watched inside a player with its",
+                "own furniture along the bottom edge, and there is nothing",
+                "along the top edge but the picture.",
+
+                "Like its opposite number it is a margin and not a position,",
+                "but it buys the constancy for nothing: a block hung from the",
+                "top grows DOWNWARD, so a caption that gains a fourth line",
+                "grows into the picture and its first line stays exactly 50px",
+                "down whatever was said over it. It is measured to the first",
+                "thing drawn, so a first line with a picked word in it puts the",
+                "yellow box on the margin and the capitals a padding below it",
+                "— five pixels, and the same distinction bottomRatio makes at",
+                "the other edge.",
+
+                "The preset's `bottomRatio` survives the merge and is simply",
+                "not read under vAlign `top` (see blockTop0 in js/text.js).",
+                "Left rather than nulled: it is the number this pack would go",
+                "back to if it ever came down to the foot of the frame, and a",
+                "null there would be a hole where every sibling has a number.",
+
+                "maxBlockHeightRatio is inherited at 0.30 and no longer",
+                "decides anything about the size — a size the renderer may",
+                "shrink is not a stated size. It does mean a little more type",
+                "fits inside it here than on a panelled sibling, since there is",
+                "no card padding for the renderer to take out of the budget",
+                "first (see BLOCK_BUDGET in js/text.js)."
+            ],
+            "vAlign": "top",
+            "topRatio": 0.052083
+        }
+    },
+
+    "_comment_branding": [
+        "No dark gradient, like every pack under this heading — and this is",
+        "the one channel where that needs its own sentence, because the usual",
+        "reason does not apply. Its siblings say the gradient has nothing to",
+        "do: their titles are on a card and not on the photograph. This one's",
+        "titles ARE on the photograph.",
+
+        "It still has nothing to do. The backend's gradient is a SIDE gradient",
+        "— full height, never past half the width, peaking on whichever side",
+        "the title column is (reframe_engine.apply_dark_gradient) — because it",
+        "was drawn for a landscape thumbnail with a headline set beside the",
+        "subject. There is no title column on a captured still: the block lies",
+        "across the width of the frame, and darkening one half of forty",
+        "pictures would shade half of every caption and leave the other half",
+        "exactly as it was. What holds this type off the photograph is its own",
+        "drop shadow, which is the tool for the job at this scale."
+    ],
+    "branding": { "gradient": false }
+}

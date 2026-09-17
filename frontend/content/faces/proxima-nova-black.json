@@ -1,0 +1,82 @@
+{
+    "schema": 1,
+    "id": "proxima-nova-black",
+
+    "_comment_family": [
+        "Proxima Nova ships as a family, and the two cuts this app carries -",
+        "this Black and the Bold beside it - both write 'Proxima Nova' into",
+        "name ID 16 with the cut in the subfamily. Asking for 'Proxima Nova'",
+        "alone would be a request either of them could answer, and on the one",
+        "channel set in both it is the request that decides whether a picked",
+        "word is a picked word at all: block and highlight would resolve to",
+        "the same file and the highlight would draw nothing.",
+        "",
+        "So the full name (name ID 4) is what gets declared, the same way",
+        "syne-regular and the two Telegraf packs declare theirs.",
+        "",
+        "The Windows family (name ID 1) is a third spelling again - this file",
+        "says 'Proxima Nova Bl' and the Bold says 'Proxima Nova Rg' - because",
+        "the family was cut into four-style groups for a font menu that only",
+        "ever held four. Neither of those is declared or listed below. 'Rg' in",
+        "particular is the REGULAR group's name, so a machine answering to it",
+        "would be as likely to hand back a 400 as the 700 that asked.",
+        "",
+        "Weight 900, which is the file's own usWeightClass and what the cut is",
+        "called. Asking for 800 or for 'bold' would invite a browser to",
+        "synthesise weight on top of a face that already has all of it."
+    ],
+    "family": "Proxima Nova Black",
+    "weight": "900",
+
+    "file": "fonts/proximanova_black.otf",
+    "format": "opentype",
+
+    "_comment_css": [
+        "Not declared in styles.css: this face arrived with a channel and is",
+        "registered from this JSON at load time (see registerFace in",
+        "js/channels.js), which is the route content/README.md describes.",
+        "Nothing has to be added to the stylesheet for it."
+    ],
+    "css": false,
+
+    "_comment_local": [
+        "What the machine may already know the face by, tried after the file,",
+        "and used by the installer as the name it registers this face under",
+        "(see engine.install_fonts, which takes the first).",
+        "",
+        "The PostScript name first, then the Windows full name. Both name this",
+        "one cut rather than the family or the four-style group it was filed",
+        "in, so a machine answering to either is answering with this file -",
+        "which is exactly what the fallback route is for."
+    ],
+    "local": ["ProximaNova-Black", "Proxima Nova Black"],
+
+    "_comment_stack": [
+        "Damage limitation, never a design choice - a block laid out against",
+        "the wrong metrics is broken rather than merely different, which is",
+        "what fontguard exists to catch before anything is drawn.",
+        "",
+        "Written as one half of a pair all the same. Every channel that uses",
+        "this face uses proxima-nova-bold with it, the whole of the difference",
+        "between them is weight, and the two stacks are written to keep a",
+        "weight difference standing when neither file loads. This one falls to",
+        "Arial Black, the heaviest face a Windows machine can be relied on to",
+        "have; the Bold falls to Segoe UI Semibold, which is lighter than it",
+        "and is not a face this stack can reach.",
+        "",
+        "Which of the two is the block and which is the picked word is the",
+        "CHANNEL's rather than this pack's. All seven that carry the pair now",
+        "answer it the same way - the Bold is the block and this Black is what",
+        "a picked word climbs to - and the seven were turned together, from a",
+        "block in this cut that stepped down. The fallback pair would hold",
+        "either way, because what it preserves is the gap and not a",
+        "direction.",
+        "",
+        "Impact sits behind Arial Black rather than in front of it, which is",
+        "the other way round from every display pack in this folder. Impact is",
+        "condensed and Proxima Nova Black is not: a caption that fell to it",
+        "would re-wrap at a width nothing measured, where Arial Black is the",
+        "same kind of object as this face at roughly the same set width."
+    ],
+    "stack": "'Proxima Nova Black', 'Arial Black', Impact, sans-serif"
+}

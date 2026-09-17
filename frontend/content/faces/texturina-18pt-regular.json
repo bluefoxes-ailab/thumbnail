@@ -1,0 +1,87 @@
+{
+    "schema": 1,
+    "id": "texturina-18pt-regular",
+
+    "_comment_family": [
+        "Texturina ships as a family of OPTICAL SIZES, and the two files in",
+        "fonts/ are two cuts of one of them: this Regular and the Bold beside",
+        "it, both from the 18pt instance, both carrying 'Texturina 18pt' as",
+        "name ID 1 with the cut left to the subfamily. Asking for 'Texturina",
+        "18pt' alone would let either of them answer, and these two are used",
+        "TOGETHER on one line - the Bold is what a picked word is set in, so a",
+        "Regular answering in its place would leave the highlight identical to",
+        "the words either side of it. The full name (name ID 4) is what gets",
+        "declared instead, exactly as the two Telegraf and the two Raleway",
+        "packs do and for their reason.",
+        "",
+        "The 18pt in that name is the optical size and not an instruction",
+        "about how big to set the face: the caption it is used for is set at",
+        "the Snapchat preset's 40px like every other caption here. An optical",
+        "size says which drawing of the letterforms this is, and the small end",
+        "of that axis is the one drawn for READING - sturdier hairlines, more",
+        "open spacing, less contrast between thick and thin - while the large",
+        "end is drawn for a headline seen whole. The channel that uses this",
+        "sets its type straight onto a photograph with no card under it (see",
+        "inkjection-fr), which is the hardest ground a serif can be asked to",
+        "hold, so the reading cut is the right end of the axis to ship even",
+        "though the type is comfortably bigger than 18pt on screen.",
+        "",
+        "Weight 400, which is the file's own usWeightClass and what the cut is",
+        "called. Stated rather than left to 'normal' so the pairing with the",
+        "700 next door is written down on both halves of it."
+    ],
+    "family": "Texturina 18pt Regular",
+    "weight": "400",
+
+    "file": "fonts/Texturina_18pt-Regular.ttf",
+    "format": "truetype",
+
+    "_comment_css": [
+        "Not declared in styles.css: this face arrived with a channel and is",
+        "registered from this JSON, which is the route content/README.md",
+        "describes. Nothing has to be added to the stylesheet for it."
+    ],
+    "css": false,
+
+    "_comment_local": [
+        "What the machine may already know the face by, tried after the file,",
+        "and also the name the installer registers the file under when it puts",
+        "a copy into Windows (engine.install_fonts takes the first entry, and",
+        "Windows keys installed fonts by name ID 4). The first is that full",
+        "name and the second the PostScript name; both name this one cut",
+        "rather than the family, so a machine answering to either is answering",
+        "with a Regular. 'Texturina 18pt' on its own is deliberately absent -",
+        "it is the name the Bold answers to as well, and a Bold arriving here",
+        "would set the whole block in the highlight's weight.",
+        "",
+        "This fallback is less likely to fire than most in this folder.",
+        "Texturina is not a face that comes with Windows or with an office",
+        "suite, so on a machine that never ran the installer these names",
+        "resolve to nothing and the stack below is what answers."
+    ],
+    "local": ["Texturina 18pt Regular", "Texturina18pt-Regular"],
+
+    "_comment_stack": [
+        "The fallbacks are damage limitation and never a design choice - a",
+        "title laid out against the wrong metrics is broken rather than merely",
+        "different, which is what fontguard exists to catch before anything is",
+        "drawn. They are still chosen rather than copied.",
+        "",
+        "Georgia first, because it is the one serif on every Windows this app",
+        "runs on that was drawn for the same job: reading at text sizes on a",
+        "screen, with the sturdy hairlines that survive being laid over a",
+        "photograph. Times New Roman behind it is the floor, and it is a",
+        "poorer stand-in for exactly that reason - it was drawn for print at",
+        "newspaper sizes and its thins go to nothing on screen - but it is",
+        "present everywhere and it is at least a serif.",
+        "",
+        "Impact and Arial Black, which most of this folder falls back through,",
+        "are absent for telegraf-ultralight's reason turned the other way up:",
+        "they are heavy sans display grotesques, and this is a literary serif.",
+        "Falling back to one of them would make the one thing that survives a",
+        "missing file the furthest possible thing from it, and it would do so",
+        "on a channel whose whole look is that its captions are set in a",
+        "serif."
+    ],
+    "stack": "'Texturina 18pt Regular', Georgia, 'Times New Roman', serif"
+}

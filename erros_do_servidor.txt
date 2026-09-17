@@ -1,0 +1,18 @@
+INFO:     Started server process [6569]
+INFO:     Waiting for application startup.
+INFO:     profile=full (Tesla T4, 14.6GB VRAM — discrete GPU with ample VRAM) | face restoration: frame-scoped GAN | inpainting: LaMa | fp16: off
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     face restoration unavailable — classical pipeline only
+inpainter: LaMa unavailable, falling back to OpenCV inpainting (No module named 'simple_lama_inpainting')
+INFO:     inpainting: LaMa unavailable, using Telea
+INFO:     179.181.84.21:0 - "GET / HTTP/1.1" 404 Not Found
+INFO:     179.181.84.21:0 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     179.181.84.21:0 - "GET /docs HTTP/1.1" 200 OK
+INFO:     179.181.84.21:0 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     179.181.84.21:0 - "GET /docs HTTP/1.1" 200 OK
+INFO:     179.181.84.21:0 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [6569]

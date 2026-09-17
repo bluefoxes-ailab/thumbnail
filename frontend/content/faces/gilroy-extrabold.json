@@ -1,0 +1,44 @@
+{
+    "schema": 1,
+    "id": "gilroy-extrabold",
+
+    "_comment_family": [
+        "The name Windows knows this file by, which is also the one the",
+        "@font-face registration below hands the canvas. The file's own",
+        "typographic family is 'Gilroy' with 'ExtraBold' as the subfamily;",
+        "asking for 'Gilroy' alone would let any other cut of the family",
+        "installed on the machine answer, and a title laid out against a",
+        "Regular is a title laid out against the wrong metrics.",
+        "",
+        "ExtraBold is the weight the folder holds. It is the heaviest cut",
+        "shipped here and the one the channel is set in — if a true Bold is",
+        "ever added, it arrives as its own face pack rather than as a change",
+        "to this one, so the two cannot be confused for each other."
+    ],
+    "family": "Gilroy ExtraBold",
+    "weight": "800",
+
+    "file": "fonts/Gilroy-ExtraBold.otf",
+    "format": "opentype",
+
+    "_comment_css": [
+        "Not declared in styles.css: this face arrived with a channel and is",
+        "registered from this JSON, which is the route content/README.md",
+        "describes. Nothing has to be added to the stylesheet for it."
+    ],
+    "css": false,
+
+    "_comment_local": [
+        "What the machine may already know the face by, tried after the file.",
+        "The first is the Windows full name (name ID 4) and is also what the",
+        "installer registers the face under; the second is the family Windows",
+        "lists it in, which is what a browser matches a local() by name.",
+        "",
+        "Unlike scale-condensed-bold, this name is the font's own rather than",
+        "one this app invented, so a machine answering to it is answering with",
+        "this face — which is exactly what the fallback route is for."
+    ],
+    "local": ["Gilroy-ExtraBold", "Gilroy ExtraBold"],
+
+    "stack": "'Gilroy ExtraBold', Impact, 'Arial Black', sans-serif"
+}

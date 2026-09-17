@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thumbnail Maker</title>
+    <!-- Everything this page needs is served from disk. It used to pull
+         fabric.js from a CDN and Raleway from Google Fonts, which meant a
+         local tool silently depended on the network: offline, the font fell
+         back to a system face and fabric.js failed outright, taking the
+         entire canvas — preview, thumbnails and export — with it. -->
+    <link rel="stylesheet" href="vendor/raleway.css">
+    <link rel="preload" href="fonts/TradeGothicNextLTProHeavyCompressed.otf" as="font" type="font/otf" crossorigin>
+    <link rel="stylesheet" href="styles.css">
+    <script src="vendor/fabric.min.js"></script>
+</head>
+<body>
+<div class="app">
+    <div class="app-header">
+        <img src="logo.webp" alt="Blue Foxes" class="brand-logo">
+        <h1>Thumbnail Maker</h1>
+    </div>
+
+    <div class="input-section">
+        <!-- The channel this RUN is for, as opposed to the one in the title
+             panel, which is the channel one finished frame is drawn in.
+
+             Two pickers because there are two questions, and only one of them
+             can be answered here. A channel may recalibrate how the video's
+             frames are chosen — how much of the canvas the subject fills, what
+             makes a frame worth keeping (see `framing` in js/channels.js) —
+             and that decision is spent the moment the frames exist. So it has
+             to be available BEFORE the link box, which is the one place in the
+             app that comes before there are any frames.
+
+             Picking one here also brands every frame the run produces with it,
+             so for the ordinary case (one video, one channel) this is the only
+             channel picker anybody has to touch. -->
+        <label class="field-label" for="runChannelSelect">Channel</label>
+        <select class="channel-select" id="runChannelSelect">
+            <option value="">-</option>
+        </select>
+        <div class="panel-hint" id="runChannelHint">Optional. Some channels pick their frames differently, and that choice is made before processing.</div>
+        <!-- How many frames a FRAME-FETCHING channel should return (see
+             `capture` in js/channels.js). Hidden for every channel that makes
+             thumbnails, where the grid's size is the pipeline's answer and not
+             a question anybody is asked.
+
+             Here, above the link box, because it belongs to the same moment
+             the channel does: how many frames to cut is decided before the
+             video is read and cannot be revisited once the grid exists. -->
+        <div class="hidden" id="frameCountRow">
+            <label class="field-label" for="frameCount">Frames to fetch</label>
+            <!-- A slider rather than a typed number, because the count is a
+                 quantity being chosen and not a value being entered: the
+                 useful answers are a range and the user is picking a point in
+                 it, not recalling a figure. It also answers both ways of
+                 reaching for one \u2014 a click anywhere on the track jumps
+                 straight there, and the handle can be dragged \u2014 where a
+                 number box answers neither without the keyboard.
+
+                 The readout beside it is the exact number, live, so nothing
+                 about the choice is left to be judged by eye. -->
+            <div class="count-control">
+                <input type="range" id="frameCount" class="count-slider" min="1" max="200" step="1" value="40">
+                <output class="count-value" id="frameCountValue" for="frameCount">40</output>
+            </div>
+            <div class="panel-hint" id="frameCountHint"></div>
+        </div>
+        <input type="text" id="driveUrl" placeholder="Paste Google Drive, Dropbox, or YouTube link here">
+        <button class="btn" style="width:100%" id="processBtn">Process Video</button>
+        <!-- A video already on this machine takes the same route as a linked
+             one: the file is uploaded, and from there the backend cannot tell
+             the two apart. The <input> is hidden because a bare file input
+             can't be styled into the rest of the UI — the button in front of
+             it is what the user sees, and it forwards the click. -->
+        <div class="source-or"><span>or</span></div>
+        <input type="file" id="videoFileInput" class="hidden"
+               accept="video/*,.mp4,.m4v,.mov,.mkv,.webm,.avi,.mpg,.mpeg,.wmv,.flv,.ts,.m2ts,.3gp">
+        <button class="btn" style="width:100%" id="uploadVideoBtn">Upload video from computer</button>
+    </div>
+
+    <div class="progress-section hidden" id="progressSection">
+        <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+        <div class="progress-text" id="progressText"></div>
+    </div>
+
+    <div class="font-warning hidden" id="fontWarning"></div>
+    <!-- A channel pack that failed to load. Same treatment as a missing font
+         and for the same reason: the symptom is a channel quietly absent from
+         the dropdown, which reads as "the app lost my brand" rather than as
+         "this file has a typo in it". -->
+    <div class="font-warning hidden" id="contentWarning"></div>
+    <div class="status" id="status"></div>
+
+    <div class="hidden" id="resultSection">
+        <h2>Select a frame</h2>
+        <div class="frames-grid" id="framesGrid"></div>
+
+        <h2 id="previewLabel">Preview</h2>
+        <div class="reframe-hint" id="reframeHint">Click and drop to reframe the image — drag past the edge and the gap is filled in automatically</div>
+
+        <div class="editor">
+            <div class="canvas-col">
+                <div class="canvas-container" id="canvasContainer">
+                    <img class="wide-layer" id="wideLayer">
+                    <canvas id="thumbCanvas" width="1280" height="720"></canvas>
+                    <canvas class="live-crop-layer" id="liveCropLayer" width="1280" height="720"></canvas>
+                    <div class="reframe-spinner" id="reframeSpinner">
+                        <div class="fox-loader">
+                            <img class="fox-loader-base" src="fox.png" alt="">
+                            <div class="fox-loader-fill"></div>
+                        </div>
+                    </div>
+                    <div class="zoom-bar" id="zoomBar">
+                        <div class="zoom-cap" id="zoomInBtn" title="Zoom in">+</div>
+                        <div class="zoom-slider-wrap" id="zoomSliderWrap">
+                            <input type="range" id="zoomSlider" min="0.5" max="2" step="0.01" value="1">
+                        </div>
+                        <div class="zoom-cap" id="zoomOutBtn" title="Zoom out">&minus;</div>
+                    </div>
+                    <!-- Step to the frame before or after this one without
+                         going back up to the grid. Placed against the
+                         canvas and at its own mid-height, because what is
+                         being stepped through is the picture; the grid is
+                         where you go to jump somewhere in particular, and
+                         these are for walking a set in order, which is how
+                         a fetched set is read.
+
+                         The forward arrow sits further out than the back
+                         one for a reason visible on screen: the zoom bar
+                         overhangs this container's right edge (see
+                         .zoom-bar), and the two would otherwise share the
+                         same 30 pixels. -->
+                    <button class="frame-nav prev hidden" id="prevFrameBtn" type="button"
+                            title="Previous frame" aria-label="Previous frame">&lsaquo;</button>
+                    <button class="frame-nav next hidden" id="nextFrameBtn" type="button"
+                            title="Next frame" aria-label="Next frame">&rsaquo;</button>
+                </div>
+                <div class="below-canvas">
+                    <button class="btn" id="flipImageBtn">Flip image</button>
+                    <button class="btn" id="flipTextBtn">Flip text</button>
+                    <button class="btn" id="varyBtn" title="Try a nearby moment of this same frame — a different expression, without changing the scene">&#8635; Variation</button>
+                    <!-- Replaces the photo behind the selected frame with one
+                         of the user's own. Sits next to Variation because it
+                         answers the same question — "not this picture" — for
+                         the case where the answer isn't in the video at all. -->
+                    <input type="file" id="frameFileInput" accept="image/*" class="hidden">
+                    <button class="btn" id="frameUploadBtn" title="Replace this frame with an image from your computer">Upload frame</button>
+                    <button class="btn" id="gradientBtn" title="Dark gradient behind the text, for contrast">Gradient On</button>
+                    <!-- Shown only on a channel that owns more than one
+                         backdrop (see editor.syncBackgroundButton). One button
+                         that wraps rather than a picker: two stages are
+                         something you flip between while watching the subject
+                         stand on them. -->
+                    <button class="btn hidden" id="bgBtn" title="Move this thumbnail to the next of this channel's backdrops">Change background</button>
+                    <!-- Shown only on a channel that offers a contour (see
+                         editor.syncFigureGlowButton). Walks the channel's
+                         colours and then off, and round again. -->
+                    <button class="btn hidden" id="figureGlowBtn" title="A coloured contour around the cut-out subject — click to walk the channel's colours, and again to switch it off">Contour: off</button>
+                    <button class="btn" id="downloadBtn">Download</button>
+                    <button class="btn" id="batchBtn" disabled>Download selected (0)</button>
+                    <!-- Every frame in the grid, as one archive. Shown only on
+                         a frame-fetching channel, where "all of them" is the
+                         expected answer rather than an unusual one: the run
+                         exists to produce a set, and the ordinary path through
+                         it is process, then this. -->
+                    <button class="btn hidden" id="downloadAllBtn" title="Download every frame as a single zip file">Download all</button>
+                </div>
+            </div>
+
+            <div class="text-panel">
+                <!-- Three wrappers around what were three runs of loose
+                     siblings. They carry no styling of their own on a
+                     thumbnail channel - `.panel-group` is `display:
+                     contents` there, so the panel lays out exactly as it
+                     always did - and they exist for the one channel where
+                     the canvas is portrait: with 300px of column beside a
+                     540x960 frame there is height to spare and width going
+                     begging, so the three sections turn and sit side by
+                     side. See the captions-mode rules in styles.css. -->
+                <div class="panel-group">
+                    <h2 id="textPanelLabel" style="margin-top:0">Title — Frame 1</h2>
+                    <!-- The channel comes first because everything under it
+                         depends on it: the title fields stay inert until one is
+                         picked, since a title has to be set in some brand's font,
+                         color and layout, and there is no sensible default brand
+                         to fall back on. Options are filled in from channels.js
+                         so adding a channel never means touching this file. -->
+                    <label class="field-label" for="channelSelect">Channel</label>
+                    <select class="channel-select" id="channelSelect">
+                        <option value="">-</option>
+                    </select>
+                    <div class="panel-warn hidden" id="channelWarning"></div>
+                    <!-- Four slots in the markup, and however many of them the
+                         selected channel calls for on screen (see `layout.lines`
+                         in js/channels.js). All four are always here for the same
+                         reason the block below them is: building the fields per
+                         channel would throw away what had been typed every time
+                         the user tried another brand. -->
+                    <input type="text" class="line-input" id="line1" placeholder="Line 1">
+                    <input type="text" class="line-input" id="line2" placeholder="Line 2">
+                    <input type="text" class="line-input" id="line3" placeholder="Line 3">
+                    <input type="text" class="line-input" id="line4" placeholder="Line 4">
+                    <!-- The same title, typed as one block, for a channel whose
+                         line breaks are the user's own (see `freeform` in
+                         channels.js). Both this and the three fields above are
+                         always in the markup and the panel shows whichever the
+                         selected channel calls for — building the fields per
+                         channel would throw away what had been typed every time
+                         the user tried another brand. -->
+                    <textarea class="line-block hidden" id="lineBlock" rows="1"
+                              placeholder="Press Enter for a new line"></textarea>
+                    <div class="btn-row" id="hlButtons"></div>
+                    <!-- The colours this channel lets the user choose between
+                         (see `title.colors` in channels.js), one swatch per
+                         colour. Empty and hidden for every channel that
+                         decides its own — a brand's colours are its colours,
+                         and a picker in front of them is a picker in front of
+                         the guidelines.
+
+                         Three rows, in the order they sit on the type: the
+                         block, the words picked out of it, then the ground
+                         underneath. A channel states any of the three lists
+                         and leaves the rest out, and a row with no list behind
+                         it is hidden along with its label.
+
+                         Filled in from the pack rather than written here, so a
+                         channel offering four colours, or offering the choice
+                         for the letters and not for the slab, is a data change
+                         like every other part of a pack. See
+                         editor.renderColorButtons. -->
+                    <div class="color-rows hidden" id="colorRows">
+                        <label class="field-label" id="textColorLabel">Text colour</label>
+                        <div class="btn-row swatch-row" id="textColorRow"></div>
+                        <label class="field-label" id="highlightColorLabel">Highlight colour</label>
+                        <div class="btn-row swatch-row" id="highlightColorRow"></div>
+                        <label class="field-label" id="panelColorLabel">Background colour</label>
+                        <div class="btn-row swatch-row" id="panelColorRow"></div>
+                    </div>
+                    <!-- Which end of the block a line shorter than its neighbours
+                         is short AT. Hidden for a channel that fits every line to
+                         the full width, where there is no slack to place and the
+                         buttons would visibly do nothing (see editor.alignable). -->
+                    <div class="btn-row hidden" id="alignRow">
+                        <button class="btn" id="alignLeftBtn" title="Set the title against the left of its block">Align left</button>
+                        <button class="btn" id="alignCenterBtn" title="Centre the title in its block">Centre</button>
+                        <button class="btn" id="alignRightBtn" title="Set the title against the right of its block">Align right</button>
+                    </div>
+                    <!-- Shown only for a channel that offers a halo rather than
+                         wearing one. Hidden, not disabled: a dead button says "not
+                         for this channel", and there is nothing to say when the
+                         channel has no such effect at all. -->
+                    <div class="btn-row hidden" id="glowRow">
+                        <button class="btn" id="glowBtn" title="A soft halo behind the whole title">Glow Off</button>
+                    </div>
+                    <div class="panel-hint hidden" id="titleMoveHint">Drag the text on the canvas to move it; drag its corner handle to resize.</div>
+                    <!-- Shown only for a channel that composes its thumbnails from
+                         a cutout, because for every other one the zoom control
+                         means what it has always meant. -->
+                    <div class="panel-hint hidden" id="cutoutHint">The subject is cut out of the photo and stands on this channel's backdrop. Drag them anywhere on the canvas, and use the zoom control to resize them &mdash; the backdrop stays put. Where they start is only a suggestion.</div>
+                    <div class="panel-hint">Saved to this frame automatically. Tick thumbnails to batch-download them.</div>
+                </div>
+
+                <div class="panel-group">
+                    <h2>Edit preset</h2>
+                    <div class="btn-col" id="editPresetButtons">
+                        <button class="btn" id="presetNoneBtn" data-preset="none" title="Full restoration (deblur, denoise, detail) with no color or tone grading">Restore only</button>
+                        <button class="btn" id="presetNaturalBtn" data-preset="natural" title="The same restoration, with the color/tone grading eased back for a natural look">Natural</button>
+                        <button class="btn" id="presetFullBtn" data-preset="full" title="The same restoration, with the color/tone grading at full strength">Heavy edit</button>
+                    </div>
+                    <div class="panel-hint">Applies to this frame. Natural is the default look.</div>
+                </div>
+
+                <div class="panel-group">
+                    <h2 id="logoPanelLabel">Image overlay</h2>
+                    <input type="file" id="logoFileInput" accept="image/*" class="hidden">
+                    <div class="btn-row">
+                        <!-- Always available: a frame carries as many overlays as
+                             the user adds, so this never turns into "Replace". -->
+                        <button class="btn" id="logoUploadBtn">Upload image</button>
+                    </div>
+                    <!-- One chip per overlay already on the frame, each with the
+                         only action it needs: delete. -->
+                    <div class="logo-list" id="logoList"></div>
+                    <div class="panel-hint">Drag it on the canvas to move; drag its corner handle to resize.</div>
+                    <div class="panel-hint" id="logoListHint" style="display:none">Click a picture above to put the handles on it.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

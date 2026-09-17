@@ -1,0 +1,90 @@
+{
+    "schema": 1,
+    "id": "montserrat-semibold",
+
+    "_comment_family": [
+        "The third static cut of Montserrat in this folder, and the lightest",
+        "of them. montserrat-bold.json is the note to read first: it is where",
+        "the argument for declaring a full name rather than 'Montserrat' is",
+        "made, and it holds for all three packs.",
+        "",
+        "A SemiBold is not one of the four styles the old family model has",
+        "room for, so the static build gives it a family of its own exactly",
+        "the way it does the ExtraBold: name ID 1 here reads 'Montserrat",
+        "SemiBold' with 'Regular' as the subfamily, and the real family shows",
+        "up only in the typographic names (16/17) as 'Montserrat' +",
+        "'SemiBold'. Declaring the full name is therefore not a workaround on",
+        "this pack - it is the file's own family name.",
+        "",
+        "Three cuts of one family in one folder is also the reason none of",
+        "them may answer to the family name: fontguard keys its check by",
+        "family, so each cut has to be verified in its own right rather than",
+        "one check answering for three."
+    ],
+    "family": "Montserrat SemiBold",
+    "weight": "600",
+
+    "_comment_weight": [
+        "600, which is the file's own usWeightClass and what the cut is",
+        "called. It matters here for the reason it matters on the Bold beside",
+        "it: the face this pack is paired with on rap-lore is that Bold, and",
+        "the 100 units between 600 and 700 ARE that channel's highlight. A",
+        "block asked for at the wrong weight would not look wrong on its own -",
+        "it would quietly close the one gap the highlight is made of, or",
+        "invite a browser to synthesise a difference the metrics do not know",
+        "about."
+    ],
+
+    "file": "fonts/Montserrat-SemiBold.ttf",
+    "format": "truetype",
+
+    "_comment_css": [
+        "Not declared in styles.css: this face arrived with a channel and is",
+        "registered from this JSON, which is the route content/README.md",
+        "describes. Nothing has to be added to the stylesheet for it."
+    ],
+    "css": false,
+
+    "_comment_local": [
+        "What the machine may already know the face by, tried after the file.",
+        "The first is the Windows full name (name ID 4) and the second the",
+        "PostScript name; both name this one cut rather than the family, so a",
+        "machine answering to either is answering with the SemiBold.",
+        "",
+        "'Montserrat' on its own is absent here for the reason it is absent on",
+        "the other two, and the consequence has a particular shape on the",
+        "lightest cut of the three: a block that fell back to the family would",
+        "come out in whatever weight the machine keeps as Montserrat's",
+        "default, which on most machines is the Regular - lighter than what",
+        "was asked for, which on a caption over a photograph is the direction",
+        "that costs legibility rather than merely looking wrong."
+    ],
+    "local": ["Montserrat SemiBold", "Montserrat-SemiBold"],
+
+    "_comment_stack": [
+        "The fallbacks are damage limitation and never a design choice - a",
+        "title laid out against the wrong metrics is broken, not merely",
+        "different, which is what fontguard exists to catch before it is ever",
+        "drawn. They are still chosen rather than copied, and they are the",
+        "Bold's entries reached at a different weight, for the reason the",
+        "ExtraBold's are: the difference between block and highlight on the",
+        "channel set in this pair is a WEIGHT, and weight travels in the font",
+        "string beside the family rather than inside it (see textProps in",
+        "js/text.js). Sharing every fallback is therefore what keeps the two",
+        "one step apart wherever the substitute family has the cuts.",
+        "",
+        "No Impact and no Arial Black, which most of this folder falls through",
+        "and which would be wrong here twice over. Montserrat is a geometric",
+        "text sans at 600, not a heavy display cut, so a condensed grotesque",
+        "behind it is the furthest thing the machine could offer from what",
+        "went missing.",
+        "",
+        "Segoe UI is on every Windows this app runs on and Arial is the floor.",
+        "Neither has a real SemiBold, so 600 lands on their Regular or their",
+        "Bold depending on the machine - and where it lands on the Bold, the",
+        "step this channel's highlight is made of closes. That is the ordinary",
+        "cost of a face that never arrived, and it is reported rather than",
+        "drawn."
+    ],
+    "stack": "'Montserrat SemiBold', 'Segoe UI', Arial, sans-serif"
+}

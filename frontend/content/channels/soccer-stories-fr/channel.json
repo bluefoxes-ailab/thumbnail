@@ -1,0 +1,143 @@
+{
+    "schema": 1,
+    "id": "soccer-stories-fr",
+    "name": "Soccer Stories FR",
+
+    "_comment_group": [
+        "Another show under the Snapchat heading, and the same kind of thing",
+        "every one of them is: the heading names the network these frames are",
+        "cut FOR and the channel is the show they are cut from, so another show",
+        "cutting for the same network is one more folder under it rather than a",
+        "heading of its own.",
+        "",
+        "Like all of its neighbours it is a frame fetcher rather than a",
+        "thumbnail maker: a video goes in and a numbered grid of vertical",
+        "stills comes out, each captioned with what was being said over it.",
+        "",
+        "It is the fourth of the packs set in League Spartan, and",
+        "dr-football-us is the one to read: this pack's face, its two-question",
+        "palette and its absent highlight are all that pack's, argued there at",
+        "length, and the argument is about the FACE rather than about either",
+        "show. Behind that sits Hall of Femme, whose design all four are cut",
+        "to.",
+        "",
+        "The FR in the name is the account's, and it says which of the brand's",
+        "feeds this is rather than what language the app is in. What arrives on",
+        "the frames is whatever the video's own voice track was saying, put",
+        "through the transcription and the rewrite exactly as it is on every",
+        "channel here; nothing in this pack changes that, and everything the",
+        "app itself says is English like the rest of it (see CLAUDE.md).",
+        "",
+        "What this pack decides is its two colours - and it is the one of the",
+        "four whose type is black rather than white, which is the card's doing",
+        "and is argued under `color`."
+    ],
+    "order": 900,
+    "group": "Snapchat",
+
+    "_comment_capture": [
+        "The frame fetch, whole, from content/presets/snapchat-capture.json:",
+        "the slider's range, the 540x960 output, the transcription, and the",
+        "rewrite that turns it from speech into report. This channel has",
+        "nothing to say about any of it that its neighbours do not."
+    ],
+    "capture": { "use": "snapchat-capture" },
+
+    "framing": { "use": "snapchat-framing" },
+
+    "_comment_title": [
+        "Set in League Spartan on a warm vermilion card, in two colours the",
+        "user picks per frame. Everything else about how the words are set -",
+        "the size, where the lines break, the capitals, the shape of the card,",
+        "where it stands on the frame - is the Snapchat caption design and is",
+        "stated once, in content/presets/snapchat-caption.json.",
+        "",
+        "Why League Spartan suits a caption at this size, and why its single",
+        "cut leaves this channel with no highlight, is written out in",
+        "dr-football-us. Nothing about it is different here."
+    ],
+    "title": {
+        "use": "snapchat-caption",
+
+        "face": "league-spartan",
+
+        "_comment_color": [
+            "The channel's own answer, and therefore what every frame is set in",
+            "until somebody presses a swatch: a frame stores no colour of its",
+            "own until it is given one, and this is what it falls back to (see",
+            "state.textColorFor). It is one of the two in `colors` below, so",
+            "the black swatch is the one that shows as chosen on an untouched",
+            "frame - the swatch is found by matching this value rather than by",
+            "being listed first.",
+            "",
+            "Black, where the other three League Spartan packs open on white,",
+            "and it is the CARD that decides which. #474A92 and #312ED5 are",
+            "dark blues and white is the only thing that reads on them;",
+            "#EB523A is a light warm red, and white on it is the pairing that",
+            "looks strong on a monitor and turns into a caption with no edges",
+            "on a phone at arm's length. Black on it is unambiguous at every",
+            "size and over every still underneath.",
+            "",
+            "Absolute black rather than a soft near-black, for the reason the",
+            "other packs give for absolute white: on a saturated card an",
+            "off-black picks the card's colour up and reads as a caption",
+            "printed out of register rather than as a softer black. There is",
+            "nothing for a true black to be too harsh against either - it is on",
+            "a colour somebody chose, not on a photograph."
+        ],
+        "color": "#000000",
+
+        "_comment_colors": [
+            "The two colours this show is set in, offered for the letters and",
+            "for the card behind them - two buttons in each of the two rows in",
+            "the title panel.",
+            "",
+            "The same shape of palette dr-football-us has, and for the same",
+            "reasons, written out there: one brand colour and one absolute,",
+            "offered as the pairing and its inverse; the same list twice",
+            "because what is on offer is the pairing rather than two unrelated",
+            "sets; and two rows and not three, because there is no highlight",
+            "for a third to recolour."
+        ],
+        "colors": {
+            "text": ["#EB523A", "#000000"],
+            "panel": ["#EB523A", "#000000"]
+        },
+
+        "_comment_highlight": [
+            "None. Every line of every caption on this channel is set the same",
+            "way, and the highlight buttons stand where they stand everywhere",
+            "else and go dead with a tooltip saying whose decision that was.",
+            "",
+            "dr-football-us is where this is argued: the app carries one cut of",
+            "League Spartan, so the change of CUT every sibling picks its words",
+            "out with is not available, a synthesised weight would be measured",
+            "as well as drawn, and a recolour into the palette's other colour",
+            "is the card's own colour. A pack in that position says it has no",
+            "highlight rather than shipping one nobody could tell apart from",
+            "the type."
+        ],
+        "highlight": null,
+
+        "_comment_panel": [
+            "Vermilion, and the fill is the one thing about the card this pack",
+            "decides: its shape, its padding, its corners and its shadow are",
+            "the Snapchat caption design and come from the preset.",
+            "",
+            "It is the first entry in `colors.panel` above as well, so the",
+            "swatch that shows as chosen on an untouched frame is the one at",
+            "the start of the row - though nothing requires that, since the",
+            "swatch is found by matching this value rather than by being listed",
+            "first."
+        ],
+        "panel": { "fill": "#EB523A" }
+    },
+
+    "_comment_branding": [
+        "No dark gradient. It exists to hold a title legible against the",
+        "photograph, and this title is not against the photograph at all - it",
+        "is on a card of its own. A scrim over every still would darken forty",
+        "pictures to solve a problem the card has already solved."
+    ],
+    "branding": { "gradient": false }
+}

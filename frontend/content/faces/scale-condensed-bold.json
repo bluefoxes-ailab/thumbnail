@@ -1,0 +1,58 @@
+{
+    "schema": 1,
+    "id": "scale-condensed-bold",
+
+    "_comment_family": [
+        "The family name here is one this app invents. The file is a VARIABLE",
+        "font: it calls itself 'Scale VF' and carries a whole family along two",
+        "axes, from ExtraCondensed ExtraLight to SuperExtended Black. Asked for",
+        "by its own name it hands back its default instance — the Regular at",
+        "normal width — which is not the cut anything is designed in.",
+        "",
+        "Registering it under the name of the instance we want, pinned to that",
+        "instance by the descriptors below, is what makes 'Scale VF Condensed",
+        "Bold' a face the canvas can simply ask for. A second channel wanting a",
+        "different cut of the same file declares its own pack the same way;",
+        "they are separate faces to the browser and do not collide."
+    ],
+    "family": "Scale VF Condensed Bold",
+
+    "_comment_pinning": [
+        "wght 700 and wdth 75 — the file's own 'Condensed Bold' instance.",
+        "",
+        "A single-valued descriptor is a clamp, not a filter: whatever weight or",
+        "width the canvas asks for is pulled into the range declared here, and",
+        "with the range one value wide the face can only be drawn at that",
+        "instance. `stretch` is what does the work — canvas takes no",
+        "font-stretch, so 75% could not be asked for at the point of drawing",
+        "even if we wanted to. `variationSettings` states the same instance",
+        "straight to the axes, so the cut survives a browser whose font matching",
+        "ever stops clamping. Measured here: 920.5px for the probe string",
+        "against 846.2 at wght 400 and 1182.9 at wdth 100, so both axes land."
+    ],
+    "weight": "700",
+    "stretch": "75%",
+    "variationSettings": "'wdth' 75, 'wght' 700",
+
+    "file": "fonts/Scale VF Condensed Bold.otf",
+    "format": "opentype",
+
+    "_comment_css": [
+        "Not declared in styles.css: this face arrived with a channel and is",
+        "registered from this JSON, which is the route content/README.md",
+        "describes. It also has to be — the pinning above lives in the FontFace",
+        "descriptors, and there is no stylesheet rule for it to inherit."
+    ],
+    "css": false,
+
+    "_comment_local": [
+        "Deliberately empty. A local() source resolves by NAME, and no font",
+        "installed on any machine is called 'Scale VF Condensed Bold' — the",
+        "name only exists because of the registration above. Anything Windows",
+        "handed back under a name close to it would be some other cut of the",
+        "family at best, so the file is the only route, and a missing file is",
+        "reported as missing rather than quietly replaced."
+    ],
+
+    "stack": "'Scale VF Condensed Bold', Impact, 'Arial Black', sans-serif"
+}

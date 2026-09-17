@@ -1,0 +1,138 @@
+{
+    "schema": 1,
+    "id": "century-gothic-bold",
+
+    "_comment_family": [
+        "Century Gothic is Monotype's geometric sans - their answer to ITC",
+        "Avant Garde, single-storey a and all - and it ships as the old",
+        "four-style family: Regular, Bold, Italic, Bold Italic. The file in",
+        "fonts/ is the Bold, and it is named here the way montserrat-bold is",
+        "named, for the same reason and with one extra hazard on top of it.",
+
+        "This file's name ID 1 is 'Century Gothic', flat, with 'Bold' as its",
+        "subfamily: the Bold is one of the four styles the old family model",
+        "allows, so it answers to the family name itself. Declaring that name",
+        "would be declaring a name the Regular answers to just as well.",
+
+        "The extra hazard is that on this particular family that is not",
+        "hypothetical. Century Gothic has been bundled with Microsoft Office",
+        "for thirty years and is on most of the Windows machines this app runs",
+        "on - two faces in this folder already fall back to it on exactly that",
+        "reasoning (see garet-book and itc-avant-garde-std-md). So a machine",
+        "asked for 'Century Gothic' will very often answer, and what it hands",
+        "back is the Regular: a caption measured against the Bold and drawn in",
+        "a 400 would come out at a width nothing measured.",
+
+        "So the full name (name ID 4) is what gets declared, the same way",
+        "montserrat-bold and telegraf-ultralight declare theirs.",
+
+        "Weight 700, which is the file's own usWeightClass and what the cut is",
+        "called. Asking for 400 here would draw this file at its own weight",
+        "under a wrong label, and asking for 800 would invite a browser to",
+        "embolden a face that is already the heavy end of its family."
+    ],
+    "family": "Century Gothic Bold",
+    "weight": "700",
+
+    "file": "fonts/Century Gothic Bold.ttf",
+    "format": "truetype",
+
+    "_comment_css": [
+        "Not declared in styles.css: this face arrived with a channel and is",
+        "registered from this JSON, which is the route content/README.md",
+        "describes. Nothing has to be added to the stylesheet for it."
+    ],
+    "css": false,
+
+    "_comment_local": [
+        "What the machine may already know the face by, tried after the file.",
+        "The first is the PostScript name and is also what the installer",
+        "registers the face under (see engine.install_fonts, which takes the",
+        "first entry); the second is the Windows full name. Both name this one",
+        "cut rather than the family, so a machine answering to either is",
+        "answering with this file - which is exactly what the fallback route is",
+        "for.",
+
+        "'Century Gothic' on its own is deliberately absent, and it is the one",
+        "entry somebody will be tempted to add here because it is the name most",
+        "machines actually have the face under. It is also this file's own name",
+        "ID 1 and the name the Regular answers to, so it is the one entry that",
+        "could silently hand back a 400. The local() route is precisely where a",
+        "name that loose does its damage, since it is tried against whatever the",
+        "machine happens to have installed rather than against anything this",
+        "repo ships. It appears in the `stack` below instead, where it is a last",
+        "resort rather than a route claiming to be this file."
+    ],
+    "local": ["CenturyGothic-Bold", "Century Gothic Bold"],
+
+    "_comment_metrics": [
+        "Four measurements, all of them for the pack that is set in this face",
+        "(content/channels/fitness-story-nw) and none of them read by anything",
+        "at run time. They are here because the next face dropped into a",
+        "Snapchat channel will want the same ones taken, which is the habit",
+        "korolev-bold started and itc-avant-garde-std-md carried on.",
+
+        "The cap height is 1471 units of this file's 2048-unit em, taken from",
+        "the H rather than from OS/2 because this is a version 1 OS/2 table and",
+        "sCapHeight only exists from version 2. That is 0.718 em, so at the",
+        "Snapchat preset's stated 40px the capitals stand 28.7px tall - between",
+        "Garamond Premier's 660-per-1000 and ITC Avant Garde's 740, and near",
+        "enough to the latter that a caption here reads about as large as one on",
+        "FeedDrama. The x-height is 1088, which is 0.531 em and is the enlarged",
+        "x-height this design was modified for; it is never drawn under the",
+        "preset's `uppercase` and is noted only because it is what makes the",
+        "face look set large in the text box while the canvas sets capitals.",
+
+        "The widths are a plain sum of advance widths, and on this file that is",
+        "exactly what the browser will measure: there is no kern table and no",
+        "GPOS in it at all, so there is no pairing for a canvas to apply and",
+        "nothing for the sum to be missing. Worth one line because it is not",
+        "true of most of this folder - itc-avant-garde-std-md had to measure on",
+        "a canvas to find out that its GPOS changed nothing.",
+
+        "This face is WIDE, which is the number to know before setting a",
+        "caption in it. Twenty mixed capitals (A to T) measure 501.6px against",
+        "the 486px a Snapchat line has, so like ITC Avant Garde it puts the",
+        "frame's width and the preset's twenty-character ceiling in the same",
+        "place instead of the characters binding first. Real sentences of twenty",
+        "characters come out between 427px and 496px depending on what letters",
+        "are in them - the spaces and the narrow letters an alphabet run has",
+        "none of do most of the work - so an unusually round line breaks at",
+        "nineteen instead of twenty, which the wrapper does on its own and",
+        "nobody sees (see the two ceilings in js/caption.js).",
+
+        "The glyph check the Snapchat packs take: 668 codepoints, the accented",
+        "Latin capitals and lower case among them, plus the curly apostrophe the",
+        "rewrite elides with. A caption with a name in it is therefore drawn",
+        "from this file rather than from whatever the browser substitutes for a",
+        "missing glyph, which would be a different face at a width nothing",
+        "measured."
+    ],
+
+    "_comment_stack": [
+        "The fallbacks are damage limitation and never a design choice - a",
+        "title laid out against the wrong metrics is broken, not merely",
+        "different, which is what fontguard exists to catch before it is ever",
+        "drawn. They are still chosen rather than copied, and this is the one",
+        "face in the folder whose nearest fallback is its own family.",
+
+        "'Century Gothic' second, which is the name kept out of `local` above",
+        "and belongs here for the same reason it was kept out of there. In",
+        "`local` it is a claim that the machine has THIS file; here it is an",
+        "admission that the file is gone and that the machine may have the",
+        "Regular, which the browser will embolden at the 700 asked for. That is",
+        "a synthesised weight at a width nothing measured, which is broken - but",
+        "it is the same skeleton, the same circles and the same single-storey a,",
+        "and it is the closest thing a Windows machine with Office on it can be",
+        "asked for.",
+
+        "Segoe UI stands behind it for the machine that somehow lacks even that,",
+        "and Arial behind that; both have a real Bold, so the weight survives as",
+        "far as the substitute family has the weight to survive it. Impact and",
+        "Arial Black are absent for telegraf-ultralight's reason - they are",
+        "heavy condensed display cuts, and putting one behind a geometric built",
+        "on circles would make the one thing that survives a missing file the",
+        "furthest possible thing from it."
+    ],
+    "stack": "'Century Gothic Bold', 'Century Gothic', 'Segoe UI', Arial, sans-serif"
+}

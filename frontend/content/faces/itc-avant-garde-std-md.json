@@ -1,0 +1,134 @@
+{
+    "schema": 1,
+    "id": "itc-avant-garde-std-md",
+
+    "_comment_family": [
+        "ITC Avant Garde Gothic ships as a family of weights - Book, Medium,",
+        "Demi, Bold, and the obliques - and the file in fonts/ is the Medium",
+        "of it. Only that one cut is here, but the naming still has to be",
+        "done deliberately, because this file carries THREE names any of",
+        "which somebody might reach for and only two of which name this cut.",
+
+        "Name ID 16, the typographic family, is 'ITC Avant Garde Gothic Std',",
+        "and every weight of the family carries it. Declaring that would be",
+        "declaring a name a Book or a Bold could answer to just as well, and",
+        "on a geometric sans the weights are not a variation on the design -",
+        "the Book is a hairline-ish text weight and the Bold is a display",
+        "weight, so a caption measured against the Medium and drawn in either",
+        "would come out at a width nothing measured.",
+
+        "Name ID 1 is 'ITC Avant Garde Std Md', which is Adobe's abbreviated",
+        "family-plus-cut, and it names this file and no other - the 'Md' is",
+        "in it. So that is what gets declared, which is the same call",
+        "garet-book makes and for the same reason: what the file says about",
+        "itself, where what it says already names the cut.",
+
+        "Weight 500, which is the file's own usWeightClass and what Medium",
+        "means. Asking for 400 here would invite a browser to synthesise a",
+        "weight this family has a real drawn cut of and this folder does not",
+        "carry; asking for 700 would invite it to embolden."
+    ],
+    "family": "ITC Avant Garde Std Md",
+    "weight": "500",
+
+    "file": "fonts/ITCAvantGardeStd-Md.ttf",
+    "format": "truetype",
+
+    "_comment_css": [
+        "Not declared in styles.css: this face arrived with a channel and is",
+        "registered from this JSON, which is the route content/README.md",
+        "describes. Nothing has to be added to the stylesheet for it."
+    ],
+    "css": false,
+
+    "_comment_local": [
+        "What the machine may already know the face by, tried after the file.",
+        "The first is the PostScript name and is also what the installer",
+        "registers the face under (see engine.install_fonts, which takes the",
+        "first entry); the second is name ID 1. Both name this one cut rather",
+        "than the family, so a machine answering to either is answering with",
+        "this file - which is exactly what the fallback route is for.",
+
+        "Only two entries and not the usual three, because this file's full",
+        "name (ID 4) is 'ITCAvantGardeStd-Md' - the PostScript name over",
+        "again, not a spaced-out human version of it. There is no third name",
+        "to list. 'ITC Avant Garde Gothic Std' is deliberately absent for the",
+        "reason above: it is the typographic family, and every weight of it",
+        "answers to that name. The local() route is precisely where a name",
+        "that loose does its damage, since it is tried against whatever the",
+        "machine happens to have installed rather than against anything this",
+        "repo ships."
+    ],
+    "local": ["ITCAvantGardeStd-Md", "ITC Avant Garde Std Md"],
+
+    "_comment_metrics": [
+        "Three measurements, all of them for the pack that is set in this",
+        "face (content/channels/feeddrama) and none of them read by anything",
+        "at run time. They are here because the next face dropped into a",
+        "Snapchat channel will want the same ones taken, which is the habit",
+        "korolev-bold started and garamond-premier-pro-bold-italic-subhead",
+        "carried on.",
+
+        "The cap height is the file's own sCapHeight: 740 units of a",
+        "1000-unit em, so at the Snapchat preset's stated 40px the capitals",
+        "stand 29.6px tall. That is the number worth knowing about this face.",
+        "Garamond Premier's are 660 and Trade Gothic's are lower still, so a",
+        "caption set at 40px here reads noticeably LARGER than the same",
+        "sentence on a sibling channel at the same stated size - the nominal",
+        "size is the same and the ink is not. It was not corrected with a",
+        "size of this pack's own: the 40px is the heading's one answer to",
+        "burned-in speech (see the preset), and a face with large capitals",
+        "filling more of the line is the face being itself rather than a",
+        "number being wrong. The x-height is 554, which is the same story and",
+        "is what makes the lower case look set large even though it is never",
+        "drawn under the preset's `uppercase`.",
+
+        "The widths were taken on a canvas at the size the pack is set at,",
+        "which is the measurement that matters rather than a sum of advance",
+        "widths: the renderer measures the same way, so the numbers below have",
+        "whatever the browser applies in them. Worth one line on what that is",
+        "here, because this file has no kern table at all and its pairing",
+        "lives in GPOS: the two figures come out within half a pixel of each",
+        "other over twenty characters, so on this face the kerning is not what",
+        "decides anything - the face is simply wide.",
+
+        "Twenty mixed capitals (A to T) measure 500px against the 486px a",
+        "Snapchat line has, so like garamond-premier-pro-bold-italic-subhead",
+        "this face lands the frame's width and the preset's twenty-character",
+        "ceiling in the same place instead of the characters binding first.",
+        "Ordinary prose fits, but not with much room: twenty characters of",
+        "real sentence measure between 426px and 490px depending on what",
+        "letters are in them, because the spaces and the narrow letters an",
+        "alphabet run has none of do most of the work, and a wide sentence of",
+        "round capitals uses nearly the whole line. In practice an unusually",
+        "wide line breaks at nineteen instead of twenty, which the wrapper",
+        "does on its own and nobody sees (see the two ceilings in",
+        "js/caption.js).",
+
+        "The glyph check the Snapchat packs take: 433 codepoints, the",
+        "accented Latin capitals and lower case among them, so a caption",
+        "with a name in it is drawn from this file rather than from whatever",
+        "the browser substitutes for a missing glyph - which would be a",
+        "different face at a width nothing measured."
+    ],
+
+    "_comment_stack": [
+        "The fallbacks are damage limitation and never a design choice - a",
+        "title laid out against the wrong metrics is broken, not merely",
+        "different, which is what fontguard exists to catch before it is ever",
+        "drawn. They are still chosen rather than copied, and here there is a",
+        "genuinely close one to choose: Century Gothic was drawn as Monotype's",
+        "answer to this exact face, single-storey a and all, and it is on",
+        "every Windows that has ever had Office on it. It is the same",
+        "fallback garet-book reaches for and for the same reason - both are",
+        "geometric sans faces built on circles.",
+
+        "Segoe UI stands behind it for the machine that somehow lacks even",
+        "that, and Arial behind that. Impact and Arial Black are absent for",
+        "telegraf-ultralight's reason: they are heavy condensed display cuts,",
+        "and putting one behind a 500-weight geometric would make the one",
+        "thing that survives a missing file the furthest possible thing from",
+        "it."
+    ],
+    "stack": "'ITC Avant Garde Std Md', 'Century Gothic', 'Segoe UI', Arial, sans-serif"
+}

@@ -1,0 +1,242 @@
+{
+    "schema": 1,
+    "id": "beauty-tipps",
+    "name": "Beauty-Tipps",
+
+    "_comment_group": [
+        "One more show under the Snapchat heading, cut to Hall of Femme's",
+        "design. Everything that makes it a Snapchat pack is Hall of Femme's",
+        "and comes from the same two presets rather than being restated here:",
+        "the frame fetch, the 540x960 vertical output, the transcription, the",
+        "rewrite that turns speech into report, the stated 40px, the twenty",
+        "characters to a line, the freeform text box, the drag.",
+
+        "What makes it this show rather than that one is three decisions, and",
+        "they are the three that were asked for: it is set in Syne Regular",
+        "with picked words in Bebas Neue, it is one colour throughout, and it",
+        "has no card. The last two reach further than they look - a caption on",
+        "the photograph instead of on a slab changes what has to hold it",
+        "legible, and a show with one colour has no palette to hand over - so",
+        "each is argued where it is stated.",
+
+        "The id is kebab-case ASCII because it is also the folder name and the",
+        "key everything else refers to; the name is the brand, hyphen and all."
+    ],
+    "order": 900,
+    "group": "Snapchat",
+
+    "_comment_capture": [
+        "The frame fetch, whole, from content/presets/snapchat-capture.json:",
+        "the slider's range, the 540x960 output, the transcription, and the",
+        "rewrite that turns it from speech into report. This channel has",
+        "nothing to say about any of it that its neighbours do not."
+    ],
+    "capture": { "use": "snapchat-capture" },
+
+    "framing": { "use": "snapchat-framing" },
+
+    "_comment_title": [
+        "Where this show parts company with the pack it was cut from. Hall of",
+        "Femme sets its captions in Telegraf - a 200-weight hairline for the",
+        "block, the 800 for a picked word - on a hot pink card, in sixteen",
+        "pairings the user chooses between. This one is set in Syne Regular,",
+        "with picked words in Bebas Neue, in one deep violet, on nothing at",
+        "all.",
+
+        "Dropping the card is the decision the other two follow from. It takes",
+        "the caption off a ground somebody chose and puts it on forty",
+        "photographs nobody chose the contrast of, which is why `shadow` comes",
+        "back below; and it takes away the second thing a palette would have",
+        "had to colour, which is half of why there is no palette here.",
+
+        "Capitals are inherited from the preset, and this pack could not",
+        "sensibly turn them off even if it wanted to. Bebas Neue has no lower",
+        "case - its lower-case codepoints are drawn as capitals - so a block",
+        "set in Syne's lower case would still have its picked words standing",
+        "in capitals, and the highlight would be carrying a difference nobody",
+        "chose. Set throughout, the capitals are the preset's own argument: at",
+        "40px with twenty characters to a line a caption is three short beats",
+        "rather than a paragraph, and beats are what capitals are for. It",
+        "costs nothing here either - both faces are display cuts, and their",
+        "capitals are what they were drawn for."
+    ],
+    "title": {
+        "use": "snapchat-caption",
+
+        "_comment_face": [
+            "Syne Regular, the text weight of a display grotesque, and the",
+            "whole of what its family name costs is written out in",
+            "content/faces/syne-regular.json rather than repeated here. The",
+            "short version is that this app already carries Syne Bold, so the",
+            "cut has to be asked for by its full name or the block and a",
+            "neighbouring channel's highlight become the same request.",
+
+            "It is a lighter face than any card-bearing pack under this",
+            "heading has to worry about, and a far sturdier one than re-belle's",
+            "signature hand, which is the other pack here with no card. That",
+            "difference decides how hard the shadow below has to work. It does",
+            "not decide whether there is one."
+        ],
+        "face": "syne-regular",
+
+        "_comment_color": [
+            "The show's violet, and it is what every frame is set in for good",
+            "rather than what one opens on: this channel offers no palette",
+            "(see `_comment_colors` below), so there is no swatch that could",
+            "change it.",
+
+            "It is also the colour of a picked word - see `highlight` - which",
+            "makes it the colour of the whole caption. What separates a picked",
+            "word here is the face and nothing else, which is Hall of Femme's",
+            "highlight exactly; the difference is that its two faces are two",
+            "cuts of one family and these two are two unrelated designs."
+        ],
+        "color": "#330969",
+
+        "_comment_colors": [
+            "Absent, deliberately, and worth the note because the pack this",
+            "one was cut from is the pack that INTRODUCED the feature, and the",
+            "next person to copy this folder will wonder where it went.",
+
+            "Hall of Femme offers four colours for the letters and four for",
+            "the card, and the point there is the pairing: what that show is",
+            "set in is which of sixteen combinations the user picked, so the",
+            "choice is genuinely part of the look. This show has one colour",
+            "and no card. `colors.panel` could not be offered even if somebody",
+            "wanted it - a palette for a slab needs a slab (see the note on",
+            "`colors` in js/channels.js) - and `colors.text` with a single",
+            "entry in it would be a row containing one button that repaints",
+            "the caption the colour it already is.",
+
+            "So the violet is stated as the channel's own answer above and",
+            "nothing is handed over. If the show ever gains a second colour",
+            "this is two lines and the row appears with it; a palette is for a",
+            "channel where the choice is part of the look, and not a way for a",
+            "pack to avoid deciding. re-belle made the same call for the same",
+            "reason and is the pack to read beside this one."
+        ],
+
+        "_comment_shadow": [
+            "Back, and this is the one place this pack contradicts a sentence",
+            "the preset writes. Every channel under this heading that keeps",
+            "its card sets `shadow` to null, on the argument that a drop",
+            "shadow is what keeps type legible over a photograph nobody chose",
+            "the contrast of and there is no photograph under those letters -",
+            "there is a solid card doing the job completely.",
+
+            "The argument is right, and it is exactly why dropping the card",
+            "means picking the shadow back up. There IS a photograph under",
+            "these letters, on all forty stills, and #330969 is a deep violet:",
+            "on a night scene, on dark hair, on a shadow in the corner of a",
+            "room it is a caption nobody can read at all. The face being a",
+            "text weight rather than a hairline changes how MUCH work the",
+            "shadow does, not whether it is needed - a sturdier stroke that is",
+            "the same value as what it lies on is still invisible, it is",
+            "merely invisible in a wider stroke.",
+
+            "The numbers are NOT the skeleton's, and they are re-belle's",
+            "rather than a fresh set invented here: that is the only other",
+            "pack on this heading setting dark type straight onto the picture,",
+            "which is the same problem to the pixel. Every other channel in",
+            "this app shadows LIGHT type, so it throws black down and to the",
+            "right and the dark rim is what the letters are found against.",
+            "Black behind deep violet adds dark to dark, and on the frames",
+            "where the caption is in trouble it would be invisible in a",
+            "slightly larger way. What separates dark ink from a dark picture",
+            "is light, so the shadow is white.",
+
+            "Centred rather than offset, which is the other consequence of the",
+            "colour being inverted. An offset shadow reads as a shadow - a",
+            "direction, a light source, something the letters are casting -",
+            "and white light falling three pixels down and to the right reads",
+            "as a printing misregistration instead. With no offset it is a",
+            "halo: the letters lifted off the picture on every side equally,",
+            "which is what they need when the picture could be anything."
+        ],
+        "shadow": { "color": "rgba(255,255,255,0.9)", "blur": 12, "offsetX": 0, "offsetY": 0 },
+
+        "_comment_highlight": [
+            "A picked word is set in Bebas Neue, in the same violet as the",
+            "rest of the block. The colour is stated and it is the block's, so",
+            "the recolour draws exactly what its neighbours are drawn in and",
+            "the FACE is the whole of the difference - which is Hall of",
+            "Femme's highlight, with the one change that these two faces are",
+            "not two cuts of a family but two unrelated designs.",
+
+            "Which is why it can stay a recolour with no card under it, where",
+            "Conspiracy Central had to become a box the moment it dropped its",
+            "own. That pack sets near-white Anton and picks words out in",
+            "near-black on yellow, because a recolour of two words in a block",
+            "of near-white would be two words in a slightly different white as",
+            "far as anyone scrolling is concerned. Nothing here is slightly",
+            "different: Bebas Neue is a tall condensed face whose capitals",
+            "fill the em, so at the block's own 40px a picked word comes out",
+            "visibly taller and much narrower than the words either side of",
+            "it. It changes the shape of the line and not only its texture,",
+            "and it does it at a glance on a phone.",
+
+            "That two faces set at one size come out at two apparent sizes",
+            "costs nothing here, and it is worth saying why, because under a",
+            "boxed highlight or a fitted size it would cost something: there",
+            "is no rectangle to be sized to the taller letters, and no",
+            "per-line fit for the wider face to win, because the preset states",
+            "`fontSize` and that takes `uniformSize` out of the question (see",
+            "the note on two faces in content/README.md). The difference lands",
+            "on the letterforms and nowhere else.",
+
+            "Colour mode and word scope are the preset's, and the argument for",
+            "picking out words rather than lines lives there: a caption's line",
+            "breaks are wherever the sentence ran out of width, so picking a",
+            "LINE out picks out a fragment rather than a thought.",
+
+            "The shadow is stated to the same numbers as the block's letters,",
+            "and it has to be. A picked word takes `highlight.shadow` and not",
+            "the block's (see runRows in js/text.js), and the skeleton's",
+            "answer there is a soft black halo - which on this channel would",
+            "put the one dark rim in the block behind the one word that is",
+            "supposed to be the easiest to read, and light every other word",
+            "from a different source. The card-bearing packs never notice",
+            "because their letters are on a slab; on the photograph it is two",
+            "light sources in one sentence."
+        ],
+        "highlight": {
+            "face": "bebas-neue",
+            "color": "#330969",
+            "shadow": { "color": "rgba(255,255,255,0.9)", "blur": 12, "offsetX": 0, "offsetY": 0 }
+        },
+
+        "_comment_panel": [
+            "No card. The argument is in `_comment_title` above and the two",
+            "consequences are the `shadow` and the `colors` beside it.",
+
+            "Stated as null rather than left out, because it cannot be left",
+            "out: `use` merges the preset UNDER this pack (see `expand` in",
+            "js/channels.js), so the card's shape, padding, corners and shadow",
+            "arrive from snapchat-caption.json whatever this pack says about",
+            "them. Null is how a pack cut from that preset declines the one",
+            "part of it that is a whole shape rather than a number."
+        ],
+        "panel": null
+    },
+
+    "_comment_branding": [
+        "No dark gradient, like every pack under this heading. The two usual",
+        "reasons are already written out by the packs either side of this one:",
+        "its card-bearing siblings say the gradient has nothing to do because",
+        "their titles are not on the photograph, and Conspiracy Central - the",
+        "first pack here with no card - says that even when the title IS on",
+        "the photograph the gradient is still the wrong tool, because it is a",
+        "SIDE gradient drawn for a landscape thumbnail with a headline beside",
+        "the subject (reframe_engine.apply_dark_gradient). A caption lies",
+        "across the width of a vertical still, so darkening one half of forty",
+        "pictures would shade half of every line and leave the other half",
+        "exactly as it was.",
+
+        "There is a third reason here, it is re-belle's, and it is the",
+        "decisive one: this type is dark. A gradient that darkened the picture",
+        "behind it would be working against the halo rather than with it - see",
+        "`shadow` above, where what these letters need from the picture is",
+        "light."
+    ],
+    "branding": { "gradient": false }
+}

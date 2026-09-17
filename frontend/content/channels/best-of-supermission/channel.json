@@ -1,0 +1,36 @@
+{
+    "schema": 1,
+    "id": "best-of-supermission",
+    "name": "Best of Supermission",
+    "order": 30,
+    "group": "QDS Karma",
+
+    "title": {
+        "face": "trade-gothic-heavy-compressed",
+        "color": "#FFFFFF",
+        "shadow": null,
+        "layout": { "uniformSize": false },
+
+        "_comment_highlight": [
+            "Highlighting fills the letters with foil rather than recolouring",
+            "them. `color` is the stand-in the line is drawn in for the moment",
+            "before the image arrives — a mid foil tone, so the swap when it",
+            "lands is a change of surface and not of colour."
+        ],
+        "highlight": {
+            "mode": "texture",
+            "texture": "textures/best of supermission texture.png",
+            "color": "#E0A32B",
+            "shadow": null
+        },
+
+        "panel": { "use": "title-slab" }
+    },
+
+    "_comment_branding": [
+        "The mirror of Undercover CEO: title left, subject right — which is",
+        "also what the automatic framing produces unaided, so neither flip is",
+        "needed here."
+    ],
+    "branding": { "gradient": false, "flipImage": false, "flipText": false }
+}

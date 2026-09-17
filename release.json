@@ -1,0 +1,27 @@
+{
+    "schema": 1,
+    "version": "1.3.0",
+
+    "_comment_feed": [
+        "Where an installed copy looks for patches. null means updates are off:",
+        "the launcher skips the check entirely and the app never touches the",
+        "network for it. Set it once, here, and every installer and patch built",
+        "afterwards carries it.",
+        "",
+        "It may be an https URL, a file:// URL, or a plain local/UNC path — a",
+        "folder on a network share is a perfectly good way to ship patches to a",
+        "handful of machines, and is the easiest thing to test against.",
+        "",
+        "The file it points at is updates.json, which build_patch.py generates",
+        "next to the .tmpatch files it builds."
+    ],
+    "feed": null,
+
+    "_comment_public_key": [
+        "Optional Ed25519 public key (base64, 32 bytes) that every patch must be",
+        "signed with. null means patches are accepted on their SHA-256 alone,",
+        "which is enough to catch a corrupted download but not a hostile feed.",
+        "Generate a pair with:  python installer/build_patch.py --keygen"
+    ],
+    "public_key": null
+}

@@ -1,0 +1,60 @@
+{
+    "schema": 1,
+    "id": "brittany-signature",
+
+    "_comment_family": [
+        "Brittany Signature ships as one file and one cut, so unlike the two",
+        "Telegraf packs there is no sibling here for a bare family name to be",
+        "confused with - and the file's own name ID 1, its full name and its",
+        "typographic family are all the same string. 'Brittany Signature' is",
+        "therefore what the file says it is rather than a full name assembled",
+        "by hand, which is the same position garet-book is in.",
+        "",
+        "Weight 400, which is the file's own usWeightClass. A signature hand",
+        "has no weight axis to ask along: there is one hand, and asking for a",
+        "bold would only invite a browser to smear it."
+    ],
+    "family": "Brittany Signature",
+    "weight": "400",
+
+    "file": "fonts/BrittanySignature.ttf",
+    "format": "truetype",
+
+    "_comment_css": [
+        "Not declared in styles.css: this face arrived with a channel and is",
+        "registered from this JSON, which is the route content/README.md",
+        "describes. Nothing has to be added to the stylesheet for it."
+    ],
+    "css": false,
+
+    "_comment_local": [
+        "What the machine may already know the face by, tried after the file.",
+        "The first is the PostScript name and is also what the installer",
+        "registers the face under; the second is the Windows full name. They",
+        "are spelled exactly as the file spells them - the PostScript one runs",
+        "the words together and carries the style on the end, which is the",
+        "font's business and not a spelling to be tidied. A name nothing is",
+        "installed under is a local() source that can never match and a value",
+        "the installer would register the face under while Windows keyed it by",
+        "something else (see FONT_FULL_NAME in installer/engine.py)."
+    ],
+    "local": ["BrittanySignatureRegular", "Brittany Signature"],
+
+    "_comment_stack": [
+        "The fallbacks are damage limitation and never a design choice - a",
+        "title laid out against the wrong metrics is broken, not merely",
+        "different, which is what fontguard exists to catch before it is ever",
+        "drawn. They are still chosen rather than copied, and here the choice",
+        "is unusually consequential: this is a joined signature hand, and",
+        "every heavy display cut the other packs in this folder fall through",
+        "is the furthest possible thing from it. Impact behind this face would",
+        "not be a degraded Re-belle, it would be a different channel.",
+        "",
+        "So the stack stays a hand all the way down. Segoe Script is on every",
+        "Windows 10 and 11 and is the nearest joined hand the machine can be",
+        "relied on to have; Brush Script MT is the one behind it, on any",
+        "machine that has ever had Office; and the generic `cursive` is the",
+        "last thing that is still a script rather than a grotesque."
+    ],
+    "stack": "'Brittany Signature', 'Segoe Script', 'Brush Script MT', cursive"
+}

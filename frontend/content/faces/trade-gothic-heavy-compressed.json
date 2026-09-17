@@ -1,0 +1,32 @@
+{
+    "schema": 1,
+    "id": "trade-gothic-heavy-compressed",
+    "family": "Trade Gothic Next LT Pro Heavy Compressed",
+    "weight": "900",
+    "file": "fonts/TradeGothicNextLTProHeavyCompressed.otf",
+    "format": "opentype",
+
+    "_comment_css": [
+        "true means styles.css already declares this face, with local() sources",
+        "after the url() as a second route to the same file. The loader leaves",
+        "it alone rather than registering a second, weaker FontFace for it.",
+        "A face arriving with a channel pack omits this and is registered from",
+        "here — which is what lets a new channel bring its own font without",
+        "anyone editing the stylesheet."
+    ],
+    "css": true,
+
+    "_comment_stack": [
+        "What Fabric is handed. The fallbacks are damage limitation, never a",
+        "design choice: a title laid out against Impact's metrics is broken,",
+        "not merely different. See fontguard.js."
+    ],
+    "stack": "'Trade Gothic Next LT Pro Heavy Compressed', Impact, 'Arial Black', sans-serif",
+
+    "_comment_local": [
+        "Names Windows may know this face by, tried after the file. The full",
+        "name only exists because @font-face declares it; the second is the",
+        "PostScript name."
+    ],
+    "local": ["Trade Gothic Next LT Pro Heavy Compressed", "TradeGothicNextLTPro-HvCm"]
+}

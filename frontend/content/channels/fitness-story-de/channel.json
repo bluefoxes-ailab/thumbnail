@@ -1,0 +1,255 @@
+{
+    "schema": 1,
+    "id": "fitness-story-de",
+    "name": "Fitness Story DE",
+
+    "_comment_group": [
+        "Another show under the Snapchat heading, cut to Hall of Femme's",
+        "design. Everything that makes it a Snapchat pack — the frame fetch,",
+        "the vertical output, the transcription, the rewrite, the card the",
+        "caption is set on — is Hall of Femme's and is stated in the same",
+        "numbers. What makes it a different show is the two things that are",
+        "visible from across a room: the face the words are set in, and the",
+        "colours they are set in.",
+
+        "Written as its own folder rather than as an override of",
+        "fitness-story, for the reason content/README.md gives: a channel is",
+        "a folder that gets dropped in. The prose below therefore points at",
+        "hall-of-femme wherever the reasoning is the same, and states its own",
+        "only where this pack actually decides something.",
+
+        "One thing this pack checked that its siblings had no reason to.",
+        "Acumin Pro's two files carry 626 codepoints each and cover the",
+        "umlauts, the eszett and the low quotes German sets speech in, so a",
+        "caption is drawn from the file rather than from whatever the browser",
+        "substitutes for a missing glyph — which would be a different face,",
+        "at a width nothing measured. Worth stating because a face chosen for",
+        "how it looks in English is not automatically a face that can SET",
+        "another language, and the check is two minutes against a cmap."
+    ],
+    "order": 900,
+    "group": "Snapchat",
+
+    "_comment_capture": [
+        "The frame fetch, whole, from content/presets/snapchat-capture.json:",
+        "the slider's range, the 540x960 vertical output, the transcription,",
+        "and the rewrite that turns the transcript from speech into reported",
+        "information before anything is set.",
+
+        "Stated as a reference and not as numbers, because this channel has",
+        "nothing to say about any of it that its neighbours do not — and a",
+        "pack that restates a shared answer is a pack that can be missing a",
+        "piece of it. That is not hypothetical: channels arrived under this",
+        "heading captioning their frames with the transcript as spoken,",
+        "because the folder they were copied from predated `rewrite`."
+    ],
+    "capture": { "use": "snapchat-capture" },
+
+    "_comment_framing": [
+        "How the frames are chosen and cropped, from",
+        "content/presets/snapchat-framing.json: the picture is the product,",
+        "so it is fitted to the canvas centred and left alone, and no frame",
+        "is rejected for failing to leave a column beside the subject that",
+        "this channel never sets anything in."
+    ],
+    "framing": { "use": "snapchat-framing" },
+
+    "_comment_title": [
+        "The whole of the difference between this show and its siblings.",
+        "Hall of Femme sets its captions in Telegraf — a 200-weight hairline",
+        "for the block, the 800 for a picked word — on a hot pink card.",
+        "Fitness Story sets them in HK Grotesk Italic on an electric blue",
+        "one. This pack sets them in Acumin Pro, upright, on a card that is",
+        "either plain white or plain black and is never anything else.",
+
+        "Three things follow, and all three are worth stating because they",
+        "are what a reader coming from one of the sibling packs will be",
+        "looking for.",
+
+        "The first is that there is no brand colour here, and that is the",
+        "design rather than a gap in it. Every other pack under this heading",
+        "puts its show's colour on the card, because the card is a fifth of",
+        "the frame and reads before anything set on it. This one has two",
+        "absolutes and the card is one of them, so what identifies the show",
+        "is not a hue at all — it is the maximum contrast a screen can draw,",
+        "which is the one thing a two-colour palette buys and the one thing",
+        "a coloured card can never quite have.",
+
+        "The second is that the face is doing more work than it does next",
+        "door. A hot pink card is recognisable at a glance whatever is set on",
+        "it; a white card is not, so Acumin has to be the difference. It is a",
+        "neo-grotesque — Akzidenz bones, large x-height, flat terminals — and",
+        "upright, which puts this pack between the two Open Sans shows",
+        "(upright block, slanted highlight) and Fitness Story (slanted",
+        "throughout). Set in black on white at 40px capitals it reads as",
+        "plain rather than as styled, which is the register this show is in.",
+
+        "The third is the highlight, and it is the one to argue with. Hall of",
+        "Femme spends 200 against 800 and Fitness Story 250 against 800 —",
+        "both of them the two ends of a weight axis, which at caption size is",
+        "as loud as a box would be. Acumin Pro is carried here in two cuts",
+        "and they are the Regular and the Bold, so this pack spends 400",
+        "against 700. That is the narrowest gap under the heading: a real",
+        "difference, and not a dramatic one.",
+
+        "It is also the only one available, which is why it is stated rather",
+        "than apologised for. The palette rules out a colour change, the",
+        "block is already upright so there is no slant left to spend, and the",
+        "preset's highlight mode is colour rather than box because the words",
+        "are already on a solid ground of their own. Widening it means a",
+        "third cut of Acumin in fonts/ and a face pack beside it; nothing",
+        "else here would have to change.",
+
+        "Everything else — the size, where the lines break, the capitals, the",
+        "shape of the card, where it stands on the frame, what a picked word",
+        "does — is the Snapchat caption design and is stated once, in",
+        "content/presets/snapchat-caption.json."
+    ],
+    "title": {
+        "use": "snapchat-caption",
+
+        "face": "acumin-pro",
+
+        "_comment_color": [
+            "The channel's own answer, and therefore what every frame is set",
+            "in until somebody presses a swatch: a frame stores no colour of",
+            "its own until it is given one, and this is what it falls back to",
+            "(see state.textColorFor). It is one of the two in `colors` below,",
+            "so the black swatch is the one that shows as chosen on an",
+            "untouched frame — the swatch is found by matching this value",
+            "rather than by being listed first.",
+
+            "Black letters on the white card is what the tool opens on, and",
+            "unlike its siblings' opening pairings there is nothing to weigh",
+            "up: it is the highest contrast of the four combinations this",
+            "palette allows, and the one a reader's eye is most practised at.",
+
+            "Absolute black, and the exact value matters. The card is a flat",
+            "shape rather than a photograph seen through it, so there is",
+            "nothing here for a true black to be too harsh against — and a",
+            "#111 that reads as black on a monitor turns into a grey slab",
+            "beside a genuinely black picture on a phone."
+        ],
+        "color": "#000000",
+
+        "_comment_colors": [
+            "The two colours this show is set in, offered for the letters and",
+            "for the card behind them — two buttons each in the title panel",
+            "(see editor.renderColorButtons). Nothing counts the entries: the",
+            "panel draws a swatch per colour and the row wraps, so a list of",
+            "two is as valid as hall-of-femme's four.",
+
+            "The same two in both lists, for the reason hall-of-femme states",
+            "at length: the point is the PAIRING rather than either colour.",
+            "Here that argument comes out smaller and sharper. Four",
+            "combinations instead of sixteen, of which two are the show —",
+            "black on white and white on black — and two are invisible.",
+
+            "Which is the honest cost of this palette and is worth naming.",
+            "Hall of Femme's answer to a user setting white on white is that",
+            "they can see it is invisible and press another swatch, and that",
+            "answer holds when a quarter of the grid is affected. Half of it",
+            "is a different proposition, and the reason the two lists are",
+            "still independent is that the alternative is worse: a rule",
+            "barring a matching pair would mean pressing white for the text",
+            "silently moved the card to black, so a user who wanted white on",
+            "black and pressed the two buttons in the other order would watch",
+            "the tool undo their first press. A palette of two colours that",
+            "can only be used one way round is not a palette, it is a",
+            "checkbox — and inverting a frame is exactly what this show's two",
+            "swatches are for.",
+
+            "White first in both rows, so the two rows read as the same",
+            "palette twice and the order matches the card an untouched frame",
+            "wears rather than the type on it. Neither list decides what that",
+            "is; `color` above and `panel.fill` below are the only place the",
+            "opening look is stated.",
+
+            "`text` reaches the highlight as well as the block — see the note",
+            "on `colors` in js/channels.js. This channel's highlight is a",
+            "different CUT of the face and not a different colour, so what",
+            "colour the type is has one answer and not two."
+        ],
+        "colors": {
+            "text": ["#FFFFFF", "#000000"],
+            "panel": ["#FFFFFF", "#000000"]
+        },
+
+        "_comment_highlight": [
+            "Word scope, colour mode and what a second face costs are the",
+            "preset's — see snapchat-caption.json, which explains all three.",
+            "What this pack states is the two things that are its own: the",
+            "face a picked word changes to, and the colour it keeps.",
+
+            "The face is Acumin Pro Bold, 700 against the block's 400. Why",
+            "that is the whole of the emphasis available here, and how narrow",
+            "a gap it is next to the siblings, is argued in `_comment_title`",
+            "above rather than twice.",
+
+            "The colour is the block's, so the recolour draws a picked word",
+            "in exactly what its neighbours are drawn in and the weight is",
+            "the whole of the difference. Stated all the same, for the",
+            "fallback reason `color` above is stated — a highlight that",
+            "changed colour as well as weight would be two highlights, and",
+            "with two colours it would also be the only other thing the",
+            "palette can say.",
+
+            "The Bold is WIDER than the Regular, the same way round as the",
+            "pair fitness-story picks its words out with, and it is the one",
+            "consequence to know about.",
+            "Measured at 40px across a caption's worth of strings it runs 2.9%",
+            "to 4.3% wider — five pixels on a single word, fifteen on a line",
+            "of twenty-three characters. Lines are wrapped in the BLOCK's face",
+            "and nothing re-wraps them when a word is picked out afterwards",
+            "(see `measuredWidth` in js/text.js, which measures in the",
+            "selected channel's face, and `captionLines` in js/caption.js,",
+            "which runs once as the frames land), so a line already sitting at",
+            "the 90% width target can end up a few pixels past it, and the box",
+            "behind it — cut to its own line, see `panel` — steps out by the",
+            "same. It is small enough not to read as the graphic changing",
+            "shape, and the block is a text box the user rewraps by hand if it",
+            "ever does.",
+
+            "None of that would be small under a size FIT, which would resize",
+            "the whole block to whatever the widest line needs and so retype",
+            "the caption around the word being emphasised. It is one of the",
+            "two reasons the preset's layout states its size instead."
+        ],
+        "highlight": {
+            "face": "acumin-pro-bold",
+            "color": "#000000"
+        },
+
+        "_comment_panel": [
+            "The card the caption is set on, in whichever of the two colours",
+            "the frame is wearing. Every number in it is hall-of-femme's, and",
+            "the long argument for each is there rather than repeated here:",
+            "one box per LINE and `joined`, so the background is a single",
+            "shape that steps in and out with the sentence instead of a",
+            "rectangle the width of its longest line; 12 of padding, which is",
+            "a highlighter's margin and not a card's; no border, because a",
+            "keyline would make the slab read as a box drawn over the picture",
+            "rather than as a card lying on it; 13 of corner radius, the",
+            "number every background under this heading is rounded by; and a",
+            "soft shadow falling straight down.",
+
+            "White, and that shadow is the reason the choice is worth a line",
+            "rather than none. It is half opaque and offset far enough to be",
+            "seen as a shadow rather than as a dirty edge precisely so that a",
+            "white slab thrown onto a white wall still reads as a card lying",
+            "on the picture — a case every pack under this heading has to",
+            "survive, and the only one where this pack's opening card meets it",
+            "head on."
+        ],
+        "panel": { "fill": "#FFFFFF" }
+    },
+
+    "_comment_branding": [
+        "No dark gradient, for hall-of-femme's reason: it exists to hold a",
+        "title legible against the photograph, and this title is not against",
+        "the photograph at all — it is on a card of its own. A scrim over",
+        "every still would darken forty pictures to solve a problem the card",
+        "has already solved."
+    ],
+    "branding": { "gradient": false }
+}

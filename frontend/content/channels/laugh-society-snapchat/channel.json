@@ -1,0 +1,499 @@
+{
+    "schema": 1,
+    "id": "laugh-society-snapchat",
+    "name": "Laugh Society",
+
+    "_comment_id": [
+        "The folder is `laugh-society-snapchat` and the name is plain 'Laugh",
+        "Society', and the two disagreeing is deliberate. The name is the",
+        "brand and is what this show is actually called. The id is a key on a",
+        "filesystem, and there are already two folders under the Binge heading",
+        "beginning laugh-society- that are a DIFFERENT show with a similar",
+        "name: one more of them would read as its third look, which is exactly",
+        "the thing somebody would edit by mistake. The heading it belongs to",
+        "is the one fact that separates them, so the id says it."
+    ],
+
+    "_comment_group": [
+        "Another show under the Snapchat heading, and the same kind of thing",
+        "every one of them is: the heading names the network these frames are",
+        "cut FOR and the channel is the show they are cut from, so another",
+        "show cutting for the same network is one more folder under it rather",
+        "than a heading of its own.",
+
+        "Like all of its neighbours it is a frame fetcher rather than a",
+        "thumbnail maker: a video goes in and a numbered grid of vertical",
+        "stills comes out, each carrying the sentence that was being said at",
+        "the moment it was cut from.",
+
+        "It follows Hall of Femme, which is the pack to read first: the frame",
+        "fetch, the vertical output, the transcription, the rewrite, the block",
+        "at the foot of the frame and every number in that block are that",
+        "pack's, stated here in the same numbers. The prose below points at it",
+        "wherever the reasoning is the same, and states its own only where",
+        "this pack actually decides something.",
+
+        "It decides three things, and all three are about the words. There is",
+        "NO CARD - the type is set straight onto the photograph, which no",
+        "other pack under this heading does. It is set in Open Sans with a",
+        "picked word in Garet, which is a change of face and a change of",
+        "COLOUR at once. And the shade that holds it legible is the channel's",
+        "own, laid over the bottom third of the picture."
+    ],
+    "order": 900,
+    "group": "Snapchat",
+
+    "_comment_capture": [
+        "The same frame fetch every channel under this heading runs, stated in",
+        "the same numbers, because it is the same job: the slider opening at",
+        "forty and running to two hundred, delivered at the 540x960 vertical",
+        "full-screen frame Snapchat is cut for, transcribed, and rewritten",
+        "from speech into reported information before anything is set.",
+
+        "What each of these keys does, and what the rewrite refuses to do, is",
+        "written out at length in content/README.md, and pointed at from",
+        "hall-of-femme/channel.json. Nothing here disagrees with any of it.",
+
+        "`captions` is on: this channel writes on its frames, so the run has",
+        "to transcribe the video's voice track for there to be anything to",
+        "write - and everything below about the type is about how those words",
+        "are set."
+    ],
+    "capture": {
+        "frames": { "default": 40, "min": 1, "max": 200 },
+        "output": { "width": 540, "height": 960 },
+        "captions": true,
+        "rewrite": true
+    },
+
+    "_comment_framing": [
+        "The picture is the product, so it is fitted to the canvas centred and",
+        "left alone, exactly as it is on every channel beside this one.",
+
+        "min_text_space is zero because it asks how much room is clear BESIDE",
+        "the subject for a title to go in, and this title does not go beside",
+        "anybody - it lies across the foot of the picture. No frame should be",
+        "rejected for failing to leave a column nothing is ever set in."
+    ],
+    "framing": {
+        "anchorX": 0.5,
+        "anchorY": 0.5,
+        "minTextSpace": 0
+    },
+
+    "_comment_scrim": [
+        "The one piece of furniture this channel has, and the piece that pays",
+        "for everything else about it: a shade thrown up from the bottom edge,",
+        "over the photograph, reaching a third of the way up the frame.",
+
+        "Every other pack under this heading sets its caption on a solid card,",
+        "and the card is what makes the type legible over a photograph nobody",
+        "chose the contrast of. This one has no card. Take the shade away and",
+        "the same white letters are laid straight onto whatever the still",
+        "happens to contain - a blown-out sky, a white shirt, a strip light -",
+        "and a drop shadow does not save them, because a shadow separates type",
+        "from a background it already contrasts with rather than creating the",
+        "contrast. The shade is what creates it, and it does so without",
+        "putting a shape between the viewer and the picture: it darkens the",
+        "photograph rather than covering it, which is the whole difference",
+        "between this look and the card.",
+
+        "A THIRD of the frame, and it is measured rather than chosen. The",
+        "block stands 120px off the foot of a 960-tall frame, and a full four",
+        "lines of 40px type with the renderer's own 10px between them is 190px",
+        "tall, so the top of the longest caption this channel can produce",
+        "lands at 310px - just inside the 320px the scrim reaches. Every",
+        "caption is therefore covered end to end, and a shorter one is covered",
+        "with room to spare. Less than a third and a four-line caption has its",
+        "first line hanging in clear picture; much more and the shade stops",
+        "reading as the foot of the frame going dark and starts reading as the",
+        "picture having been dimmed.",
+
+        "Bottom to top, because that is the direction it is thrown in. `at`",
+        "runs 0 at the canvas floor to 1 at the top of the scrim's own span,",
+        "so the stops read in the order the eye travels. There is no way to",
+        "aim it at an angle and that is deliberate - see `scrim` in",
+        "js/channels.js.",
+
+        "It ends on a fully transparent stop rather than on an opacity of its",
+        "own, so there is no line anywhere across the picture where the scrim",
+        "stops. The middle stop is what keeps the ramp from being a straight",
+        "fade: most of the darkening is spent in the bottom half, where the",
+        "type actually is, and the top half is the long tail that hides the",
+        "join.",
+
+        "It is drawn on the canvas, under the title and over the photograph -",
+        "see compose.addScrim - and it is switched by the Gradient button,",
+        "which arrives ON because the shade is part of how this channel looks",
+        "rather than an effect to go and find. See `branding` at the foot of",
+        "this file for why that button does not also reach the backend."
+    ],
+    "scrim": {
+        "heightRatio": 0.3333,
+        "stops": [
+            { "at": 0, "color": "rgba(0,0,0,0.85)" },
+            { "at": 0.5, "color": "rgba(0,0,0,0.35)" },
+            { "at": 1, "color": "rgba(0,0,0,0)" }
+        ]
+    },
+
+    "_comment_title": [
+        "Where this show parts company with the packs cut to Hall of Femme's",
+        "design. They set their captions on a coloured slab; this one sets",
+        "them on the photograph, under the shade above.",
+
+        "That decides the face. A card is a flat ground somebody chose, and it",
+        "is what lets Hall of Femme set a 200-weight hairline at caption size",
+        "at all. There is no such ground here: the letters are on a",
+        "photograph, darkened but still a photograph, with grain and edges and",
+        "detail running through them. What that ground asks for is a face with",
+        "solid stems and open counters at 40px, which is what Open Sans is -",
+        "a humanist sans drawn to be read small, and the same family two of",
+        "its neighbours are already set in.",
+
+        "It also decides the shadow. Hall of Femme states none, because a card",
+        "does that job completely and a shadow as well would only smear the",
+        "inside of it. Here the shadow is half of what holds the type: the",
+        "scrim gives the letters a dark ground to sit on and the shadow gives",
+        "them an edge against it, and neither is enough alone on a frame that",
+        "happens to be dark already."
+    ],
+    "title": {
+        "_comment_face": [
+            "Open Sans, in the cut this app carries: `open-sans-italic`, which",
+            "is the face Determined and Fight Source are also set in. The",
+            "family ships as a set of files each carrying its own full name,",
+            "and a channel names the exact cut rather than the family - see",
+            "the note in the face pack for why 'Open Sans' on its own is",
+            "deliberately not a name anything asks for here.",
+
+            "The slant is drawn into the letterforms and the face is",
+            "registered at style normal, which is what `family` and `weight`",
+            "between them have to say; there is no third field in the font",
+            "shorthand this renderer builds, and inventing one would let the",
+            "measurement and the draw come apart. See the face pack, and the",
+            "long note in killer-bites/channel.json where the same ground is",
+            "covered for a family reached by weight instead."
+        ],
+        "face": "open-sans-italic",
+
+        "_comment_uppercase": [
+            "Off. What the user types is what the canvas sets, capital for",
+            "capital, and this is the second pack under the heading to say so",
+            "- Killer Bites argues it at length and every word of that",
+            "argument holds here.",
+
+            "The short version, because the reasons are this pack's as much as",
+            "that one's. The captions arrive from the rewrite rather than from",
+            "somebody typing them (see backend/narrator.py), so the casing in",
+            "the text box is information produced on purpose, and flattening",
+            "it at the draw throws away the more considered of the two. And a",
+            "line of capitals is a rectangle where a line of mixed case has",
+            "ascenders and descenders sticking out of it - word shape is most",
+            "of how a sentence is read at a glance on a phone.",
+
+            "There is a reason of this pack's own on top of those. This is the",
+            "only channel here whose type is on the photograph rather than on",
+            "a card, and mixed case is what makes that survivable: capitals",
+            "are one solid band of ink across the frame, which reads as a",
+            "graphic laid on the picture, while a mixed-case line has holes in",
+            "it that the picture shows through. The scrim is what makes the",
+            "letters legible; the casing is what keeps them from looking",
+            "stuck on.",
+
+            "It is applied at the draw and not to what is stored, so the text",
+            "box held the user's own casing all along and the highlight",
+            "buttons already offered the words as the canvas would set them",
+            "(see the `cased` note in js/text.js)."
+        ],
+        "uppercase": false,
+
+        "_comment_color": [
+            "Pure white, which is the channel's own answer and therefore what",
+            "every frame is set in until somebody presses a swatch: a frame",
+            "stores no colour of its own until it is given one, and this is",
+            "what it falls back to (see state.textColorFor). It is one of the",
+            "three in `colors` below, so the white swatch is the one that",
+            "shows as chosen on an untouched frame - the swatch is found by",
+            "matching this value rather than by being listed first.",
+
+            "White is the default and not one of the two warm colours for the",
+            "reason the scrim exists: the shade is a black one, and white is",
+            "what is unambiguously legible on it at every size and over every",
+            "photograph underneath. The red and the orange are legible on it",
+            "too, and are a swatch away, but a caption whose colour has to be",
+            "checked against the frame is not a default.",
+
+            "Pure white rather than an off-white, and it is the one colour",
+            "here whose exact value matters. An off-white that reads as white",
+            "on a monitor is a grey caption on a phone held next to a bright",
+            "still, and there is nothing for a true white to be too harsh",
+            "against - it is sitting on a deliberately darkened band."
+        ],
+        "color": "#FFFFFF",
+
+        "_comment_shadow": [
+            "Stated, where every other pack under this heading states null,",
+            "and the difference is the card. Those channels put their type on",
+            "a solid slab in a colour the user picked, which separates it from",
+            "the picture completely and leaves a shadow with nothing to do but",
+            "smear the inside of the slab. This channel's type is on the",
+            "photograph.",
+
+            "So the shadow is doing the job it was invented for, and it is the",
+            "second of the two things holding these letters: the scrim gives",
+            "them a dark ground and this gives them an edge against it. Both",
+            "are needed. On a still that is already dark the scrim buys",
+            "little and the shadow is the whole of the separation; on a bright",
+            "one the shadow alone would be a soft grey halo round white",
+            "letters on a white wall.",
+
+            "It falls straight down rather than diagonally. A diagonal throw",
+            "is a shadow cast by an object standing off a surface, which is",
+            "what the cards on the other packs are; these letters are not",
+            "standing off anything, and at 40px an offset in both axes reads",
+            "as an emboss rather than as depth. Three pixels down and sixteen",
+            "of blur is enough to find an edge under every stem without the",
+            "blur becoming visible as grey."
+        ],
+        "shadow": { "color": "rgba(0,0,0,0.85)", "blur": 16, "offsetX": 0, "offsetY": 3 },
+
+        "_comment_colors": [
+            "The three colours this show is set in, offered TWICE - once for",
+            "the letters and once for the words picked out of them (see",
+            "editor.renderColorButtons). Nothing counts the lists, so a row of",
+            "three is a row of three.",
+
+            "This is the first pack anywhere to state `highlight`, and the",
+            "reason it needs it is the reason `colors` in js/channels.js is",
+            "worth reading first. On every other palette here the picked words",
+            "are a different CUT of the same face in the same colour, so",
+            "`text` reaches them too and there is one question. Here the",
+            "picked words are a different colour as well as a different face,",
+            "and which one is the user's - so there are two questions, and a",
+            "pack that states the second list is saying exactly that. Left",
+            "unstated, the highlight would follow the block and a picked word",
+            "would come out the same white as its neighbours in a face most",
+            "people would not notice at a glance.",
+
+            "The same three in both lists, in one order, which is what every",
+            "pack under this heading does and for their reason: the point is",
+            "the PAIRING, and two rows written the same way read as one",
+            "palette offered twice rather than as two unrelated sets. What it",
+            "is FOR here is one step more literal than usual - the highlight",
+            "is meant to be whichever of the three the block is not, so the",
+            "second row is the first row asked again.",
+
+            "The two warm colours are the brand and the white is the ground",
+            "they are read against. #FF3131 is the hot one and #FF914D the",
+            "warm one, and they are far enough apart to be told apart at",
+            "caption size on a phone while both being legible on the same dark",
+            "band - which is the whole of what this palette asks of a colour,",
+            "since either can be the block or the picked word.",
+
+            "Nine combinations, and three of them set a picked word in exactly",
+            "the colour of its neighbours, which leaves the change of face as",
+            "the only difference. Nothing stops the user choosing one and that",
+            "is not an oversight: the two lists are independent because the",
+            "pairing is the feature, and a rule barring the three matching",
+            "combinations would cost the panel more explaining than a quiet",
+            "highlight costs the user, who can see it is quiet and presses",
+            "another swatch.",
+
+            "There is no `panel` list, because there is no panel. That row of",
+            "buttons is simply not drawn rather than drawn dead - see",
+            "editor.paletteOf, which hides a row whose colours would recolour",
+            "something the channel never puts on the canvas."
+        ],
+        "colors": {
+            "text": ["#FF3131", "#FFFFFF", "#FF914D"],
+            "highlight": ["#FF3131", "#FFFFFF", "#FF914D"]
+        },
+
+        "_comment_highlight": [
+            "A picked word is set in Garet Book, in a colour of its own that",
+            "the user chooses from the second row of swatches.",
+
+            "Two changes at once, where every sibling makes one. Those packs",
+            "put their captions on a card, and a card is a flat ground where a",
+            "change of weight or of slant alone is as loud as anything needs",
+            "to be. This one puts them on a photograph under a shade, and a",
+            "photograph is busy: a picked word that differs only in the shape",
+            "of its letters is a word most viewers will not notice, because",
+            "there is grain and edge and detail competing with exactly that",
+            "signal. Colour is what carries across a busy ground, and the face",
+            "is what makes the change deliberate rather than a recolour",
+            "somebody applied.",
+
+            "Garet against Open Sans is a geometric against a humanist - one",
+            "built on circles with a single-storey a, the other drawn from",
+            "handwriting with a two-storey one. That is a change of VOICE and",
+            "not a change of emphasis, which is the right relation here for",
+            "Laugh Society 2's reason: the picked word reads as somebody else",
+            "speaking rather than as the same voice under a light. It is also",
+            "why it is not simply a bolder Open Sans - a weight is the same",
+            "voice louder, and on a busy ground it is the change least likely",
+            "to survive.",
+
+            "The default is #FF3131 while the block's is white, and the two",
+            "differing is the point rather than an accident of listing. The",
+            "same colour in both rows would leave a picked word separated by",
+            "the face alone on an untouched frame, which is the one case this",
+            "channel is careful not to produce - and it would make the second",
+            "row of swatches look like a copy of the first rather than a",
+            "question with its own answer. Red on white is also the pairing",
+            "this show opens on; the other eight are a button away.",
+
+            "Word scope, the same as every neighbour, and for their reason: a",
+            "caption's line breaks are wherever the sentence happened to run",
+            "out of width, so picking a line out picks out a fragment rather",
+            "than a thought. The words are what carry meaning, and the one",
+            "worth setting apart - a name, a number, the verb the clip turns",
+            "on - sits in the middle of a line as often as it fills one. A row",
+            "whose picked words are in another face is built out of runs, each",
+            "measured and drawn in its own face at the pen the runs before it",
+            "reached (see `runRows` in js/text.js), which is what lets the",
+            "face change at a word and costs the kerning across each join.",
+
+            "Mode is colour rather than box, which on this channel is not the",
+            "usual argument. Elsewhere it is that the words are already on a",
+            "solid ground and there is nothing to box against; here it is that",
+            "a box would be the card this channel deliberately does not have,",
+            "drawn one word at a time.",
+
+            "The shadow is stated rather than inherited, and stated as the",
+            "same one the unhighlighted words carry above, to the number - so",
+            "every word lifts off the picture the same way whether it is",
+            "picked out or not. The skeleton's own highlight shadow is a",
+            "wider, softer, centred one meant to sit under a filled box, and",
+            "it would put a picked word at a different depth from the words",
+            "either side of it on the same line."
+        ],
+        "highlight": {
+            "mode": "color",
+            "scope": "word",
+            "face": "garet-book",
+            "color": "#FF3131",
+            "shadow": { "color": "rgba(0,0,0,0.85)", "blur": 16, "offsetX": 0, "offsetY": 3 }
+        },
+
+        "_comment_panel": [
+            "There is none, and its absence is this channel's whole design -",
+            "see `_comment_title` and `_comment_scrim` above. Left out rather",
+            "than written as null, because the skeleton's answer is already",
+            "null and a key restating it would read as a slab somebody had",
+            "switched off rather than as a channel that never had one."
+        ],
+
+        "_comment_movable": [
+            "The block starts at the foot of the frame and the user moves it",
+            "from there. Same reasoning as on every channel beside this one:",
+            "the bottom of a captured still is only where a caption usually",
+            "belongs, and it lands over somebody's face often enough that",
+            "being able to drag it clear is part of the job.",
+
+            "One thing is different, and it is worth knowing before dragging",
+            "far. On those channels the caption carries its own ground with it",
+            "- the card moves where the words move, so a block dragged to the",
+            "top of the frame is as legible there as it was at the foot. Here",
+            "the ground is the scrim, and the scrim does not move: it is a",
+            "shade on the bottom third of the picture, not a shape behind the",
+            "type. A block dragged above it keeps its drop shadow and nothing",
+            "else. That is a real limit rather than a bug - the drag is there",
+            "to clear a face by a line or two, and a caption that has to live",
+            "at the top of the frame is a frame this channel is the wrong one",
+            "for."
+        ],
+        "movable": true,
+
+        "layout": {
+            "_comment": [
+                "Hall of Femme's block, stated in its numbers: nearly the full",
+                "width, standing on a margin off the bottom edge that clears a",
+                "player's own furniture, at a stated 40px so that forty stills",
+                "cut from one video are one set rather than forty type sizes.",
+                "What each of them is doing there, and what a stated",
+                "`fontSize` switches off, is written out in that pack and in",
+                "`fontSize` in js/channels.js.",
+
+                "Keeping them unchanged is the point rather than laziness.",
+                "This channel differs from its neighbours in how the words are",
+                "SET - the face, the colours, the ground under them - and not",
+                "in where they sit or how big they are, which are facts about",
+                "Snapchat's frame rather than about any show. It is also what",
+                "makes the scrim's third of the frame the right third: those",
+                "numbers are what the arithmetic in `_comment_scrim` is done",
+                "against, so changing one of them means recomputing the shade.",
+
+                "`maxChars` is the second ceiling on where the lines break -",
+                "the width asks what the frame holds, this asks what a viewer",
+                "reads at a glance, and a line has to be under both. It is the",
+                "same twenty every pack under this heading states, and it is",
+                "the ceiling that usually binds here: Open Sans's lower-case",
+                "is narrower than the capitals most siblings break against, so",
+                "twenty characters of it sit well inside the column and",
+                "without this the lines would run past thirty.",
+
+                "`freeform` on, and four lines, because a caption is a",
+                "sentence rather than three typed beats - it arrives already",
+                "broken (see js/caption.js) into one text box the user rewraps",
+                "by hand. Four is a count of slots and a freeform channel has",
+                "none, so it does nothing here; it is stated because four",
+                "lines is what the scrim was measured against.",
+
+                "lineGap is not stated, so the lines are spaced by the",
+                "renderer's own 10px (see BASE_TITLE_STYLE in js/channels.js).",
+                "On the panelled packs that number has to be read twice over,",
+                "because a joined slab changes what it measures between; with",
+                "no slab here it is simply the gap between two lines of type,",
+                "which is what it says.",
+
+                "maxBlockHeightRatio no longer decides the caption's size, and",
+                "no longer pulls a block in either - a size the renderer may",
+                "shrink is not a stated size. It is left where every sibling",
+                "leaves it, and on this channel it is the one number in the",
+                "block genuinely doing nothing: those packs at least spend it",
+                "on the card's padding (see BLOCK_BUDGET in js/text.js), and",
+                "there is no card here to spend it on."
+            ],
+            "leftRatio": 0.05,
+            "widthRatio": 0.90,
+            "maxBlockHeightRatio": 0.30,
+            "fontSize": 40,
+            "maxChars": 20,
+            "freeform": true,
+            "lines": 4,
+            "vAlign": "bottom",
+            "bottomRatio": 0.125
+        }
+    },
+
+    "_comment_branding": [
+        "`gradient` is true, and on this channel it means the SCRIM above",
+        "rather than the backend's dark gradient - the same thing it means on",
+        "Laugh Society 2, and the reason the two are one button is that they",
+        "are one idea: the shade that holds the title legible. It arrives on",
+        "because the shade is part of how this channel looks rather than an",
+        "effect to go and find, and the button turns it off for the frame",
+        "whose picture is already dark enough to carry white type unaided.",
+
+        "Every other channel under this heading sets `gradient` false, and",
+        "each of them says why: the backend's gradient exists to hold a title",
+        "legible against the photograph, and their titles are on a slab of",
+        "their own. This channel's title IS on the photograph, so it needs",
+        "that job doing - and does it itself.",
+
+        "This is also the first pack that both draws the photograph and",
+        "states a scrim, and it is what forced state.backendPresentation into",
+        "existence. The two gradients are not alike: the backend's is a",
+        "full-height ramp down the SIDE the title sits on, put there to clear",
+        "a column for a headline beside a subject, and baked into the pixels",
+        "it returns. Asked for on top of the scrim it would darken a vertical",
+        "still down one edge as well as up from the foot - two shades, in two",
+        "directions, for one press of one button. So a channel with a scrim",
+        "is now never asked for the backend's; Laugh Society 2 was covered by",
+        "accident before, since a channel that never draws the photograph",
+        "cannot show what was done to it."
+    ],
+    "branding": { "gradient": true }
+}

@@ -1,0 +1,116 @@
+{
+    "schema": 1,
+    "id": "garamond-premier-pro-bold-italic-subhead",
+
+    "_comment_family": [
+        "Garamond Premier Pro is an optical-size family: the same design drawn",
+        "four times over for four sizes - Caption, the text cut, Subhead and",
+        "Display - and then crossed with the weights and the italics. This file",
+        "is one cell of that grid, the Bold Italic of the Subhead optical size,",
+        "and which cell it is has to be said out loud twice over.",
+
+        "Its name ID 1 is 'Garamond Premr Pro Subh' - Adobe's own abbreviation,",
+        "and the name every weight and both slopes of the Subhead size carry.",
+        "Its typographic family, name ID 16, is 'Garamond Premier Pro', which",
+        "all four optical sizes carry as well. Either of those, declared here,",
+        "would be a name several files can answer to, and on a family drawn per",
+        "size the wrong answer is not a variation on the design: a Caption cut",
+        "is drawn with sturdier hairlines and wider spacing for small sizes and",
+        "a Display cut with fine ones for large, so a caption measured against",
+        "this file and set from another would be a different colour of type at",
+        "a width nothing measured.",
+
+        "So the full name (name ID 4) is what gets declared, exactly as the two",
+        "Telegraf packs and american-typewriter-itc-pro-bold declare theirs,",
+        "and it is the longest name in this folder because it is the shortest",
+        "one that names this file and no other.",
+
+        "Weight 700, which is the file's own usWeightClass and what the cut is",
+        "called. The file's macStyle says bold AND italic, which is the second",
+        "half of the story and is dealt with below.",
+
+        "Registered at style normal on purpose, the same way open-sans-italic,",
+        "hanken-grotesk-italic and rift are. The slant is drawn into the",
+        "letterforms - this is a true italic with its own single-storey a, its",
+        "own descenders and its own fitting, not a slanted roman - and the",
+        "canvas asks for normal. Declaring the FACE italic here as well would",
+        "leave the canvas either missing it or being handed a synthetic oblique",
+        "of something else. Normal means 'this file, as drawn'."
+    ],
+    "family": "Garamond Premier Pro Bold Italic Subhead",
+    "weight": "700",
+
+    "file": "fonts/Garamond Premier Pro Bold Italic Subhead.otf",
+    "format": "opentype",
+
+    "_comment_css": [
+        "Not declared in styles.css: this face arrived with a channel and is",
+        "registered from this JSON, which is the route content/README.md",
+        "describes. Nothing has to be added to the stylesheet for it."
+    ],
+    "css": false,
+
+    "_comment_local": [
+        "What the machine may already know the face by, tried after the file.",
+        "The first is the PostScript name and is also what the installer",
+        "registers the face under; the second is the Windows full name. Both",
+        "name this one cell of the grid rather than the family, so a machine",
+        "answering to either is answering with this file. Neither 'Garamond",
+        "Premier Pro' nor 'Garamond Premr Pro Subh' is here, for the reason",
+        "above: they are names four optical sizes and every weight of one of",
+        "them answer to, and the local() route is exactly where a name that",
+        "loose does its damage - it is tried on whatever the machine happens to",
+        "have installed rather than on anything this repo ships."
+    ],
+    "local": ["GaramondPremrPro-BdItSubh", "Garamond Premier Pro Bold Italic Subhead"],
+
+    "_comment_metrics": [
+        "Two measurements, both of them for the pack that is set in this face",
+        "(content/channels/buzzer-beater-de) and neither of them read by",
+        "anything at run time. They are here because the next face dropped",
+        "into a Snapchat channel will want the same two taken, and korolev-bold",
+        "started the habit.",
+
+        "The cap height is the file's own sCapHeight. The widths were taken on",
+        "a canvas at the size the pack is set at, which is the measurement that",
+        "matters rather than a sum of advance widths: the renderer measures the",
+        "same way, so the numbers below have the kerning in them.",
+
+        "Capitals are 660 units of a 1000-unit em, so at the Snapchat preset's",
+        "stated 40px they stand 26.4px tall.",
+
+        "It is a WIDE face for its era, which is the surprise. Twenty mixed",
+        "capitals (A to T) come out 499px against the 486px a Snapchat line",
+        "has - Korolev Bold's come out 434 - so unlike every other pack under",
+        "that heading, the width and the preset's twenty-character ceiling land",
+        "in the same place here rather than the characters binding first",
+        "comfortably. Ordinary prose still fits: nineteen characters of real",
+        "sentence measure 433px, because the spaces and the narrow letters that",
+        "an alphabet run has none of do most of the work. What it means in",
+        "practice is that a line of unusually wide capitals breaks at nineteen",
+        "instead of twenty, which the wrapper does on its own and nobody sees",
+        "(see the two ceilings in js/caption.js)."
+    ],
+
+    "_comment_stack": [
+        "The fallbacks are damage limitation and never a design choice - a",
+        "title laid out against the wrong metrics is broken, not merely",
+        "different, which is what fontguard exists to catch before it is ever",
+        "drawn. They are still chosen rather than copied, and here they must be",
+        "chosen against the grain of this folder: most of the faces here fall",
+        "back through Impact and Arial Black because most of them are heavy",
+        "display grotesques, and this is an old-style serif italic. Falling",
+        "back to Impact would make the one thing that survives a missing file",
+        "the furthest possible thing from it.",
+
+        "So, the nearest garaldes a Windows machine may have: Adobe Garamond",
+        "Pro where a design machine carries one, Monotype's Garamond where",
+        "Office put one there, and Georgia - which is on every Windows there",
+        "is and is at least a serif with bracketed serifs on it - before the",
+        "generic. All of them come out upright, because the face is registered",
+        "at style normal and there is nothing left to slant it. That is a",
+        "caption in the wrong face either way; this only decides what a broken",
+        "install looks like."
+    ],
+    "stack": "'Garamond Premier Pro Bold Italic Subhead', 'Adobe Garamond Pro', Garamond, Georgia, serif"
+}

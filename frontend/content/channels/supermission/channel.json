@@ -1,0 +1,23 @@
+{
+    "schema": 1,
+    "id": "supermission",
+    "name": "Supermission",
+    "order": 10,
+    "group": "QDS Karma",
+
+    "title": {
+        "face": "trade-gothic-heavy-compressed",
+        "color": "#FFFFFF",
+
+        "_comment_layout": [
+            "Every line spans the same width, the font size compensating for",
+            "how many characters it has — the block reads as one justified slab",
+            "with both edges flush, which is this channel's look."
+        ],
+        "layout": { "uniformSize": false },
+
+        "highlight": { "fill": "#FF070C", "color": "#FFFFFF" }
+    },
+
+    "branding": { "gradient": true }
+}

@@ -1,0 +1,58 @@
+{
+    "schema": 1,
+    "id": "telegraf-ultralight",
+
+    "_comment_family": [
+        "Telegraf ships as a family of cuts that all carry 'Telegraf' as name",
+        "ID 1 — the UltraLight in this folder and the UltraBold beside it are",
+        "two files answering to one family name, separated only by their",
+        "subfamily. Asking for 'Telegraf' alone would let either of them",
+        "answer, and these two are at opposite ends of the weight axis: a",
+        "title measured against the hairline and drawn in the ultra bold does",
+        "not merely look different, it overflows the block.",
+        "",
+        "So the full name (name ID 4) is what gets declared, the same way",
+        "gilroy-extrabold declares 'Gilroy ExtraBold' rather than 'Gilroy'.",
+        "The two Telegraf packs are therefore two faces with two distinct",
+        "family names, which is also what lets one channel be set in both at",
+        "once (see `highlight.face` in js/channels.js): fontguard keys its",
+        "check by family, so each cut is verified in its own right."
+    ],
+    "family": "Telegraf UltraLight",
+    "weight": "200",
+
+    "file": "fonts/Telegraf UltraLight 200.otf",
+    "format": "opentype",
+
+    "_comment_css": [
+        "Not declared in styles.css: this face arrived with a channel and is",
+        "registered from this JSON, which is the route content/README.md",
+        "describes. Nothing has to be added to the stylesheet for it."
+    ],
+    "css": false,
+
+    "_comment_local": [
+        "What the machine may already know the face by, tried after the file.",
+        "The first is the PostScript name and is also what the installer",
+        "registers the face under; the second is the Windows full name. Both",
+        "name this one cut rather than the family, so a machine answering to",
+        "either is answering with this file — which is exactly what the",
+        "fallback route is for. 'Telegraf' on its own is deliberately absent:",
+        "it is the name the UltraBold answers to as well."
+    ],
+    "local": ["Telegraf-UltraLight", "Telegraf UltraLight"],
+
+    "_comment_stack": [
+        "The fallbacks are damage limitation and never a design choice — a",
+        "title laid out against the wrong metrics is broken, not merely",
+        "different, which is what fontguard exists to catch before it is ever",
+        "drawn. They are still chosen rather than copied: every other face in",
+        "this folder falls back through Impact and Arial Black because every",
+        "other face here is a heavy display cut, and putting a 200-weight",
+        "hairline behind Impact would make the one thing that survives a",
+        "missing file the furthest possible thing from it. Segoe UI Light is",
+        "on every Windows this app runs on and is the nearest weight the",
+        "machine can be relied on to have."
+    ],
+    "stack": "'Telegraf UltraLight', 'Segoe UI Light', 'Segoe UI', Arial, sans-serif"
+}

@@ -1,0 +1,884 @@
+/* Self-hosted — this weight isn't on any public font CDN, so the
+   title font ships as a local file instead of a <link>. */
+/* The name on the left is an alias this stylesheet invents: the file's own
+   family is "Trade Gothic Next LT Pro" with "Heavy Compressed" as its
+   subfamily, so the full name only exists as a family once declared here.
+
+   The bundled file comes first so it is always what gets used — identical
+   metrics on every machine. The local() names after it are the installed
+   copy the installer puts into Windows, and exist for one reason: if the
+   .otf ever fails to load, the title overlay would otherwise fall through to
+   Impact and lay every title out against the wrong metrics. Falling back to
+   the same face by another route is recoverable; falling back to a different
+   face is not. */
+@font-face {
+    font-family: 'Anton';
+    src: url('fonts/Anton-Regular.ttf') format('truetype'),
+         local('Anton'),
+         local('Anton-Regular');
+    font-weight: 400;
+    font-style: normal;
+    font-display: block;
+}
+
+@font-face {
+    font-family: 'Trade Gothic Next LT Pro Heavy Compressed';
+    src: url('fonts/TradeGothicNextLTProHeavyCompressed.otf') format('opentype'),
+         local('Trade Gothic Next LT Pro Heavy Compressed'),
+         local('TradeGothicNextLTPro-HvCm');
+    font-weight: 900;
+    font-style: normal;
+    font-display: block;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+/* Shown only when the title face failed to load. Red, full width and
+   permanent, because the symptom it explains — a title laid out against
+   Impact's metrics — otherwise just looks like the app is broken. */
+.font-warning {
+    background: #FF070C; color: #fff; font-weight: 700;
+    padding: 12px 16px; border-radius: 8px; margin-bottom: 12px;
+    line-height: 1.35;
+}
+/* Form controls don't inherit font-family from the body by default
+   in most browsers (they use the platform's UI font instead) —
+   this is what makes buttons/inputs pick up Raleway too. */
+button, input, select, textarea { font-family: inherit; }
+body {
+    position: relative;
+    background: #060610; color: #fff;
+    font-family: 'Raleway', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    min-height: 100vh;
+    padding: 20px;
+}
+/* Soft blurred blue glow hugging the top edge, fading into a dark
+   navy field — fixed behind all content (every panel/card already
+   has its own opaque dark background, so this only ever shows
+   through the page margins/gaps). A sharp-edged ellipse blurred by
+   the browser is what gives the photographic soft-glow look, rather
+   than trying to hand-tune soft gradient stops. */
+body::before {
+    content: "";
+    position: fixed;
+    inset: -15%;
+    z-index: -1;
+    background:
+        radial-gradient(ellipse 70% 18% at 50% 0%, #c9d6ff 0%, #4d6cff 22%, #1c30c0 45%, transparent 78%),
+        #080b1e;
+    filter: blur(60px);
+}
+/* Fluid layout — everything scales with the window instead of a fixed
+   900px column; the canvas size is derived from the viewport below. */
+.app { width: 94vw; max-width: 1600px; margin: 0 auto; }
+/* Logo stacked above the title, both centered — not fixed over the
+   corner, since a fixed-position logo read as "floating",
+   disconnected from the page and from the title. */
+.app-header {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 10px; margin-bottom: 36px;
+}
+h1 { font-size: 32px; font-weight: 900; margin: 0; color: #fffa00; text-transform: uppercase; }
+/* Section titles ("Select a frame", "Preview", "Title — Frame N",
+   "Edit preset", "Image overlay") — sized and weighted (900, the
+   "Black" cut of Raleway, same as h1) to read as headers you scan
+   the page by, not just small in-line labels. */
+h2 {
+    font-size: 19px; font-weight: 900; color: #fff;
+    margin: 32px 0 14px; text-align: center; text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.input-section { display: flex; flex-direction: column; gap: 10px; margin-bottom: 32px; max-width: 500px; margin-left: auto; margin-right: auto; }
+/* Separator between the two ways in — a link above, a local file
+   below. A rule with the word sitting in it, rather than a plain
+   line, so the two blocks read as alternatives to each other
+   instead of as two steps of one sequence. */
+.source-or {
+    display: flex; align-items: center; gap: 10px;
+    color: #fffa00; font-size: 11px; font-weight: 900;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    margin: 2px 0;
+}
+.source-or::before, .source-or::after {
+    content: ""; flex: 1; height: 2px; background: #1b2fea;
+}
+input[type="text"] {
+    background: #1b2fea; border: 2px solid #026dff; border-radius: 8px;
+    padding: 10px 14px; color: #fff; font-size: 14px; outline: none; width: 100%;
+    caret-color: #fffa00;
+}
+input[type="text"]:hover, input[type="text"]:focus { border-color: #fffa00; }
+input[type="text"]::placeholder { color: #fffa00; }
+/* Chrome's default selection highlight is a translucent blue, which
+   all but disappears against this input's own blue background —
+   selecting text looked like nothing happened, even though it did
+   (copy still worked). Yellow matches the field's own accent color
+   and stays visible against the blue fill. */
+input[type="text"]::selection { background: #fffa00; color: #1b2fea; }
+input[type="text"]::-moz-selection { background: #fffa00; color: #1b2fea; }
+
+/* The one-block title field, for a channel whose line breaks are the
+   user's own. Everything about it matches the single-line fields it
+   stands in for — same fill, same border, same caret — because it is
+   the same field asking for the same thing; all that differs is that
+   Enter means something in it.
+
+   One row to start with, and it grows a row at a time as the user
+   breaks lines (editor.autoGrowBlock). It stands where three separate
+   fields stand for every other channel, and opening four rows deep
+   would read as three of them already being empty — a title with
+   blank lines in it, which is exactly what this channel CAN have and
+   so exactly the wrong thing to imply.
+
+   No drag handle and no scrollbar: it is always exactly as tall as
+   what is in it, so both would only be ways to make it wrong. */
+.line-block {
+    background: #1b2fea; border: 2px solid #026dff; border-radius: 8px;
+    padding: 10px 14px; color: #fff; font-size: 14px; outline: none; width: 100%;
+    caret-color: #fffa00; resize: none; overflow-y: hidden; line-height: 1.5;
+}
+.line-block:hover, .line-block:focus { border-color: #fffa00; }
+.line-block::placeholder { color: #fffa00; }
+.line-block::selection { background: #fffa00; color: #1b2fea; }
+
+/* One button system, everywhere: blue/white idle, yellow/blue on
+   hover. Toggle-style buttons (edit preset, highlight line, flip)
+   show their current choice with .btn-active, which is just the
+   hover pair held permanently — "selected" reads as "engaged"
+   instead of introducing a third color into the palette. The
+   hover rule is scoped to :not(:disabled) so a locked button (see
+   setControlsLocked) can't be flipped to the hover color by the
+   mouse sitting over it — it just keeps whatever it was already
+   showing (idle blue, or active yellow if it's the current
+   selection) until it's unlocked again. */
+.btn {
+    padding: 10px 18px; border: none; border-radius: 8px;
+    font-size: 13px; font-weight: 900; cursor: pointer;
+    text-transform: uppercase; letter-spacing: 0.02em;
+    background: #1b2fea; color: #fff;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+.btn:not(:disabled):hover { background: #fffa00; color: #1b2fea; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-active { background: #fffa00; color: #1b2fea; }
+.btn-red { background: #FF070C; color: #fff; }
+.btn, .btn:focus, .btn:focus-visible { outline: none; }
+.btn-row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+/* Edit-preset buttons stack one above the other — switching presets
+   replaces the previous pipeline outright (see setEditPreset), so
+   presenting them as one-at-a-time stacked choices, rather than a
+   row, reads clearer about that "only one applies" relationship. */
+.btn-col { display: flex; flex-direction: column; gap: 8px; }
+/* The title itself, as buttons, for a channel that highlights words
+   rather than lines (see editor.renderWordButtons). One row per line
+   of the block, so the panel keeps the shape of the thing it is
+   describing — which is what makes it readable as the title and not
+   as a bag of words.
+
+   Smaller and tighter than a normal button: there is one per word, a
+   title can carry a dozen, and at the full size they would fill the
+   panel. The word has to stay legible, so what gives is the padding
+   around it. */
+.word-row { gap: 6px; margin-bottom: 6px; }
+.btn-word {
+    padding: 6px 10px; font-size: 12px; letter-spacing: 0;
+    max-width: 100%; overflow-wrap: anywhere;
+}
+/* The colours a channel offers for its titles (see `title.colors` in
+   js/channels.js). Its own block in the panel rather than four loose
+   children, so the two labelled rows can be shown and hidden as the one
+   thing they are; the gap repeats the panel's own, since `display:
+   contents` is not available to something that also has to disappear. */
+.color-rows { display: flex; flex-direction: column; gap: 14px; }
+/* A swatch is the colour, not a word for it. There is nothing to write
+   on one — a hex tells the user less than the colour does and a name
+   somebody invented tells them less again — so the button is the paint,
+   sized to be pressed and no larger.
+
+   The dark ring is what keeps a white swatch from vanishing into the
+   panel's own pale text, and it is INSIDE the button (an inset shadow,
+   not a border) so that every swatch is exactly the same size whether
+   it is the chosen one or not. A border that appeared on selection
+   would shift the row by two pixels every time it moved. */
+.swatch-row { justify-content: flex-start; }
+.btn-swatch {
+    width: 34px; height: 34px; padding: 0; border-radius: 8px;
+    border: none; cursor: pointer;
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.45);
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.btn-swatch:not(:disabled):hover { transform: scale(1.08); }
+/* The chosen one wears the panel's own yellow, held off the swatch by a
+   ring of the page's own background first. The gap is doing real work
+   rather than decorating: one of the colours a pack may offer is a
+   yellow, and a yellow ring drawn straight onto a yellow swatch is a
+   swatch that looks slightly larger and not one that looks chosen. A
+   dark band between the two keeps the mark legible on any colour a
+   pack can name, which is the only version of this that is safe to
+   write once for every channel. */
+.btn-swatch.btn-active {
+    box-shadow:
+        inset 0 0 0 1px rgba(0, 0, 0, 0.45),
+        0 0 0 2px #060610,
+        0 0 0 5px #fffa00;
+}
+.btn-swatch:disabled { opacity: 0.4; cursor: not-allowed; }
+/* "Download selected (N)" — the count sits in its own pill so it
+   stays legible regardless of the button's idle/hover colors,
+   instead of having to flip in step with them. */
+.count-badge {
+    background: #1b2fea; color: #fffa00;
+    padding: 1px 7px; border-radius: 10px; margin-left: 4px;
+    font-size: 11px;
+}
+
+.status { text-align: center; padding: 6px; font-size: 13px; color: #fff; }
+
+.progress-section { max-width: 500px; margin: 0 auto 24px; }
+.progress-track {
+    background: #1b2fea; border: 1px solid #1b2fea; border-radius: 8px;
+    height: 10px; overflow: hidden;
+}
+.progress-fill {
+    background: #fffa00; height: 100%; width: 0%;
+    transition: width 0.4s ease;
+}
+.progress-text { text-align: center; font-size: 12px; color: #fff; margin-top: 6px; }
+
+.input-section .line-input { font-weight: 600; }
+
+/* Always 5 columns (20 frames -> 4 rows of 5). Width matches the
+   editor row below (canvas + panel), so the grid's left edge lines up
+   with the canvas's left edge. */
+.frames-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 5px;
+    width: min(calc(60vw + 404px), 100%); margin: 12px auto 24px;
+}
+.frame-card {
+    position: relative; border-radius: 4px; overflow: hidden;
+    border: 2px solid transparent; cursor: pointer;
+}
+.frame-card:hover { border-color: #1b2fea; }
+.frame-card.selected { border-color: #fffa00; border-width: 3px; }
+.frame-card img { width: 100%; aspect-ratio: 16/9; object-fit: cover; display: block; }
+/* Brand blue/yellow, matching .count-badge's pill — was a plain
+   black chip before, out of step with the rest of the UI. */
+.frame-card .badge {
+    position: absolute; top: 3px; left: 3px;
+    background: #1b2fea; color: #fffa00; font-size: 10px; font-weight: 700;
+    padding: 1px 5px; border-radius: 3px;
+}
+/* Batch-selection tick — independent of which frame is previewed */
+.frame-card .pick {
+    position: absolute; top: 3px; right: 3px;
+    width: 18px; height: 18px; border-radius: 4px;
+    background: rgba(0,0,0,0.55); border: 2px solid #1b2fea;
+    cursor: pointer;
+}
+.frame-card .pick.on { background: #fffa00; border-color: #1b2fea; }
+.frame-card .pick.on::after {
+    content: "✓"; color: #1b2fea; font-size: 12px; font-weight: 700;
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+}
+/* enhancing no longer draws its own outline — the card being
+   worked on is always the selected one, so its existing yellow
+   .selected border already communicates that, and a second
+   (blue) outline stacked on top of it while loading just read as
+   two competing selection indicators. */
+
+/* Canvas and the per-frame title fields sit side by side, so the user
+   edits one frame's text while looking at it. Wraps on narrow
+   windows. The 20vh bottom margin leaves room below the canvas so the
+   wide-frame overview shown while dragging to reframe isn't cut off
+   at the page bottom. */
+/* Row width = canvas + SIDE_W, where SIDE_W is the 104px gap plus
+   the 300px panel. The canvas wants 60vw but gives that up rather than
+   pushing the panel onto its own line, so the two stay side by side
+   down to narrow windows (below --editor-min the flex wrap takes
+   over). The frames grid uses the same total so its left edge lines
+   up with the canvas's. */
+.editor {
+    /* Clears two things overhanging the canvas's right edge: the zoom
+       bar (~46px) and the forward frame arrow outside it (~90px). */
+    display: flex; gap: 104px;
+    align-items: flex-start; justify-content: center; flex-wrap: wrap;
+    margin-bottom: 20vh;
+}
+.canvas-col { width: 60vw; max-width: calc(100% - 404px); min-width: 320px; }
+/* Card-grouped so the panel reads as one unit next to the canvas,
+   and its three subsections (title, edit preset, image overlay)
+   stay visually distinct via the divider rule below instead of
+   just floating whitespace between them. */
+.text-panel {
+    width: 300px; flex: 0 0 300px; display: flex; flex-direction: column; gap: 14px;
+    background: rgba(27, 47, 234, 0.18); border: 1px solid rgba(2, 109, 255, 0.5);
+    border-radius: 12px; padding: 20px;
+}
+/* Transparent to layout by default: the panel is a flex column of the
+   same loose children it always had, and the wrappers exist only so the
+   captions-mode rules further down have something to turn. */
+.panel-group { display: contents; }
+/* The rule that draws the line between sections. It used to ask "an h2
+   that is not the panel's first child"; the h2s sit in a wrapper each
+   now, so it asks the same question of the wrappers. */
+.panel-group:not(:first-child) > h2 {
+    margin-top: 10px; padding-top: 22px; border-top: 1px solid rgba(255, 255, 255, 0.14);
+}
+.panel-hint { font-size: 11px; color: #fff; line-height: 1.6; }
+
+/* Channel picker — the brand whose guidelines every title on the
+   page is set with. Styled as the same blue field as the text
+   inputs rather than as a button: it is a value being chosen, not
+   an action, and the three fields underneath it are the thing it
+   governs, so they should read as one group. */
+.field-label {
+    font-size: 11px; font-weight: 900; color: #fffa00;
+    text-transform: uppercase; letter-spacing: 0.04em;
+    margin-bottom: -8px;   /* pulls the label onto its field, against the panel's 14px gap */
+}
+.channel-select {
+    background: #1b2fea; border: 2px solid #026dff; border-radius: 8px;
+    padding: 10px 14px; color: #fff; font-size: 14px; outline: none; width: 100%;
+    cursor: pointer;
+}
+.channel-select:hover, .channel-select:focus { border-color: #fffa00; }
+/* The dropdown list itself is drawn by the OS, which does not
+   inherit the field's colors — set explicitly so the open list
+   isn't black-on-white against the rest of the panel. */
+.channel-select option { background: #1b2fea; color: #fff; }
+/* The network headings the channels are listed under (see
+   editor.initChannelPicker). Upper case and bold so a heading
+   cannot be mistaken for one more channel in a list where every
+   other row is also a proper noun — the indent the platform gives
+   its options is real but slight, and on its own it was doing all
+   the work of telling a label from a choice.
+
+   Not clickable, and not because of anything here: an optgroup
+   label is inert by construction. What this styles is only how it
+   READS. The colors are restated for the reason the options above
+   restate them — the open list is the OS's own widget and inherits
+   nothing from the field.
+
+   The heading is the one row in the list that is not the name of
+   something the user can pick, so it is also the one row allowed
+   to be quieter than its neighbours: 12px against their 14. Bold
+   and upper case are what make it stand out; size would only make
+   it compete with the names underneath it. */
+.channel-select optgroup {
+    background: #1b2fea; color: #fff;
+    font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+    font-size: 12px; font-style: normal;   /* Firefox italicises optgroup labels by default */
+}
+/* ...and the options inside a group go back to their own weight and
+   case, which the label above would otherwise hand down to them. */
+.channel-select optgroup option {
+    font-weight: 400; text-transform: none; letter-spacing: normal; font-size: 14px;
+}
+
+/* The same picker above the link box, where the column's gap is
+   10px rather than the panel's 14px — so the label's negative
+   margin, which is tuned to sit ON its field, has to be eased off
+   by the difference or it climbs into the field itself. The hint
+   under it is pulled up for the same reason: it explains the
+   select, so it belongs to it rather than to the link box below. */
+.input-section .field-label { margin-bottom: -4px; }
+.input-section #runChannelHint { margin: -4px 0 6px; opacity: 0.75; }
+
+/* How many frames to fetch — shown only for a channel that fetches
+   them (see capture.syncCaptureFields). Same field as the link box
+   above it, because it is the same kind of thing: a value being
+   typed, in the same group, answering the same moment. Its own
+   column so the label, the box and the hint stack the way the
+   channel picker's three do. */
+#frameCountRow { display: flex; flex-direction: column; gap: 10px; }
+#frameCountRow.hidden { display: none; }
+/* Slider and its readout on one row, the readout wide enough for
+   three digits so the track does not resize as the number changes. */
+.count-control { display: flex; align-items: center; gap: 12px; }
+.count-value {
+    min-width: 3ch; text-align: right;
+    color: #fffa00; font-size: 18px; font-weight: 900; font-variant-numeric: tabular-nums;
+}
+.count-slider {
+    -webkit-appearance: none; appearance: none;
+    flex: 1; height: 22px; background: transparent; outline: none; cursor: pointer;
+    /* How much of the track is filled, set by capture.syncCountValue \u2014 the
+       same arrangement the zoom bar uses, since a range input gives no way
+       to style the filled portion on its own. */
+    --count-fill: 0;
+}
+.count-slider::-webkit-slider-runnable-track {
+    height: 8px; border-radius: 4px; border: 2px solid #026dff;
+    background: linear-gradient(to right, #fffa00 calc(var(--count-fill) * 100%),
+                                          #1b2fea calc(var(--count-fill) * 100%));
+}
+.count-slider::-moz-range-track {
+    height: 8px; border-radius: 4px; border: 2px solid #026dff;
+    background: linear-gradient(to right, #fffa00 calc(var(--count-fill) * 100%),
+                                          #1b2fea calc(var(--count-fill) * 100%));
+}
+.count-slider::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 18px; height: 18px; margin-top: -7px; border-radius: 50%;
+    background: #fff; border: 2px solid #026dff; cursor: grab;
+}
+.count-slider::-moz-range-thumb {
+    width: 18px; height: 18px; border-radius: 50%;
+    background: #fff; border: 2px solid #026dff; cursor: grab;
+}
+.count-slider:hover::-webkit-slider-thumb, .count-slider:focus::-webkit-slider-thumb {
+    background: #fffa00; border-color: #fffa00;
+}
+.count-slider:hover::-moz-range-thumb, .count-slider:focus::-moz-range-thumb {
+    background: #fffa00; border-color: #fffa00;
+}
+#frameCountRow #frameCountHint { margin: -4px 0 0; opacity: 0.75; }
+
+/* Title fields with no channel chosen: visibly inert, but still
+   focusable and still reporting keystrokes — that is what lets a
+   typing attempt be answered rather than silently swallowed (see
+   syncChannelFields). */
+.line-input.locked, .line-block.locked { opacity: 0.45; cursor: not-allowed; }
+.line-input.locked:hover, .line-input.locked:focus,
+.line-block.locked:hover, .line-block.locked:focus { border-color: #026dff; }
+
+/* The answer to that attempt. Red and inside the panel, right under
+   the dropdown it is asking the user to use — a status line down at
+   the page bottom would be nowhere near where they are looking. */
+.panel-warn {
+    background: #FF070C; color: #fff; font-weight: 700; font-size: 11px;
+    padding: 8px 10px; border-radius: 6px; line-height: 1.4; text-align: center;
+}
+/* Restarted on every repeat attempt, so a second try gets a fresh
+   answer instead of a message that has been sitting there since the
+   first one. */
+.panel-warn.flash { animation: warn-flash 0.28s ease-out; }
+@keyframes warn-flash {
+    0%   { transform: translateX(0); }
+    25%  { transform: translateX(-4px); }
+    60%  { transform: translateX(4px); }
+    100% { transform: translateX(0); }
+}
+
+/* Displayed canvas takes 60% of the window's width (16:9 held by the
+   canvas elements themselves; internal resolution stays 1280×720 for
+   export). */
+.canvas-container {
+    width: 100%;
+    margin: 0 0 12px;
+    position: relative; overflow: visible;
+}
+.canvas-container canvas { width: 100% !important; height: auto !important; display: block; }
+.canvas-container .canvas-container { width: 100% !important; height: auto !important; }
+#thumbCanvas { cursor: grab; }
+#thumbCanvas.dragging { cursor: grabbing; }
+/* Hover feedback over the logo overlay (see setupReframeInteraction's
+   logo hit-testing) — mutually exclusive with .dragging (each drag
+   start clears these first), so cascade order doesn't matter. */
+#thumbCanvas.hover-move { cursor: move; }
+#thumbCanvas.hover-resize { cursor: nwse-resize; }
+
+.reframe-hint { text-align: center; font-size: 12px; color: #fff; margin-bottom: 18px; }
+
+/* Previous/next frame, flanking the canvas at its own mid-height.
+
+   Positioned against .canvas-container rather than laid out in the
+   column, so "beside the picture, halfway down it" stays true at every
+   canvas size and in both modes - a portrait 540x960 and a landscape
+   1280x720 have very different heights and neither number appears here.
+
+   The offsets are not symmetrical, and that is the zoom bar's doing: it
+   hangs off the right edge from +14 to +46 (see .zoom-bar), so the
+   forward arrow starts outside it at +56 while the back one, with clear
+   air on its side, sits at +12. Reading the two as a pair is what the
+   shared mid-height does; matching their gaps would only have moved the
+   crowding somewhere it could be seen. */
+.frame-nav {
+    position: absolute; top: 50%; transform: translateY(-50%); z-index: 4;
+    background: none; border: 0; padding: 0 4px;
+    font-size: 46px; line-height: 1; font-weight: 700;
+    color: #fff; cursor: pointer; user-select: none;
+    transition: color 0.12s ease;
+}
+.frame-nav.prev { right: 100%; margin-right: 12px; }
+.frame-nav.next { left: 100%; margin-left: 56px; }
+.frame-nav:hover { color: #fffa00; }
+/* At either end of the set. Dimmed and inert rather than removed: the
+   arrow's side of the canvas is how the user reads which way it goes,
+   and one that disappears at the ends makes the other look like it
+   moved. pointer-events keeps a disabled arrow from matching :hover, so
+   it stays white under a mouse resting on it instead of flashing
+   yellow at a click that will not happen. */
+.frame-nav:disabled { opacity: 0.25; cursor: default; pointer-events: none; }
+
+/* Actions sit right below the canvas; Download keeps 30% of the
+   canvas's own width. */
+.below-canvas {
+    width: 100%; margin: 0;
+    display: flex; justify-content: center; gap: 8px; flex-wrap: wrap;
+}
+.below-canvas #downloadBtn { width: 30%; }
+
+.wide-layer {
+    position: absolute; top: 0; left: 0; display: none; pointer-events: none;
+    filter: grayscale(0.65) brightness(0.8); opacity: 0.45; z-index: 0;
+}
+.live-crop-layer {
+    position: absolute; top: 0; left: 0; display: none; pointer-events: none; z-index: 3;
+}
+
+/* Vertical fine-zoom bar hugging the canvas's right edge: + circle on
+   top (zoom in), − circle at the bottom (zoom out), slider between. */
+.zoom-bar {
+    position: absolute; left: 100%; top: 0; height: 100%;
+    margin-left: 14px; width: 32px;
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+}
+.zoom-cap {
+    width: 30px; height: 30px; border-radius: 50%; flex: 0 0 auto;
+    background: #1b2fea; color: #fff; font-size: 18px; font-weight: 700;
+    line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; user-select: none;
+}
+/* The glyph itself (not just its box) needs a hand-nudge to sit
+   visually centered in the circle — "+" reads slightly high-left
+   at this weight/size otherwise, "−" doesn't need it. */
+#zoomInBtn { padding: 1px 0 0 1px; }
+.zoom-cap:hover { background: #fffa00; color: #1b2fea; }
+/* Divs, not <button>s (see setupReframeInteraction) — disabled via a
+   class instead of the disabled attribute, while the editing
+   pipeline is busy (see setControlsLocked). pointer-events:none
+   means a locked cap can't match :hover at all, so it keeps
+   showing its plain blue idle look (dimmed by the opacity below)
+   instead of flipping yellow under a mouse that's just sitting
+   over it. */
+.zoom-cap.locked { opacity: 0.35; cursor: not-allowed; pointer-events: none; }
+/* No hover styling here — only the +/- caps (.zoom-cap above) react
+   to hover. The bar itself stays as-is regardless of mouse position.
+   Custom-drawn (appearance: none) rather than accent-color: the
+   browser bakes a faint gray edge into its own accent-color paint
+   for this control, on both the filled and unfilled portions, and
+   that edge isn't reachable through border/outline/box-shadow — it
+   isn't a box-model property at all, just part of the native theme.
+
+   Built as a HORIZONTAL slider, rotated -90deg, rather than the
+   writing-mode: vertical-lr approach used earlier — that approach
+   doesn't reliably center a custom (appearance: none) thumb across
+   browsers (its cross-axis thumb-centering math is far less
+   consistent/tested than a plain horizontal slider's), which is
+   exactly the misalignment this replaces. A horizontal slider's
+   thumb reliably centers when the INPUT's height matches the
+   thumb's diameter — the standard, widely-used pattern — so this
+   sidesteps that whole class of bug instead of fighting it.
+   rotate(-90deg) on a plain min-at-left/max-at-right slider puts
+   max at the top (rotating counter-clockwise swings the right end
+   up), matching the bar's original vertical layout with no
+   direction:rtl needed.
+
+   The wrap (.zoom-slider-wrap) reserves the actual flex-allocated
+   space (16px thick, flexible length); the input inside is
+   absolutely centered in it and sized by JS (see syncZoomSliderSize)
+   to the wrap's rendered height, since a CSS transform can't be
+   expressed as "my own containing block's cross-axis size". */
+.zoom-slider-wrap {
+    position: relative; flex: 1 1 auto; min-height: 0; width: 16px;
+}
+.zoom-bar input[type="range"] {
+    position: absolute; top: 50%; left: 50%;
+    height: 16px; cursor: pointer;
+    transform: translate(-50%, -50%) rotate(-90deg);
+    -webkit-appearance: none; appearance: none;
+    background: transparent;
+    outline: none; border: none;
+}
+/* The blue/white split shows how far zoomed in the frame is —
+   filled from the low end up to the current value, plain white
+   past it. There's no native fill to read once accent-color is
+   gone, so it's redrawn by hand as a gradient keyed off
+   --zoom-fill, a 0..1 custom property JS keeps in sync with the
+   slider's value (see updateZoomFill) — custom properties inherit
+   from the input into its own pseudo-elements, so setting it once
+   on the input reaches both track rules below. "to right" is the
+   slider's own pre-rotation axis (min at left) — after the
+   rotate(-90deg) above, that end visually lands at the bottom,
+   matching "max (+) at the top". */
+.zoom-bar input[type="range"]::-webkit-slider-runnable-track {
+    height: 6px; border-radius: 3px; border: none; outline: none; box-shadow: none;
+    background: linear-gradient(to right,
+        #1b2fea 0%, #1b2fea calc(var(--zoom-fill, 0.5) * 100%),
+        #fff calc(var(--zoom-fill, 0.5) * 100%), #fff 100%);
+}
+.zoom-bar input[type="range"]::-moz-range-track {
+    height: 6px; border-radius: 3px; border: none; outline: none; box-shadow: none;
+    background: linear-gradient(to right,
+        #1b2fea 0%, #1b2fea calc(var(--zoom-fill, 0.5) * 100%),
+        #fff calc(var(--zoom-fill, 0.5) * 100%), #fff 100%);
+}
+.zoom-bar input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: #1b2fea; cursor: pointer; border: none; outline: none; box-shadow: none;
+    margin-top: -5px;  /* (16 - 6) / 2 — recenters the thumb on the 6px track within the 16px-tall input */
+}
+.zoom-bar input[type="range"]::-moz-range-thumb {
+    width: 16px; height: 16px; border-radius: 50%;
+    background: #1b2fea; cursor: pointer; border: none; outline: none; box-shadow: none;
+}
+.zoom-bar input[type="range"]:focus { outline: none; }
+/* Thumb and track share the same <input> hit area, so one :hover
+   on the input drives both at once — the filled (blue) portion of
+   the track and the thumb both swap to yellow together. Only the
+   filled stop moves; the white stop is untouched, so the unfilled
+   portion never changes on hover. */
+.zoom-bar input[type="range"]:not(:disabled):hover::-webkit-slider-thumb { background: #fffa00; }
+.zoom-bar input[type="range"]:not(:disabled):hover::-moz-range-thumb { background: #fffa00; }
+.zoom-bar input[type="range"]:not(:disabled):hover::-webkit-slider-runnable-track {
+    background: linear-gradient(to right,
+        #fffa00 0%, #fffa00 calc(var(--zoom-fill, 0.5) * 100%),
+        #fff calc(var(--zoom-fill, 0.5) * 100%), #fff 100%);
+}
+.zoom-bar input[type="range"]:not(:disabled):hover::-moz-range-track {
+    background: linear-gradient(to right,
+        #fffa00 0%, #fffa00 calc(var(--zoom-fill, 0.5) * 100%),
+        #fff calc(var(--zoom-fill, 0.5) * 100%), #fff 100%);
+}
+.zoom-bar input[type="range"]:disabled { opacity: 0.35; cursor: not-allowed; }
+
+/* Fox-shaped loader shown over the canvas while a frame's restored
+   wide view is loading — either the (at most once per frame)
+   restoration pass building for the first time, or a reframe/zoom's
+   crop+autofill settling. The fox starts white and a brand-blue
+   fill sweeps left-to-right over it to read as progress, holds,
+   fades back to white, and repeats. Both layers are masked/cut to
+   the fox artwork's own alpha, so the transparent background around
+   the fox stays transparent throughout. */
+.reframe-spinner {
+    position: absolute; inset: 0; display: none; z-index: 4;
+    align-items: center; justify-content: center; pointer-events: none;
+}
+.fox-loader { position: relative; width: 30%; height: 30%; }
+.fox-loader-base, .fox-loader-fill {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+}
+.fox-loader-base { object-fit: contain; }
+.fox-loader-fill {
+    -webkit-mask-image: url(fox.png); mask-image: url(fox.png);
+    -webkit-mask-size: contain; mask-size: contain;
+    -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+    -webkit-mask-position: center; mask-position: center;
+    background: #1b2fea;
+    animation: foxLoaderSweep 2s ease-in-out infinite;
+}
+@keyframes foxLoaderSweep {
+    0%   { clip-path: inset(0 100% 0 0); opacity: 1; }
+    45%  { clip-path: inset(0 0% 0 0); opacity: 1; }
+    55%  { clip-path: inset(0 0% 0 0); opacity: 1; }
+    65%  { clip-path: inset(0 0% 0 0); opacity: 0; }
+    66%  { clip-path: inset(0 100% 0 0); opacity: 0; }
+    100% { clip-path: inset(0 100% 0 0); opacity: 1; }
+}
+
+.controls { display: flex; flex-direction: column; gap: 10px; align-items: center; margin: 14px 0; }
+
+.hidden { display: none; }
+
+.brand-logo { height: 26px; width: auto; display: block; }
+
+/* The frame's image overlays, one chip each. A chip is the picture
+   itself plus a delete — the only per-overlay action there is. The
+   active one (whose handles are on the canvas) is marked with the
+   same yellow the rest of the UI uses for "this is the current one". */
+.logo-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.logo-chip {
+    position: relative; width: 68px; height: 68px;
+    border: 2px solid #1b2fea; border-radius: 8px; overflow: hidden;
+    background: #0b1533;
+}
+.logo-chip.active { border-color: #fffa00; }
+.logo-chip img {
+    width: 100%; height: 100%; object-fit: contain; display: block; cursor: pointer;
+}
+.logo-chip-del {
+    position: absolute; top: 2px; right: 2px;
+    width: 18px; height: 18px; padding: 0; line-height: 1;
+    border: none; border-radius: 50%; cursor: pointer;
+    background: #FF070C; color: #fff; font-size: 13px; font-weight: 900;
+}
+.logo-chip-del:hover { background: #fffa00; color: #FF070C; }
+
+
+/* ── Frame-fetch mode ─────────────────────────────────────────────
+
+   One channel does not make thumbnails: it hands back a numbered set
+   of stills (see js/capture.js). Everything below is what that costs
+   the page, and it is stated here rather than in each control's own
+   sync function for the reason the module header gives — a dozen
+   buttons each answering a second question is a dozen answers that
+   have to keep agreeing, where one stylesheet rule cannot disagree
+   with itself.
+
+   !important throughout, because every one of these controls is
+   shown and hidden by its own JavaScript against its own
+   channel-shaped question. This is not arguing with that logic; it
+   is saying the control is not part of this mode at all. */
+
+/* There is no title, no brand, no cutout and no overlay on a fetched
+   frame, so the entire side panel has nothing to ask about. The
+   canvas then has the row to itself.
+
+   Unless the frames arrive with words on them. A capture channel can
+   ask for the sentence that was being said over each still (see
+   `capture.captions` in js/channels.js), and then the panel is the
+   only place that sentence can be edited — so the mode that hides it
+   is the one that has nothing to write, not capture mode as such.
+   The class is set alongside capture-mode itself, from the same
+   place, so the two can never describe different runs (see
+   capture.enterMode). */
+body.capture-mode:not(.captions-mode) .text-panel { display: none !important; }
+
+/* Nothing that composes a thumbnail: no flip (there is no title for
+   the picture to sit beside), no gradient (nothing to darken the
+   frame for), no replacement (the frame IS the deliverable). What is
+   left around the canvas is the zoom bar, Variation and the
+   downloads, which is what the mode is for.
+
+   Variation stays because on a frame fetch it answers the one
+   question the grid cannot: this moment is nearly right, show me the
+   one beside it. The backend runs a search of its own for these
+   frames — same scene, no softer, eyes open where there is a subject
+   (see vary.pick_capture_variation).
+
+   ...and Flip image stays on a capture channel that composes from a
+   CUTOUT, which is the one case the paragraph above does not cover.
+   It was written when a frame fetch always meant the still itself,
+   where mirroring is either pointless or actively wrong — every
+   sign and caption in the picture comes out backwards. On a channel
+   with figures the same button mirrors ONE FIGURE against the
+   channel's own ground (see editor.syncFlipButtons and toggleFlip),
+   which is an ordinary compositional move and the only way to turn a
+   subject to face the type. Told apart by a class set from the
+   CHANNEL rather than from the run — see
+   editor.syncTitlePanelMode. */
+body.capture-mode:not(.cutout-channel) #flipImageBtn,
+body.capture-mode #flipTextBtn,
+body.capture-mode #frameUploadBtn,
+body.capture-mode #gradientBtn,
+body.capture-mode #bgBtn,
+body.capture-mode #figureGlowBtn { display: none !important; }
+
+/* ...and the one control that only exists here. */
+body.capture-mode #downloadAllBtn { display: inline-block !important; }
+
+/* A portrait canvas at the landscape one's width would be over a
+   screen tall. Sized to stay comfortably inside the viewport
+   instead, since a frame nobody can see all of cannot be judged. */
+body.capture-mode .canvas-col {
+    width: min(340px, 70vw); max-width: 100%; min-width: 200px;
+}
+body.capture-mode .editor { margin-bottom: 8vh; }
+
+/* Forty portrait cards, not twenty landscape ones: five fixed
+   columns would be eight rows deep. Auto-filled to whatever the row
+   holds, so the grid grows sideways with the window rather than
+   downward with the count. */
+body.capture-mode .frames-grid {
+    grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+}
+body.capture-mode .frame-card img { aspect-ratio: 9 / 16; }
+
+/* A frame the edit has not reached yet. Grey and inert, turning to
+   its own colours the moment its pixels are the finished ones (see
+   ui.markFrameReady) — so the grid fills in visibly, left to right,
+   and what the user can click is exactly what is ready to be
+   looked at.
+
+   Two states rather than a spinner on each card, because forty
+   spinners is not information: the question a user has at that
+   moment is "which of these can I open", and colour answers it
+   across the whole grid at a glance.
+
+   pointer-events, not a JavaScript guard, for the click: the card is
+   not a control yet, and saying so once in the stylesheet beats
+   every handler on it having to remember. (main.renderGrid guards
+   as well, for the case where a stylesheet fails to load and the
+   cards would otherwise be silently clickable.) */
+body.capture-mode .frame-card.pending {
+    pointer-events: none;
+    border-color: transparent;
+}
+body.capture-mode .frame-card.pending img {
+    filter: grayscale(1) brightness(0.55) contrast(0.9);
+}
+/* The transition belongs to the image, so a card arriving does it as
+   a fade rather than a jump. */
+.frame-card img { transition: filter 0.35s ease; }
+/* ...and the badge stays legible on a card that is still grey, since
+   it is the frame's number and the number is what the user is
+   waiting to be able to use. */
+body.capture-mode .frame-card.pending .badge { opacity: 0.55; }
+body.capture-mode .frame-card.pending .pick { display: none; }
+
+/* ── The caption panel, turned on its side ────────────────────────
+
+   Everywhere else the canvas is landscape and the panel is the only
+   thing that can go beside it. Here the canvas is 540x960: it takes
+   a third of the row's width and all of its height, which leaves a
+   column of three stacked sections running far below the picture
+   they belong to, and a wide band of empty page either side of it.
+
+   So the three sections turn and sit side by side. The panel stops
+   at the bottom of the canvas column instead of running to twice
+   its height, the row is read across rather than scrolled down, and
+   the space a portrait frame gives back is what pays for it.
+
+   `align-items: stretch` on the row is what holds the panel to that
+   height without anybody writing a height down. The canvas column
+   is the tallest thing in the row, so the panel is stretched to
+   exactly it - flush at the top with the canvas and at the foot
+   with the download buttons under it - and if the canvas is
+   resized, by the window or by a channel with a different `output`,
+   the panel follows with no number here to update. That matters more than it
+   looks: the 540x960 is the pack's, and content/README.md is
+   explicit that neither half of the app keeps a second copy of it. */
+body.captions-mode .editor { align-items: stretch; }
+body.captions-mode .text-panel {
+    flex-direction: row; width: auto; flex: 0 1 auto;
+    gap: 0; padding: 20px 4px;
+}
+/* Each section becomes the column the panel used to be, at the width
+   the caption box actually needs to be typed in. min-height: 0 is
+   what lets a section scroll instead of pushing the panel taller
+   than the canvas - without it a flex child refuses to shrink below
+   its content and the whole point is lost. */
+body.captions-mode .panel-group {
+    display: flex; flex-direction: column; gap: 14px;
+    width: 190px; flex: 0 0 190px;
+    padding: 0 16px; min-height: 0; overflow-y: auto;
+}
+/* ...but not the same width as each other. The caption column holds a
+   sentence somebody is editing; the other two hold four buttons and two
+   hints between them. Splitting the row equally gave the widest control
+   in the panel the same room as a column that had space going spare. */
+body.captions-mode .panel-group:first-child {
+    width: 290px; flex: 0 0 290px;
+}
+/* The divider turns with them: between columns it is a line down the
+   side, not across the top. */
+body.captions-mode .panel-group:not(:first-child) {
+    border-left: 1px solid rgba(255, 255, 255, 0.14);
+}
+body.captions-mode .panel-group:not(:first-child) > h2 {
+    margin-top: 0; padding-top: 0; border-top: none;
+}
+/* The caption is the reason this channel has a panel at all, so it
+   gets the height the other two do not need. */
+body.captions-mode #lineBlock { flex: 1 1 auto; min-height: 96px; resize: none; }
+/* The edit presets stay a column, which is worth writing down because
+   the obvious move here is to lay them across. Measured, they do not
+   go: "Restore only", "Natural" and "Heavy edit" are 136, 98 and 113
+   pixels wide against a column of 190, so a row of them wraps to the
+   same three lines it started with and only loses the left edge they
+   currently share. */

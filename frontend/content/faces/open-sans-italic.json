@@ -1,0 +1,77 @@
+{
+    "schema": 1,
+    "id": "open-sans-italic",
+
+    "_comment_family": [
+        "The 400-weight slanted cut, and the block face of every channel set",
+        "in this family. Its partner is open-sans-bolditalic.json, which is",
+        "the same slant at 700 and is what a picked word is set in; that",
+        "pack's note is the one to read for what the pairing has to survive.",
+        "",
+        "It declares a full name instead of 'Open Sans' because that is what",
+        "the file carries as name ID 1, and the Bold Italic carries it too —",
+        "two files answering to one family name, separated only by their",
+        "subfamily. Asking for the family would let either of them answer, and",
+        "a block that came back bold, or a picked word that came back at 400,",
+        "is not a variation on the design: it is the highlight disappearing",
+        "into the text. So the full name (ID 4) is what gets declared, the",
+        "same way telegraf-ultralight declares 'Telegraf UltraLight' rather",
+        "than 'Telegraf'. Two distinct family names is also what lets one",
+        "channel be set in both at once, because fontguard keys its check by",
+        "family and each cut is then verified in its own right.",
+        "",
+        "It matters more here than it does for the faces this folder invented",
+        "a name for, because Open Sans is one a Windows machine may genuinely",
+        "already carry — from a Google Fonts install, or dragged in by another",
+        "application. A pack declaring the bare family would be handing the",
+        "local() route a name any cut of that family can answer to.",
+        "",
+        "Weight 400, because that is what the cut is: this family's italic",
+        "is a true drawn italic and not a heavier weight, and asking for",
+        "anything else invites a browser to synthesise a difference the file",
+        "does not have.",
+        "",
+        "Registered at style normal on purpose, the same way hanken-grotesk-",
+        "italic and rift are. The slant is drawn into the letterforms; the",
+        "file's own fsSelection says italic, but declaring the FACE italic here",
+        "as well would leave the canvas — which asks for normal — either",
+        "missing it or being handed a synthetic oblique of something else.",
+        "Normal means 'this file, as drawn'."
+    ],
+    "family": "Open Sans Italic",
+    "weight": "400",
+
+    "file": "fonts/OpenSans-Italic.ttf",
+    "format": "truetype",
+
+    "_comment_css": [
+        "Not declared in styles.css: this face arrived with a channel and is",
+        "registered from this JSON, which is the route content/README.md",
+        "describes. Nothing has to be added to the stylesheet for it."
+    ],
+    "css": false,
+
+    "_comment_local": [
+        "What the machine may already know the face by, tried after the file.",
+        "The first is the PostScript name and is also what the installer",
+        "registers the face under; the second is the Windows full name. Both",
+        "name this one cut rather than the family, so a machine answering to",
+        "either is answering with this file. 'Open Sans' on its own is",
+        "deliberately absent: it is the name the Bold Italic answers to as",
+        "well, which is the whole of the reason this pack names a cut."
+    ],
+    "local": ["OpenSans-Italic", "Open Sans Italic"],
+
+    "_comment_stack": [
+        "A 400-weight humanist sans falls back to the nearest weight the",
+        "machine is certain to have, not to Impact — most of the faces in this",
+        "folder fall back through Impact and Arial Black because most of them",
+        "are heavy display cuts, and this is not one.",
+        "",
+        "The fallback comes out upright, because the face is registered at",
+        "style normal and there is nothing left to slant it — which is a title",
+        "in the wrong face either way, and fontguard is what stops one being",
+        "drawn."
+    ],
+    "stack": "'Open Sans Italic', 'Segoe UI', Arial, sans-serif"
+}

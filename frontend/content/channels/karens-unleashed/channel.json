@@ -1,0 +1,32 @@
+{
+    "schema": 1,
+    "id": "karens-unleashed",
+    "name": "Karens Unleashed",
+    "order": 40,
+    "group": "QDS Karma",
+
+    "title": {
+        "face": "anton",
+        "color": "#FFFFFF",
+
+        "_comment_shadow": "No drop shadow on the type: the glow below is what lifts it.",
+        "shadow": null,
+        "glow": { "use": "karen-glow" },
+
+        "layout": { "uniformSize": false },
+        "outline": { "width": 3, "color": "#000000", "opacity": 0.97 },
+
+        "_comment_highlight": [
+            "Highlighting recolours the line and nothing else — no box, no",
+            "texture. The outline and the glow belong to every letter, so a",
+            "highlighted line keeps both: only the fill changes."
+        ],
+        "highlight": { "mode": "color", "color": "#C064FA", "shadow": null }
+    },
+
+    "_comment_branding": [
+        "Title left, subject right — what the automatic framing already",
+        "produces, so neither flip is needed."
+    ],
+    "branding": { "flipImage": false, "flipText": false }
+}

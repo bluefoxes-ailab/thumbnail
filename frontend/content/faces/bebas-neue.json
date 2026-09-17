@@ -1,0 +1,53 @@
+{
+    "schema": 1,
+    "id": "bebas-neue",
+
+    "_comment_family": [
+        "The family name straight out of the file's name table (ID 1), and it",
+        "is safe to ask for by family alone here in a way Telegraf's is not:",
+        "Bebas Neue is one cut. There is no second weight sharing the name for",
+        "a request to land on by accident, so 'Bebas Neue' can only ever be",
+        "this file's letterforms.",
+        "",
+        "Bebas Neue has no lower case. Its lower-case codepoints are drawn as",
+        "capitals, which is worth knowing before reading a pack that sets it:",
+        "the capitals a Snapchat caption is set in are the face's own answer",
+        "and not a transformation laid over it."
+    ],
+    "family": "Bebas Neue",
+    "weight": "400",
+
+    "file": "fonts/BebasNeue-Regular.ttf",
+    "format": "truetype",
+
+    "_comment_css": [
+        "Not declared in styles.css. This face arrived with a channel and is",
+        "registered from this JSON at load time (see registerFace in",
+        "js/channels.js), which is the route content/README.md describes -",
+        "nothing has to be added to the stylesheet for it."
+    ],
+    "css": false,
+
+    "_comment_local": [
+        "What the machine may already know the face by, tried after the file",
+        "and used by the installer as the name it registers this face under",
+        "(see engine.install_fonts, which takes the first).",
+        "",
+        "The PostScript name first, then the Windows full name, then the",
+        "family. The family is included, unlike in the Telegraf packs, for the",
+        "reason given above: it names one cut here because there is only one,",
+        "so a machine answering to it is answering with these letterforms."
+    ],
+    "local": ["BebasNeue-Regular", "Bebas Neue Regular", "Bebas Neue"],
+
+    "_comment_stack": [
+        "The fallbacks are damage limitation and never a design choice - a",
+        "title laid out against the wrong metrics is broken rather than merely",
+        "different, which is what fontguard exists to catch before anything is",
+        "drawn. Chosen all the same: Bebas Neue is a tall condensed display",
+        "face with no lower case, and Anton is the nearest thing in this app's",
+        "own fonts folder. Impact after it is the nearest thing Windows can be",
+        "relied on to have."
+    ],
+    "stack": "'Bebas Neue', 'Anton', Impact, 'Arial Black', sans-serif"
+}

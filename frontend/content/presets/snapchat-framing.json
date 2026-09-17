@@ -1,0 +1,28 @@
+{
+    "schema": 1,
+    "id": "snapchat-framing",
+
+    "_comment": [
+        "How a Snapchat run CHOOSES and crops its frames, shared by every",
+        "channel under the heading because none of them has a reason to differ.",
+        "",
+        "The frames are not composed around anybody. Most of them have no face",
+        "in them at all, and the ones that do are not being cropped to put a",
+        "person beside a title - the picture is the product, so it is fitted to",
+        "the canvas centred and left alone.",
+        "",
+        "min_text_space is zero because it asks how much room is clear BESIDE",
+        "the subject for a title to go in, and these titles do not go beside",
+        "anybody: the caption lies across the foot of the picture on a card of",
+        "its own. No frame should be rejected for failing to leave a column",
+        "nothing is ever set in.",
+        "",
+        "Named rather than repeated for the reason snapchat-capture is: a pack",
+        "under this heading is made by copying its neighbour, and every key",
+        "restated in each of them is a key a new channel can be missing."
+    ],
+
+    "anchorX": 0.5,
+    "anchorY": 0.5,
+    "minTextSpace": 0
+}

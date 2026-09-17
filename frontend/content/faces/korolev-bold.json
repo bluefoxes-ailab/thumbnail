@@ -1,0 +1,88 @@
+{
+    "schema": 1,
+    "id": "korolev-bold",
+
+    "_comment_family": [
+        "Korolev is a family and this file is its Bold, but unlike the two",
+        "Telegraf cuts and the two Raleway ones it needs no care taken over",
+        "the name: the file already carries 'Korolev Bold' as name ID 1, keeps",
+        "the bare 'Korolev' in the typographic family (ID 16) with the cut in",
+        "ID 17, and repeats 'Korolev Bold' as the full name (ID 4). The family",
+        "name and the full name are the same string, so the name declared here",
+        "is both, and it answers with one cut whichever of the two a browser",
+        "matches on.",
+        "",
+        "That is the property those packs go to some trouble to buy, and it",
+        "is worth having for their reason even though nothing threatens it",
+        "today. One cut of Korolev is in fonts/ and one channel is set in it,",
+        "so there is nothing a bare family name could wrongly answer with -",
+        "until the day a Regular arrives beside it, which is a day this face",
+        "should not have to be rewritten for.",
+        "",
+        "Weight 700, which is the file's own usWeightClass and what the cut is",
+        "called. Stated rather than left to 'bold' so that the fallbacks below",
+        "resolve to a bold of their own family rather than to whatever the",
+        "browser picks when it is asked for nothing in particular."
+    ],
+    "family": "Korolev Bold",
+    "weight": "700",
+
+    "file": "fonts/Korolev Bold.otf",
+    "format": "opentype",
+
+    "_comment_css": [
+        "Not declared in styles.css: this face arrived with a channel and is",
+        "registered from this JSON, which is the route content/README.md",
+        "describes. Nothing has to be added to the stylesheet for it."
+    ],
+    "css": false,
+
+    "_comment_local": [
+        "What the machine may already know the face by, tried after the file.",
+        "The first is the Windows full name (name ID 4) and the second the",
+        "PostScript name (ID 6); both name this one cut rather than a family",
+        "with cuts in it, so a machine answering to either is answering with",
+        "this file.",
+        "",
+        "The first is also the name the installer registers the face under -",
+        "it copies each pack's font into the user's font folder and keys it by",
+        "local[0] (see engine.install_fonts), and Windows keys installed fonts",
+        "by their full name. So this list being in this order is what makes",
+        "the installed copy findable by the stack below."
+    ],
+    "local": ["Korolev Bold", "Korolev-Bold"],
+
+    "_comment_stack": [
+        "The fallbacks are damage limitation and never a design choice - a",
+        "title laid out against the wrong metrics is broken, not merely",
+        "different, which is what fontguard exists to catch before it is ever",
+        "drawn. They are still chosen rather than copied, and here they were",
+        "chosen by measuring, because the channel set in this face draws its",
+        "captions with no card under them and re-wraps nothing: a substitute",
+        "wider than the face the lines were broken against does not make a",
+        "different-looking caption, it makes one that runs out of the frame.",
+        "",
+        "Korolev Bold is narrow for its weight. Its capitals average 0.552em,",
+        "and twenty of them - one caption line at the Snapchat preset's 20",
+        "characters - come out around 389px of the 486px a line has. What the",
+        "machine can be relied on to have measures, at the same size: Impact",
+        "361px, Segoe UI Bold 474px, Arial Bold 491px, Arial Black 551px. Only",
+        "the first of those leaves the line where it was.",
+        "",
+        "So Impact first, which is the opposite of the reasoning in",
+        "telegraf-ultralight and lands here for the same underlying rule. That",
+        "face rejected Impact because a 200-weight hairline behind a heavy",
+        "condensed grotesque is the furthest possible thing from it; this one",
+        "is a heavy display cut itself, and the resemblance - metric first,",
+        "and visual only in so far as both are bold sans capitals - is as",
+        "close as a Windows machine gets. Segoe UI behind it at the declared",
+        "700, then Arial, each a little wider than the last and each a",
+        "caption that has lost a word off the end of a line rather than a",
+        "caption that has lost its face entirely.",
+        "",
+        "Arial Black is absent, alone among the display faces in this folder.",
+        "At 42% wider than what the lines were measured against it is not a",
+        "fallback, it is a guarantee of overflow."
+    ],
+    "stack": "'Korolev Bold', Impact, 'Segoe UI', Arial, sans-serif"
+}

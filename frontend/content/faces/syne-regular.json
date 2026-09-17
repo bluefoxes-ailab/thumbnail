@@ -1,0 +1,74 @@
+{
+    "schema": 1,
+    "id": "syne-regular",
+
+    "_comment_family": [
+        "Syne ships as a family - an Extra, a Bold, a Semi Bold and a Regular",
+        "- and every one of those files carries 'Syne' as name ID 1, with the",
+        "cut in the subfamily. The Bold is already in this folder, brought in",
+        "as re-belle's highlight, so the danger here is not theoretical: a",
+        "request for 'Syne' alone would be the same request the Bold answers,",
+        "and a machine with that cut installed would set a whole block of",
+        "captions in it.",
+        "",
+        "So the full name (name ID 4) is what gets declared, exactly as",
+        "syne-bold.json declares 'Syne Bold' and the two Telegraf packs",
+        "declare theirs. The PostScript name spells the same cut with a",
+        "hyphen, and both spellings are listed in `local` below rather than",
+        "one of them being tidied into the other.",
+        "",
+        "Weight 400, which is the file's own usWeightClass and what the cut is",
+        "called. It is a static instance cut out of a variable family - there",
+        "is no fvar table in this file - so there is no axis here for a 400 to",
+        "be interpolated along and nothing for a browser to synthesise."
+    ],
+    "family": "Syne Regular",
+    "weight": "400",
+
+    "file": "fonts/Syne-Regular.ttf",
+    "format": "truetype",
+
+    "_comment_css": [
+        "Not declared in styles.css: this face arrived with a channel and is",
+        "registered from this JSON at load time (see registerFace in",
+        "js/channels.js), which is the route content/README.md describes.",
+        "Nothing has to be added to the stylesheet for it."
+    ],
+    "css": false,
+
+    "_comment_local": [
+        "What the machine may already know the face by, tried after the file,",
+        "and used by the installer as the name it registers this face under",
+        "(see engine.install_fonts, which takes the first).",
+        "",
+        "The PostScript name first, then the Windows full name. Both name this",
+        "one cut rather than the family, so a machine answering to either is",
+        "answering with this file - which is exactly what the fallback route",
+        "is for. 'Syne' on its own is deliberately absent, for the reason",
+        "above: it is the name every other weight of the family answers to,",
+        "the Bold this app also ships included."
+    ],
+    "local": ["Syne-Regular", "Syne Regular"],
+
+    "_comment_stack": [
+        "Damage limitation, never a design choice - a block laid out against",
+        "the wrong metrics is broken rather than merely different, which is",
+        "what fontguard exists to catch before anything is drawn.",
+        "",
+        "Chosen all the same, and the one thing it must not do is end up",
+        "anywhere near the face used beside it. This is a BLOCK face on a",
+        "channel whose highlight is Bebas Neue (see beauty-tipps), so the two",
+        "stacks are written as opposites: bebas-neue falls through Anton and",
+        "Impact - a condensed display face, then the nearest thing Windows can",
+        "be relied on to have - and this one falls through Segoe UI and Arial.",
+        "Whatever a machine is missing, the picked word stays the tall",
+        "condensed one and the block stays the ordinary-width grotesque.",
+        "",
+        "Impact and Arial Black are absent on purpose, the same way they are",
+        "in syne-bold.json. Syne Regular is a display grotesque at a text",
+        "weight, so a substitute far heavier and much narrower than it would",
+        "not merely look different - on this channel it would land in the same",
+        "register as the highlight and take the difference between them away."
+    ],
+    "stack": "'Syne Regular', 'Segoe UI', Arial, sans-serif"
+}

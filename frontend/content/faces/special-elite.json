@@ -1,0 +1,88 @@
+{
+    "schema": 1,
+    "id": "special-elite",
+
+    "_comment_family": [
+        "Special Elite ships as a single style - one file, one cut, no",
+        "siblings in fonts/ and none at the foundry either - so name ID 1 is",
+        "both the family and the only thing that can answer to it. It is",
+        "declared as the file's own 'Special Elite' for garet-book's reason:",
+        "the honest name is the one the file states, and there is no second",
+        "weight here for a bare family name to be confused with.",
+        "",
+        "That is the whole difference between this pack and the two Telegraf",
+        "ones, which declare a full name because two files in this folder",
+        "carry one family between them. Nothing of the kind is possible with",
+        "a family of one. The day a second cut of it appears this pack has to",
+        "be revisited - which is the same day telegraf-ultralight's note",
+        "describes, arriving from the other direction.",
+        "",
+        "Weight 400, which is the file's own usWeightClass. The face LOOKS",
+        "heavier than a 400 because its letters are struck rather than drawn",
+        "- ink spreads at the edges of every stem - and that is a property of",
+        "the outlines and not of the weight axis. Asking for 700 here would",
+        "invite a browser to synthesise a bold on top of a face that is",
+        "already carrying its own ink.",
+        "",
+        "One thing to know before measuring anything against this file: its",
+        "OS/2 sCapHeight and sxHeight are wrong, by a consistent factor of",
+        "about 1.87 - the table says 713 units of cap where the 'H' actually",
+        "inks 1412. Nothing here reads them (the renderer measures an 'H'",
+        "through the canvas, see capBand in js/text.js), so it costs the app",
+        "nothing; it is written down because somebody checking this face's",
+        "size against its metrics table will otherwise be checking it against",
+        "a number the drawing does not use."
+    ],
+    "family": "Special Elite",
+    "weight": "400",
+
+    "file": "fonts/SpecialElite-Regular.ttf",
+    "format": "truetype",
+
+    "_comment_css": [
+        "Not declared in styles.css: this face arrived with a channel and is",
+        "registered from this JSON, which is the route content/README.md",
+        "describes. Nothing has to be added to the stylesheet for it."
+    ],
+    "css": false,
+
+    "_comment_local": [
+        "What the machine may already know the face by, tried after the file.",
+        "The first is the PostScript name and is also what the installer",
+        "registers the face under; the second is the Windows full name; the",
+        "third is the family.",
+        "",
+        "'Special Elite' on its own is present here, where every other pack in",
+        "this folder deliberately leaves the bare family out. Those families",
+        "have other cuts that answer to the family name, and a Light handed",
+        "back in place of a Bold is a silent wrong face. This family has one",
+        "cut, so the family name and this file name the same thing and there",
+        "is nothing for it to be confused with."
+    ],
+    "local": ["SpecialElite-Regular", "Special Elite Regular", "Special Elite"],
+
+    "_comment_stack": [
+        "The fallbacks are damage limitation and never a design choice - a",
+        "title laid out against the wrong metrics is broken, not merely",
+        "different, which is what fontguard exists to catch before it is ever",
+        "drawn. They are still chosen rather than copied, and here the choice",
+        "is narrow: what makes this face this face is that it is a TYPEWRITER,",
+        "and a fallback that is not one loses the only thing the channel",
+        "picked it for.",
+        "",
+        "So Courier New, which is on every Windows there is and is the one",
+        "typewriter face that can be relied on, with Consolas behind it for",
+        "the same reason at a slightly better fitted weight. Both are",
+        "monospaced where this face is proportional, so the metrics are wrong",
+        "in a way a caption will show - that is what a fallback IS here, and",
+        "fontguard still fails the channel over a missing file rather than",
+        "letting one of them be drawn quietly.",
+        "",
+        "Impact and Arial Black, which most of this folder falls back through,",
+        "are absent for american-typewriter-itc-pro-bold's reason: they are",
+        "heavy display grotesques, and falling back from a struck typewriter",
+        "to one of them would make the one thing that survives a missing file",
+        "the furthest possible thing from it."
+    ],
+    "stack": "'Special Elite', 'Courier New', Consolas, monospace"
+}

@@ -1,0 +1,86 @@
+{
+    "schema": 1,
+    "id": "helvetica",
+
+    "_comment_family": [
+        "The family name straight out of the file's name table (ID 1), and in",
+        "this file it is also the full name (ID 4) and the PostScript name (ID",
+        "6) - all three are the single word. It is safe to ask for by family",
+        "alone for League Spartan's reason: the app carries one cut of it, so",
+        "there is no second weight sharing the name for a request to land on by",
+        "accident.",
+        "",
+        "There is a second question here that no other pack in this folder has",
+        "to answer, and it is the one worth writing down. 'Helvetica' is a name",
+        "the machine ITSELF has an opinion about: Windows carries a substitution",
+        "for it, mapping the name onto Arial for anything that asks, and a",
+        "handful of machines have a real Helvetica installed by some other",
+        "program. Raleway had the same shape of problem and solved it by",
+        "declaring a distinct name, because there the collision was a different",
+        "typeface wearing the same word.",
+        "",
+        "This one does not need that, and the reason is a measurement rather",
+        "than a hope. Arial was drawn to Helvetica's widths, and this file's are",
+        "Arial's to the unit - space 569, A and B and E and S 1366, M 1706, W",
+        "1933, a and e and o 1139, i 455, all at 2048 to the em. So every rung",
+        "of the ladder below lands on the same advances: the bundled file, a",
+        "Helvetica the machine already had, and the Arial that Windows hands",
+        "back for the name. This is the one face here whose fallbacks cannot",
+        "change where a line breaks.",
+        "",
+        "Registration is unaffected by any of it. A face added to document.fonts",
+        "wins over an installed font of the same name, so the file below is what",
+        "draws whenever it loads - which is every time it is there.",
+        "",
+        "Weight 400, which is the file's own usWeightClass and what its",
+        "subfamily (ID 2) calls it. Asking for anything else would invite a",
+        "browser to synthesise a weight this file does not contain, and a",
+        "synthesised weight is measured as well as drawn - the caption would be",
+        "laid out against letters nobody chose."
+    ],
+    "family": "Helvetica",
+    "weight": "400",
+
+    "file": "fonts/Helvetica.ttf",
+    "format": "truetype",
+
+    "_comment_css": [
+        "Not declared in styles.css. This face arrived with a channel and is",
+        "registered from this JSON at load time (see registerFace in",
+        "js/channels.js), which is the route content/README.md describes -",
+        "nothing has to be added to the stylesheet for it."
+    ],
+    "css": false,
+
+    "_comment_local": [
+        "What the machine may already know the face by, tried after the file and",
+        "used by the installer as the name it registers this face under (see",
+        "engine.install_fonts, which takes the first).",
+        "",
+        "One name, because this file states one: the family, the full name and",
+        "the PostScript name are the same string here, and there is no cut to",
+        "disambiguate from. It is likelier to fire than most entries in this",
+        "folder - it is the most substituted name in desktop publishing - and",
+        "that is unusually safe here rather than unusually risky, for the reason",
+        "the family note gives at length: whatever comes back under this name is",
+        "either a Helvetica or the Arial Windows offers in its place, and all",
+        "three sets of advances are the same."
+    ],
+    "local": ["Helvetica"],
+
+    "_comment_stack": [
+        "The fallbacks are damage limitation and never a design choice - a title",
+        "laid out against the wrong metrics is broken rather than merely",
+        "different, which is what fontguard exists to catch before anything is",
+        "drawn. Here the damage is unusually small: Arial is the metric twin",
+        "measured above, so a caption that lost the file keeps every line break",
+        "it had and changes only its letterforms.",
+        "",
+        "Segoe UI behind it for the machine that somehow lacks Arial, and no",
+        "further: Impact and Arial Black, which much of this folder falls back",
+        "through, are absent for garet-book's reason - they are heavy display",
+        "cuts, and putting one behind a 400-weight text sans would make the one",
+        "thing that survives a missing file the furthest possible thing from it."
+    ],
+    "stack": "'Helvetica', Arial, 'Segoe UI', sans-serif"
+}

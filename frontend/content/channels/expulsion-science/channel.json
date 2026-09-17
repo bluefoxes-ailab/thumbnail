@@ -1,0 +1,232 @@
+{
+    "schema": 1,
+    "id": "expulsion-science",
+    "name": "Expulsion Science",
+
+    "_comment_group": [
+        "One more show under the Snapchat heading, cut to Hall of Femme's",
+        "design. Everything that makes it a Snapchat pack is Hall of Femme's",
+        "and is taken from the same presets rather than restated: the frame",
+        "fetch, the 540x960 vertical output, the transcription, the rewrite",
+        "that turns speech into report, the stated 40px, the twenty characters",
+        "to a line, the freeform text box, the drag.",
+
+        "What makes it a different show is the face and the colour. It is set",
+        "in Montserrat Bold, in one purple, with picked words in Montserrat",
+        "ExtraBold - and with no card under any of it, which is the one place",
+        "it parts company with the pack it was cut from and the one place that",
+        "costs more than a value. That is argued below.",
+
+        "The id is kebab-case ASCII because it is also the folder name and the",
+        "key everything else refers to; the name is the brand."
+    ],
+    "order": 900,
+    "group": "Snapchat",
+
+    "_comment_capture": [
+        "The frame fetch, whole, from content/presets/snapchat-capture.json:",
+        "the slider's range, the 540x960 output, the transcription, and the",
+        "rewrite that turns it from speech into report. This channel has",
+        "nothing to say about any of it that its neighbours do not."
+    ],
+    "capture": { "use": "snapchat-capture" },
+
+    "framing": { "use": "snapchat-framing" },
+
+    "_comment_title": [
+        "The whole of the difference between this show and Hall of Femme.",
+
+        "Set in Montserrat Bold, in #665282, with picked words in Montserrat",
+        "ExtraBold and no card behind the block. Everything else - the size,",
+        "where the lines break, the capitals, the freeform box, the drag, the",
+        "margin off the foot of the frame - is the Snapchat caption design and",
+        "is stated once, in content/presets/snapchat-caption.json.",
+
+        "Two things this pack overrides in that preset, and the second follows",
+        "from the first. The card is dropped, so the type is over the",
+        "photograph; therefore the drop shadow comes back, because that is",
+        "what holds type legible over a photograph nobody chose the contrast",
+        "of. The highlight is NOT promoted to a box along with it, and that is",
+        "a deliberate departure from what Conspiracy Central did on dropping",
+        "its own card - see the highlight note, which is where the cost of it",
+        "is written down rather than hidden.",
+
+        "Uppercased, inherited, for the reason every pack under this heading",
+        "is: at 40px with twenty characters to a line the caption is three",
+        "short beats rather than a paragraph, and capitals are what those are",
+        "set in. Montserrat has no lower case anybody would call the brand,",
+        "and its capitals are geometric enough to carry a line of them."
+    ],
+    "title": {
+        "use": "snapchat-caption",
+
+        "face": "montserrat-bold",
+
+        "_comment_color": [
+            "The one colour this show is set in, on every frame, for good.",
+            "Unlike Hall of Femme it offers no palette (see below), so this is",
+            "THE colour rather than the colour a frame opens on.",
+
+            "It is a mid-dark purple, which on a card would be an unremarkable",
+            "choice and over a photograph is the reason the shadow below is",
+            "stated. Nothing else in the frame is this show's: no card, no",
+            "box, no second colour at a picked word. One purple and a weight",
+            "step is the whole of the brand, so the purple has to be the",
+            "purple - it is not adjusted to suit a background, because there",
+            "is no background for it to be adjusted against."
+        ],
+        "color": "#665282",
+
+        "_comment_shadow": [
+            "Back, and this is the one sentence in the preset this pack",
+            "contradicts. Every channel under this heading sets `shadow` to",
+            "null, on the argument that a drop shadow is what keeps type",
+            "legible over a photograph nobody chose the contrast of and there",
+            "is no photograph under those letters - there is a solid card",
+            "doing the job completely.",
+
+            "The argument is right, and it is exactly why dropping the card",
+            "means picking the shadow back up. There IS a photograph under",
+            "these letters, on all forty stills. A purple this deep is worse",
+            "off than the near-white Conspiracy Central hangs over its frames:",
+            "white only disappears into the bright end of a picture, where",
+            "#665282 has a dark end and a bright end to lose itself in, and a",
+            "captured still is whatever the video happened to be showing.",
+
+            "The numbers are the skeleton's own (see BASE_TITLE_STYLE.shadow",
+            "in js/channels.js) rather than a fresh set invented here. They",
+            "are what every channel that sets type on a photograph in this app",
+            "uses, which is the same job this is; a pack with no reason of its",
+            "own should not carry a number it merely agrees with, and where it",
+            "has to state one anyway it should state the one already in use."
+        ],
+        "shadow": { "color": "rgba(0,0,0,0.8)", "blur": 12, "offsetX": 3, "offsetY": 3 },
+
+        "_comment_colors": [
+            "Absent, and worth the note because the pack this one was cut from",
+            "is the pack that INVENTED the feature - sixteen pairings of four",
+            "colours in two rows of swatches - and anyone reading the two side",
+            "by side will look for it here.",
+
+            "Two of the three rows could not be drawn even if somebody wanted",
+            "them. `colors.panel` needs a panel and there is none (see the",
+            "note on `colors` in js/channels.js), and `colors.highlight` needs",
+            "a highlight that IS a colour, where this one is a weight.",
+
+            "That leaves `colors.text`, and a list with one colour in it is a",
+            "row holding a single swatch that is already the answer: a button",
+            "that visibly does nothing, which is the one kind of control this",
+            "panel does not have anywhere (see the note on paletteOf in",
+            "js/editor.js). This show has one colour, so it states it as its",
+            "colour and not as its only option. If it is ever given a second,",
+            "the row is one line here and costs nothing to bring back."
+        ],
+
+        "_comment_highlight": [
+            "A picked word is set in Montserrat ExtraBold, in the same colour",
+            "as the rest of the block. The highlight here is WEIGHT, exactly",
+            "as it is on Hall of Femme: the colour it names is the block's, so",
+            "the recolour draws what its neighbours are drawn in and the face",
+            "is the whole of the difference. Stated all the same, for the",
+            "fallback reason `color` above is stated - a highlight that",
+            "changed colour as well as weight would be two highlights.",
+
+            "What is worth being plain about is how much smaller the step is",
+            "here than the one it is copied from. Hall of Femme picks out",
+            "words at Telegraf 200 against 800, which is a family's two ends",
+            "and is as loud as a box; this is 700 against 800, one cut apart",
+            "in a text sans, and it is quieter than any other highlight under",
+            "this heading. On Hall of Femme's card that would still read,",
+            "because a card is a controlled ground. Over a photograph it is",
+            "the smallest signal this app draws.",
+
+            "It is still what the brand asked for, and it is left as asked",
+            "rather than rescued with a box. Conspiracy Central dropped its",
+            "card and promoted its highlight to a box in the same breath, on",
+            "the argument that a recolour of two words in a block of one",
+            "colour is two words in that same colour to anyone scrolling. The",
+            "argument applies here too - but a box needs a fill colour, a fill",
+            "colour is a second brand colour, and this show has one. Inventing",
+            "the second to make the first louder would be the pack deciding",
+            "what the brand is.",
+
+            "So the entry to change, the day this show wants a highlight that",
+            "carries at a scroll, is a `fill` beside a `mode` of box - not the",
+            "face, which is the part that was specified.",
+
+            "The mode and the scope come from the preset, and the scope is",
+            "worth keeping in view: word rather than line, because a caption's",
+            "line breaks are wherever the sentence ran out of width, so",
+            "picking a LINE out picks out a fragment rather than a thought.",
+
+            "The shadow is the third thing dropping the card costs, and it is",
+            "stated for the same reason `shadow` above is. The preset sets the",
+            "highlight's to null because its letters are on a card; these are",
+            "not, and a picked word over a photograph needs exactly the lift",
+            "its neighbours have. So it takes the block's own numbers rather",
+            "than a second set - a picked word here differs from the words",
+            "either side of it in weight, and in nothing else. Conspiracy",
+            "Central, the other pack under this heading with no card, does the",
+            "same."
+        ],
+        "highlight": {
+            "face": "montserrat-extrabold",
+            "color": "#665282",
+            "shadow": { "color": "rgba(0,0,0,0.8)", "blur": 12, "offsetX": 3, "offsetY": 3 }
+        },
+
+        "_comment_panel": [
+            "No card. This is the decision the rest of the pack is downstream",
+            "of, and the two consequences are the `shadow` above and the size",
+            "of the highlight beside it.",
+
+            "Stated as null rather than left out, because it cannot be left",
+            "out: `use` merges the preset UNDER this pack (see `expand` in",
+            "js/channels.js), so the card's shape, padding, corners and shadow",
+            "arrive from snapchat-caption.json whatever this pack says about",
+            "them. Null is how a pack cut from that preset declines the one",
+            "part of it that is a whole shape rather than a number.",
+
+            "One thing changes quietly with it and is easy to miss, and it is",
+            "not the margin. `bottomRatio` is measured to the block's own box",
+            "rather than to what is drawn (see blockTop0 in js/text.js), so",
+            "the box still bottoms out 120px off the foot of the frame here,",
+            "exactly as it does on a panelled sibling.",
+
+            "What changes is the box. Under a line-scope panel the card's",
+            "padding is inside the band the rows are stacked by, so dropping",
+            "the card makes the block SHORTER and the letters come down with",
+            "it: measured at two lines of twenty characters, this pack sets",
+            "the same sentence twenty pixels lower on the frame than Hall of",
+            "Femme does. It also stops anything hanging below the margin,",
+            "where the card used to put twelve pixels of padding and a shadow",
+            "of its own - so what is drawn ends higher even though the block",
+            "sits lower.",
+
+            "The margin is inherited unchanged all the same: 120px off the",
+            "foot of a 960-tall frame is measured against the player's own",
+            "furniture along the bottom edge, and that furniture does not move",
+            "because a card went away."
+        ],
+        "panel": null
+    },
+
+    "_comment_branding": [
+        "No dark gradient, like every pack under this heading - and like",
+        "Conspiracy Central this one needs its own sentence, because the usual",
+        "reason does not apply. Its siblings say the gradient has nothing to",
+        "do: their titles are on a card and not on the photograph. This one's",
+        "titles ARE on the photograph.",
+
+        "It still has nothing to do. The backend's gradient is a SIDE gradient",
+        "- full height, never past half the width, peaking on whichever side",
+        "the title column is (reframe_engine.apply_dark_gradient) - because it",
+        "was drawn for a landscape thumbnail with a headline set beside the",
+        "subject. There is no title column on a captured still: the block lies",
+        "across the width of the frame, and darkening one half of forty",
+        "pictures would shade half of every caption and leave the other half",
+        "exactly as it was. What holds this type off the photograph is its own",
+        "drop shadow, which is the tool for the job at this scale."
+    ],
+    "branding": { "gradient": false }
+}

@@ -1,0 +1,73 @@
+{
+    "schema": 1,
+    "id": "marydale-bold",
+
+    "_comment_family": [
+        "Marydale ships as a family - a Regular and a Black either side of the",
+        "Bold this folder holds - and every one of those files carries",
+        "'Marydale' as name ID 1, with the cut in the subfamily. Asking for",
+        "'Marydale' alone would let any of them answer, and this face is used",
+        "as a highlight against a hand of a quite different weight: a Regular",
+        "answering in its place would be lighter still, which is the emphasis",
+        "further backwards rather than merely different.",
+        "",
+        "So the full name (name ID 4) is what gets declared, the same way",
+        "gilroy-extrabold and american-typewriter-itc-pro-bold declare theirs.",
+        "The hyphen in it is the font's own: this file writes 'Marydale-Bold'",
+        "on both platforms where those two carry a spaced Windows name beside",
+        "the PostScript one, and it is left exactly as the file spells it. A",
+        "name tidied into 'Marydale Bold' would be a name nothing is installed",
+        "under, which is a local() source that can never match and a value the",
+        "installer would register the face under while Windows keyed it by",
+        "something else (see FONT_FULL_NAME in installer/engine.py).",
+        "",
+        "Weight 700, which is the file's own usWeightClass and what the cut is",
+        "called. It is worth knowing that this Bold is LIGHTER on the page than",
+        "the 400-weight face it is picked out against - see the highlight note",
+        "in hoodsiderz/channel.json, where that is the pairing the channel",
+        "chose and not an accident of naming."
+    ],
+    "family": "Marydale-Bold",
+    "weight": "700",
+
+    "file": "fonts/Marydale-Bold.otf",
+    "format": "opentype",
+
+    "_comment_css": [
+        "Not declared in styles.css: this face arrived with a channel and is",
+        "registered from this JSON, which is the route content/README.md",
+        "describes. Nothing has to be added to the stylesheet for it."
+    ],
+    "css": false,
+
+    "_comment_local": [
+        "What the machine may already know the face by, tried after the file,",
+        "and one name long rather than the usual two - the PostScript name and",
+        "the Windows full name are the same string in this file, so there is no",
+        "second spelling to list. It is also what the installer registers the",
+        "face under.",
+        "",
+        "'Marydale' on its own is deliberately absent: it is the family, and",
+        "the Regular and the Black answer to it as well."
+    ],
+    "local": ["Marydale-Bold"],
+
+    "_comment_stack": [
+        "Damage limitation, and the one thing it must not do is fall through to",
+        "the same face the block does. This face is a HIGHLIGHT: its whole job",
+        "is to be a visibly different hand from Chelsea Market Pro on the same",
+        "line, and a stack that ended up at the same substitute would leave a",
+        "picked word identical to the words either side of it - a failure that",
+        "draws no attention to itself, which is the kind this app has been bitten",
+        "by before (see american-typewriter-itc-pro-bold).",
+        "",
+        "So the two hands stay two hands all the way down: Ink Free first, which",
+        "is on every Windows 10 and 11 and is a loose marker hand of roughly",
+        "this weight, where chelsea-market-pro leads with Segoe Print. Comic",
+        "Sans MS is on both lists and is the point at which they converge, which",
+        "is one substitution later than it would otherwise have been. Impact and",
+        "Arial Black are absent for that pack's reason: they are heavy",
+        "grotesques, and nothing about this face is a grotesque."
+    ],
+    "stack": "'Marydale-Bold', 'Ink Free', 'Comic Sans MS', cursive"
+}

@@ -1,0 +1,109 @@
+# Install order matters: gfpgan pulls its own (broken, CPU-only) torch/torchvision
+# on Windows if installed without the CUDA index, so torch/torchvision are pinned
+# and must be (re)installed last with the cu124 index if anything upgrades them:
+#   pip install -r requirements.txt
+#   pip install torch==2.6.0 torchvision==0.21.0 --index-url https://download.pytorch.org/whl/cu124
+#
+# After installing basicsr, patch the removed torchvision API it still imports:
+#   site-packages/basicsr/data/degradations.py
+#     from torchvision.transforms.functional_tensor import rgb_to_grayscale
+#   -> from torchvision.transforms.functional import rgb_to_grayscale
+
+fastapi==0.139.0
+uvicorn==0.50.2
+pydantic==2.11.7
+opencv-python==4.13.0.92
+numpy==2.2.6
+imageio-ffmpeg==0.6.0
+gdown==6.1.0
+# The one dependency that is NOT pinned to an exact version, on purpose.
+# YouTube changes how it signs and serves media every few weeks and yt-dlp
+# follows within days; a pin freezes the app at one moment of that race, and
+# what the user sees when it falls behind is not "outdated library" but
+# "Download failed: HTTP Error 403: Forbidden". 2026.7.4 was pinned here and
+# had already stopped working — it lacked the client fallback that gets past
+# YouTube's PO-token requirement. Raise the floor when a newer release is
+# needed; never turn this back into ==.
+yt-dlp>=2026.8.19
+scipy==1.15.3
+
+# Background removal — the U2-Net cutout one channel composes its thumbnails
+# from (see backend/background_remover.py). The model itself is NOT a pip
+# package: rembg, which is the usual way to reach these weights, pins old
+# numpy/opencv/pillow in its own requirements and downgrades all three exactly
+# as simple-lama-inpainting does below. Everything it would add beyond the .onnx
+# file is a resize and a normalise, so the runtime alone is the dependency and
+# the weights are fetched once, by URL, into backend/models/.
+#
+# Installed WITH its dependencies, unlike the two exceptions further down:
+# measured on this project's own pins, it pulls only coloredlogs, flatbuffers,
+# humanfriendly and pyreadline3, and moves neither numpy nor opencv.
+onnxruntime==1.20.1
+
+# Speech recognition — the voice track a captured frame is captioned from (see
+# backend/transcriber.py). Whisper, run through CTranslate2 rather than
+# through torch, and that choice is worth writing down:
+#
+#   * openai-whisper, the obvious alternative, pulls numba. numba pins numpy
+#     tightly and moves it on install, which is the exact failure the two
+#     exceptions below already exist to prevent; a third one is not worth a
+#     model this project can get another way.
+#   * CTranslate2 runs the model outside torch entirely, so transcription does
+#     not queue behind GFPGAN, LaMa and U2-Net for the card (see backend/vram.py
+#     for what that queue costs). It runs on the CPU here by design — see
+#     DEVICE in transcriber.py.
+#
+# Installed WITH its dependencies: measured against this project's own pins it
+# adds ctranslate2, tokenizers, huggingface-hub, av and tqdm, satisfies its
+# onnxruntime requirement with the pin above, and moves neither numpy nor
+# opencv.
+#
+# The weights are NOT in here. They are fetched once, by name, into
+# backend/models/whisper/ — the same arrangement as U2-Net above and for the
+# same reason: `backend/models` is named in updater.KEEP_ACROSS_UPDATES, so an
+# update that replaces app/ wholesale does not throw them away.
+faster-whisper==1.1.1
+
+# ...and its engine, pinned SEPARATELY and deliberately below it.
+#
+# faster-whisper asks for `ctranslate2<5,>=4.0`, which today resolves to
+# 4.8.1. That build crashes this machine on any call into the model class —
+# an access violation, not an exception, and it happens even when the path
+# handed to it does not exist, so it is the binary and not the weights.
+# 4.5.0 is the release faster-whisper 1.1.1 was published against and it
+# loads in about three seconds. Which versions in between are affected has
+# not been bisected; what is known is that the resolver's own answer does not
+# work and this one does.
+#
+# It has to come AFTER the line above: installed first, faster-whisper would
+# pull its own choice back over the top.
+ctranslate2==4.5.0
+
+# ...and that same pin is now what decides which language MODEL this app can
+# run, which is worth knowing before anybody raises it or lowers it.
+#
+# Smart News 2 rewrites its captions with a small LLM (backend/narrator.py),
+# and it runs on the engine already in this file: ctranslate2 generates and
+# `tokenizers` does the round trip, both here for Whisper and neither added
+# for this. So the rewrite costs this file nothing, and its weights are
+# fetched at run time exactly as U2-Net's and Whisper's are.
+#
+# What the pin does cost is the choice of model. CTranslate2 grew Qwen2
+# support in 4.6.0, which 4.5.0 cannot have, so narrator.py runs a Llama --
+# supported since 4.0 and, in the 3.2 generation, one of the few models this
+# size that lists Portuguese as a language it actually supports rather than
+# tolerates. Raising the pin to reach a newer family means answering the
+# access violation described above first.
+
+torch==2.6.0+cu124
+torchvision==0.21.0+cu124
+gfpgan==1.3.8
+basicsr==1.4.2
+facexlib==0.3.0
+
+# simple-lama-inpainting pins old numpy/opencv-python/pillow in its own
+# requirements and will silently downgrade them on a plain `pip install`,
+# breaking the versions pinned above. Install with --no-deps, then make sure
+# torch/pillow are already satisfied (they are, from the lines above):
+#   pip install simple-lama-inpainting==0.1.2 --no-deps
+simple-lama-inpainting==0.1.2

@@ -1,0 +1,77 @@
+{
+    "schema": 1,
+    "id": "texturina-18pt-bold",
+
+    "_comment_family": [
+        "The other end of the same optical size, and the reason both packs",
+        "declare a full name instead of 'Texturina 18pt': the two files share",
+        "name ID 1, so the family alone names neither of them. See the note in",
+        "texturina-18pt-regular.json, which this pack is the other half of;",
+        "every word of it applies here unchanged, including why the 18pt cut",
+        "is the one shipped.",
+        "",
+        "Weight 700, which is the file's own usWeightClass and what the cut is",
+        "called. Asking for 800 or 900 on the strength of how loud a highlight",
+        "should be would invite a browser to synthesise a heavier face on top",
+        "of one that already has its own weight - and synthesised bold is the",
+        "one kind of emphasis that cannot be measured, since the smear it adds",
+        "is not in any metric the layout reads.",
+        "",
+        "Two measurements say the pair sets cleanly on one line, taken at the",
+        "40px the caption is set at. Both cuts put their capitals at 28.16px -",
+        "the same 704 units of a 1000-unit em - so a picked word neither rides",
+        "above the line it is part of nor sits inside it. And the Bold runs",
+        "about five percent wider than the Regular over the same capitals,",
+        "which is worth knowing rather than worth fixing: it is wide enough to",
+        "move where a line would break if the words were re-wrapped after a",
+        "highlight was picked, and nothing re-wraps them - a caption arrives",
+        "already broken (see js/caption.js) and the user's own breaks are",
+        "theirs. It is also a real difference in colour on the page, which is",
+        "what a highlight made of weight has to be."
+    ],
+    "family": "Texturina 18pt Bold",
+    "weight": "700",
+
+    "file": "fonts/Texturina_18pt-Bold.ttf",
+    "format": "truetype",
+
+    "_comment_css": [
+        "Not declared in styles.css: this face arrived with a channel and is",
+        "registered from this JSON, which is the route content/README.md",
+        "describes. Nothing has to be added to the stylesheet for it."
+    ],
+    "css": false,
+
+    "_comment_local": [
+        "What the machine may already know the face by, tried after the file,",
+        "and the name the installer registers its copy under. The first is the",
+        "full name (name ID 4) and the second the PostScript name; both name",
+        "this one cut rather than the family, so a machine answering to either",
+        "is answering with a Bold - which is the whole of what this face is",
+        "for. 'Texturina 18pt' on its own is deliberately absent: the Regular",
+        "answers to it too, and a Regular arriving here would be the highlight",
+        "silently set in the block's own weight, which is the kind of failure",
+        "that draws no attention to itself (see",
+        "american-typewriter-itc-pro-bold)."
+    ],
+    "local": ["Texturina 18pt Bold", "Texturina18pt-Bold"],
+
+    "_comment_stack": [
+        "The block's stack, entry for entry, and that is the correct answer",
+        "here rather than the laziness it would be next door in marydale-bold.",
+        "There the difference between block and highlight was a HAND - two",
+        "unrelated families - so the two stacks had to stay apart or the",
+        "distinction vanished with the files. Here the difference is a WEIGHT,",
+        "and weight travels in the font string beside the family rather than",
+        "inside it (see textProps in js/text.js): this face is asked for at",
+        "700 and the block's at 400, so the two may share every fallback and",
+        "still come out heavy against light.",
+        "",
+        "Georgia and Times New Roman both have a real Bold on every Windows",
+        "this app runs on, so a machine that lost both files still gets a",
+        "picked word that is visibly heavier than its neighbours in the same",
+        "typeface as them - which is the whole shape of this channel's",
+        "highlight, badly drawn rather than gone."
+    ],
+    "stack": "'Texturina 18pt Bold', Georgia, 'Times New Roman', serif"
+}

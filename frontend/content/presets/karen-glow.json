@@ -1,0 +1,31 @@
+{
+    "schema": 1,
+    "id": "karen-glow",
+
+    "_comment": [
+        "The halo behind Karens Unleashed's type: the letters over again,",
+        "without their outline, blurred until they read as light rather than",
+        "as letters.",
+        "",
+        "This replaces a Photoshop drop shadow that could not be reproduced —",
+        "canvas has no equivalent of its Spread or Contour, so the faithful",
+        "translation came out flatter and weaker than the original. Drawing the",
+        "glyphs a second time and blurring them is not an approximation of that",
+        "effect; it is the effect, built the way the reference thumbnails' own",
+        "ethereal glow is built.",
+        "",
+        "`blur` is the gaussian radius. `layers` is how many times the blurred",
+        "copy is stacked — one pass at this alpha is barely there, and stacking",
+        "is how the halo gains body without turning into a hard edge.",
+        "",
+        "`color` is the light itself, and it is white for every line INCLUDING",
+        "the highlighted one: the halo is what the type is lit by, not",
+        "something the type emits, so it does not change when a line changes",
+        "colour. (null instead makes each line glow in its own colour.)"
+    ],
+
+    "blur": 55,
+    "opacity": 0.15,
+    "layers": 3,
+    "color": "#FFFFFF"
+}

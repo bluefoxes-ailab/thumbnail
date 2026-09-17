@@ -1,0 +1,372 @@
+{
+    "schema": 1,
+    "id": "killer-bites",
+    "name": "Killer Bites",
+
+    "_comment_group": [
+        "The seventh show under the Snapchat heading, and the fifth one cut to",
+        "Hall of Femme's design. Everything that makes it a Snapchat pack —",
+        "the frame fetch, the vertical output, the transcription, the rewrite,",
+        "the card the caption is set on — is Hall of Femme's and is stated in",
+        "the same numbers. What makes it a different show is what is visible",
+        "from across a room: the face the words are set in, the colours they",
+        "are set in, and — this pack alone under the heading — whether they",
+        "are shouted.",
+
+        "Written as its own folder rather than as an override of its siblings,",
+        "for the reason content/README.md gives: a channel is a folder that",
+        "gets dropped in. The prose below therefore points at hall-of-femme",
+        "wherever the reasoning is the same, and states its own only where",
+        "this pack actually decides something."
+    ],
+    "order": 900,
+    "group": "Snapchat",
+
+    "_comment_capture": [
+        "The frame fetch, whole, from content/presets/snapchat-capture.json:",
+        "the slider's range, the 540x960 vertical output, the transcription,",
+        "and the rewrite that turns the transcript from speech into reported",
+        "information before anything is set.",
+
+        "Stated as a reference and not as numbers, because this channel has",
+        "nothing to say about any of it that its neighbours do not - and a",
+        "pack that restates a shared answer is a pack that can be missing a",
+        "piece of it. That is not hypothetical: channels arrived under this",
+        "heading captioning their frames with the transcript as spoken,",
+        "because the folder they were copied from predated `rewrite`."
+    ],
+
+    "capture": { "use": "snapchat-capture" },
+
+    "_comment_framing": [
+        "How the frames are chosen and cropped, from",
+        "content/presets/snapchat-framing.json: the picture is the product, so",
+        "it is fitted to the canvas centred and left alone, and no frame is",
+        "rejected for failing to leave a column beside the subject that this",
+        "channel never sets anything in."
+    ],
+
+    "framing": { "use": "snapchat-framing" },
+
+    "_comment_title": [
+        "Where this show parts company with the four packs cut to the same",
+        "design. Hall of Femme sets its captions in Telegraf — a 200-weight",
+        "hairline for the block, the 800 for a picked word — on a hot pink",
+        "card. Fitness Story uses HK Grotesk on an electric blue one,",
+        "Determined uses Open Sans on acid yellow, Fight Source uses Open Sans",
+        "on black or white. This one is set in Arial Bold, with the bold",
+        "italic for a picked word, on a card that is black, white or a single",
+        "muted red — and it is the only pack under this heading that does not",
+        "uppercase what the user typed.",
+
+        "Arial is the decision the rest of the pack follows from, and it is a",
+        "deliberately unglamorous one. The four siblings each reach for a",
+        "typeface with a voice — a hairline, a humanist sans, a geometric —",
+        "because their captions are the only graphic in the frame. A show",
+        "about food is looking at the food: the caption's job is to name what",
+        "is on screen and then get out of the way, and Arial Bold at 40px is",
+        "about the most legible way to put a short sentence over a picture",
+        "that anybody has shipped. It is also on every machine that will ever",
+        "open this app, which is what makes the next paragraph possible.",
+
+        "It is declared inline and with no file, because it is not a font",
+        "this app ships. `file` is null and `css` false to say so outright —",
+        "nothing is registered for it (see channels.registerFace, which skips",
+        "a face with no file) and it is reached by name. fontguard still",
+        "verifies that something real answers to that name before a single",
+        "line is measured, so a machine that somehow lacks Arial says so",
+        "instead of quietly laying the block out against a fallback."
+    ],
+    "title": {
+        "use": "snapchat-caption",
+
+        "_comment_face": [
+            "Arial at bold, which is a WEIGHT of the family rather than a",
+            "family of its own — the opposite of the case a face like Arial",
+            "Black presents, which has to be asked for by NAME because it is",
+            "its own family and asking Arial for 900 would only invite a",
+            "browser to synthesise one. Here the cut genuinely",
+            "exists: every machine that has Arial has Arial Bold, and `bold`",
+            "is how you reach it.",
+
+            "The stack falls back through Helvetica before the generic, which",
+            "is the one fallback in this codebase that is not merely damage",
+            "limitation. Helvetica is metrically compatible with Arial — the",
+            "same advance widths, glyph for glyph — so a machine that somehow",
+            "had one and not the other would lay this block out to the same",
+            "numbers rather than to Impact's. It is still a fallback and",
+            "fontguard still refuses to draw against one; it is just the only",
+            "one here that would not be a lie."
+        ],
+        "face": {
+            "id": "arial-bold",
+            "family": "Arial",
+            "weight": "bold",
+            "file": null,
+            "css": false,
+            "stack": "Arial, Helvetica, sans-serif"
+        },
+
+        "_comment_uppercase": [
+            "Off, and this pack is the only one under the Snapchat heading",
+            "where it is. What the user types is what the canvas sets, capital",
+            "for capital.",
+
+            "The argument every sibling makes for capitals is a real one, and",
+            "it is an argument about their faces rather than about captions in",
+            "general. Hall of Femme is set in a 200-weight hairline, and a",
+            "hairline lower-case at caption size is the one setting where it",
+            "genuinely disappears — capitals give it stems the eye can find.",
+            "Arial Bold has no such problem: it is a 700-weight grotesque",
+            "whose lower-case is as solid as its capitals, so uppercasing it",
+            "would buy nothing and cost the two things below.",
+
+            "The first is that a food show's captions are full of names that",
+            "carry their own casing — a dish, a restaurant, a chef, a place —",
+            "and a name flattened into capitals is a name the reader has to",
+            "reconstruct. Those names arrive from the rewrite rather than from",
+            "somebody typing them (see backend/narrator.py), so the casing in",
+            "the text box is information that was produced on purpose, and",
+            "throwing it away at the draw would be throwing away the more",
+            "considered of the two.",
+
+            "The second is reading speed, which is the whole job here. A line",
+            "of capitals is a rectangle; a line of mixed case has ascenders",
+            "and descenders sticking out of it, and word shape is most of how",
+            "a sentence is read at a glance on a phone. Twenty characters is a",
+            "glance either way, and mixed case is the faster glance.",
+
+            "It is applied at the draw and not to what is stored, so turning",
+            "it off changes only what the canvas does: the text box held the",
+            "user's own casing all along, and the highlight buttons already",
+            "offered the words as the canvas would set them (see the `cased`",
+            "note in js/text.js and editor.renderWordButtons). Which is why",
+            "nothing downstream of this key needed to know it had changed."
+        ],
+        "uppercase": false,
+
+        "_comment_color": [
+            "The channel's own answer, and therefore what every frame is set",
+            "in until somebody presses a swatch: a frame stores no colour of",
+            "its own until it is given one, and this is what it falls back to",
+            "(see state.textColorFor). It is one of the three in `colors`",
+            "below, so the white swatch is the one that shows as chosen on an",
+            "untouched frame — the swatch is found by matching this value",
+            "rather than by being listed first.",
+
+            "White letters on the black card is what this show opens on. Black",
+            "is the bigger surface — a fifth of the frame, read before",
+            "anything set on it — and against food, which is what every still",
+            "on this channel is going to be warm and bright with, a black card",
+            "is the one ground that neither competes with the plate nor gets",
+            "lost in it. White is what is unambiguously legible on it at every",
+            "size. The red, and the same card the other way round, are a",
+            "swatch away."
+        ],
+        "color": "#FFFFFF",
+
+
+        "_comment_colors": [
+            "The three colours this show is set in, offered for the letters and",
+            "for the slab behind them — three buttons each in the title panel",
+            "(see editor.renderColorButtons). Nothing counts the lists, so a",
+            "row of three is a row of three; see `colors` in",
+            "content/README.md.",
+
+            "The same three in both lists, in one order, which is what every",
+            "pack under this heading does and for their reason: the point is",
+            "the PAIRING, and two rows written the same way read as one palette",
+            "offered twice rather than as two unrelated sets.",
+
+            "Two of the three are the ends of the range and the third is the",
+            "brand. Fight Source's note explains why the black and the white",
+            "are absolute rather than a #111 and a #FAFAFA, and every word of",
+            "it applies here: a near-black that reads as black on a monitor",
+            "becomes a grey slab beside a genuinely black picture on a phone,",
+            "and an off-white card that is a card on a monitor is a dirty one",
+            "against a blown highlight. The card is a flat shape, not a",
+            "photograph seen through it, so there is nothing for either extreme",
+            "to be too harsh against.",
+
+            "The red is what makes this a show rather than a default. It is a",
+            "muted one and not a signal red — nearer a brick than a warning —",
+            "which is the only kind that can be BOTH ink and card, and being",
+            "both is the whole of what this palette asks of a colour. At Fight",
+            "Source's contrast a hot red as type on white would vibrate and the",
+            "same red as a card would fight the food; at this one it is dark",
+            "enough to carry white letters and light enough to be read as",
+            "letters on the white. It is also, on a channel whose frames are",
+            "cut from cooking footage, the one hue that belongs to what is on",
+            "screen rather than being laid over it.",
+
+            "Six of the nine combinations are worth having and three of them",
+            "are a rectangle — black on black, white on white, red on red.",
+            "Nothing stops the user choosing one, and that is not an oversight:",
+            "the two lists are independent because the pairing is the feature,",
+            "and a rule barring the three matching combinations would cost the",
+            "panel more explaining than an invisible caption costs the user,",
+            "who can see it is invisible and presses another swatch.",
+
+            "`text` reaches the highlight as well as the block — see the note",
+            "on `colors` in js/channels.js. This channel's highlight is a",
+            "different CUT of the face and not a different colour, so what",
+            "colour the type is has one answer and not two."
+        ],
+        "colors": {
+            "text": ["#000000", "#FFFFFF", "#D0444F"],
+            "panel": ["#000000", "#FFFFFF", "#D0444F"]
+        },
+
+        "_comment_highlight": [
+            "A picked word is set in Arial Bold Italic, in the same colour as",
+            "the rest of the block. The colour it names is the block's, so the",
+            "recolour draws exactly what its neighbours are drawn in and the",
+            "face is the whole of the difference. Stated all the same, for the",
+            "fallback reason `color` above is stated — and moved to white with",
+            "it, since a highlight that changed colour as well as slant would",
+            "be two highlights.",
+
+            "The slant rather than a heavier cut, as on Fitness Story and",
+            "Fight Source, and here there is no second option to weigh: the",
+            "block is already bold, and this family's next step up is Arial",
+            "Black, which is a different family with different proportions",
+            "rather than a heavier weight of this one. Leaning the word is the",
+            "change this face can make cleanly, and at 40px on a flat ground",
+            "with nothing else moving it is enough.",
+
+            "It reads harder here than on either sibling, for a reason that is",
+            "this pack's alone: with `uppercase` off, an italic lower-case",
+            "carries a change of letterform as well as of angle — Arial's",
+            "italic a and e are drawn differently, not merely slanted — so a",
+            "picked word is doing two things at once where a picked word in",
+            "capitals could only ever lean.",
+
+            "Word scope, the same as all six of its neighbours, and for their",
+            "reason: a caption's line breaks are wherever the sentence happened",
+            "to run out of width, so picking a line out picks out a fragment",
+            "rather than a thought. The words are what carry meaning, and the",
+            "one worth leaning — a dish, a number, the verb the clip turns on —",
+            "sits in the middle of a line as often as it fills one. A row whose",
+            "picked words are in another face is built out of runs, each",
+            "measured and drawn in its own face at the pen the runs before it",
+            "reached (see `runRows` in js/text.js), which is what lets the face",
+            "change at a word and costs the kerning across each join.",
+
+            "Mode is colour rather than box because there is nothing to box",
+            "against — the words are already on a solid ground of their own —",
+            "so the highlight here is the SLANT, on a card that stays one clean",
+            "rectangle."
+        ],
+        "highlight": {
+            "_comment_face": [
+                "The italic cut of the same family, and the one place in this",
+                "pack where the data is doing something that needs explaining",
+                "rather than merely stating.",
+
+                "There is no `style` key on a face, and adding one would be a",
+                "worse answer than this. Every measurement and every draw in",
+                "the renderer builds one CSS font shorthand out of two fields —",
+                "`${weight} ${size}px ${stack}` — at the raw canvas (the four",
+                "measuring contexts in js/text.js) and through fabric, which",
+                "prepends its own `normal` font-style in front of the same",
+                "weight. Nothing reads a third field. So a `style` key invented",
+                "here would reach the drawn text and not the measurements, or",
+                "the reverse, and a block laid out against one cut and painted",
+                "in another is precisely the failure fontguard exists to catch",
+                "— self-inflicted this time, and invisible until somebody",
+                "notices the boxes are the wrong width.",
+
+                "So the slant travels in `weight`, as `italic bold`. That is",
+                "not a trick played on the shorthand, it is the shorthand: CSS",
+                "lets font-style, font-variant, font-weight and font-stretch",
+                "appear in any order in front of the size, and a leading",
+                "`normal` from fabric is skipped rather than fighting the",
+                "`italic` behind it. Both strings therefore parse to the same",
+                "font — and, which is the actual point, they are the SAME",
+                "string, so what is measured and what is drawn cannot come",
+                "apart.",
+
+                "It is worth the paragraph because it looks like a mistake. A",
+                "field called `weight` holding two words is the kind of thing",
+                "somebody tidies up on a quiet afternoon. The alternative is a",
+                "`style` field, four call sites in text.js and a fabric",
+                "property to keep in step with them, for one channel — against",
+                "content/README.md's whole claim, which is that a channel is a",
+                "folder that gets dropped in.",
+
+                "The family is `Arial` and not `Arial Bold Italic`, unlike rift",
+                "or hanken-grotesk-italic, and the difference is that those",
+                "ship a FILE holding one cut, which has to be named exactly or",
+                "another cut of the family answers to it. Arial arrives with",
+                "the machine as a family and its cuts are reached by weight and",
+                "style rather than by name, so asking for `Arial Bold Italic`",
+                "as a family would find nothing at all.",
+
+                "One consequence, and it is the right one: because both faces",
+                "are family `Arial`, text.titleFaces collapses them into a",
+                "single face to verify and fontguard caches its answer under",
+                "that one family. That dedup was written for a pack that named",
+                "the same face twice, and it is correct here for a better",
+                "reason — `is Arial on this machine` has one answer, and asking",
+                "it twice would not make it two."
+            ],
+
+
+            "face": {
+                "id": "arial-bold-italic",
+                "family": "Arial",
+                "weight": "italic bold",
+                "file": null,
+                "css": false,
+                "stack": "Arial, Helvetica, sans-serif"
+            },
+            "color": "#FFFFFF"
+        },
+
+        "_comment_panel": [
+            "The card the caption is set on, in whichever of the three colours",
+            "the frame is wearing. Every number in it is hall-of-femme's, and",
+            "the long argument for each is there rather than repeated here:",
+            "one box per LINE and `joined`, so the background is a single shape",
+            "that steps in and out with the sentence instead of a rectangle the",
+            "width of its longest line; 12 of padding, which is a highlighter's",
+            "margin and not a card's; no border, because a keyline would make",
+            "the slab read as a box drawn over the picture rather than as a",
+            "card lying on it; 13 of corner radius, the number every background",
+            "under this heading is rounded by; and a soft shadow falling",
+            "straight down, which has to survive being thrown by a white slab",
+            "onto a white wall — a case this pack can actually produce, since",
+            "white is a third of its palette.",
+
+            "One thing the line boxes do that no sibling has had to think about,",
+            "because this is the first pack under the heading with descenders",
+            "in it. Every box in a block takes ONE shared vertical band, the",
+            "union of what every row needs, so the boxes differ in width and in",
+            "nothing else — a line ending in a g does not get a taller box than",
+            "the line above it (see the band in js/text.js). What the band does",
+            "do is grow for the block as a whole, so a caption containing a",
+            "descender is carried on a card a few pixels deeper than one that",
+            "happens not to. That is the one price mixed case pays and capitals",
+            "do not; it is smaller than the shadow under the card, and it buys",
+            "the reading speed `uppercase` above is about.",
+
+            "The fill is the one line here that is this show's own, and it is",
+            "black. This and `color` above are also the only place the opening",
+            "look is stated: the two lists in `colors` are written in one order",
+            "so the two rows of buttons read as the same palette twice, which",
+            "means neither of them can decide what an untouched frame wears."
+        ],
+        "panel": { "fill": "#000000" }
+
+
+    },
+
+    "_comment_branding": [
+        "No dark gradient, for hall-of-femme's reason: it exists to hold a",
+        "title legible against the photograph, and this title is not against",
+        "the photograph at all — it is on a slab of its own. A scrim over every",
+        "still would darken forty pictures to solve a problem the card has",
+        "already solved."
+    ],
+    "branding": { "gradient": false }
+}

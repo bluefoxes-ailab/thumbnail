@@ -1,0 +1,80 @@
+{
+    "schema": 1,
+    "id": "courier-prime",
+
+    "_comment_family": [
+        "Courier Prime ships as a family - a Regular, a Bold and two italics -",
+        "all four carrying 'Courier Prime' as name ID 1, with the cut in the",
+        "subfamily. Only the Regular is in fonts/, so nothing in this app can",
+        "answer to the bare family in its place; the machine the app runs on",
+        "is another matter, and that is what settles the name.",
+        "",
+        "This face is used as a HIGHLIGHT, against Special Elite (see",
+        "cas-mortels/channel.json). A picked word is the one word on the card",
+        "somebody is meant to read first, so a Bold handed back in the",
+        "Regular's place through a local() fallback would be the highlight",
+        "shouting where it was meant to speak clearly, and an italic would be",
+        "a third voice on a line that already has two. So the full name (name",
+        "ID 4) is what gets declared, the same way the two Telegraf packs and",
+        "raleway-regular declare theirs, and for the same reason: the name has",
+        "to mean one cut.",
+        "",
+        "That is also what separates this pack from special-elite.json beside",
+        "it, which declares its bare family. Special Elite has exactly one cut",
+        "and nothing else can answer to its name. This family has four.",
+        "",
+        "Weight 400, which is the file's own usWeightClass. Stated rather than",
+        "left to 'normal' so the pairing is written down: this is the",
+        "unemphatic cut of a face whose Bold exists, and a synthesised weight",
+        "on top of it would be the thing the family name above is guarding",
+        "against, arriving by the other route."
+    ],
+    "family": "Courier Prime Regular",
+    "weight": "400",
+
+    "file": "fonts/CourierPrime-Regular.ttf",
+    "format": "truetype",
+
+    "_comment_css": [
+        "Not declared in styles.css: this face arrived with a channel and is",
+        "registered from this JSON, which is the route content/README.md",
+        "describes. Nothing has to be added to the stylesheet for it."
+    ],
+    "css": false,
+
+    "_comment_local": [
+        "What the machine may already know the face by, tried after the file.",
+        "The first is the PostScript name and is also what the installer",
+        "registers the face under; the second is the Windows full name. Both",
+        "name this one cut rather than the family, so a machine answering to",
+        "either is answering with a Regular. 'Courier Prime' on its own is",
+        "deliberately absent: it is the name the Bold and the two italics",
+        "answer to as well."
+    ],
+    "local": ["CourierPrime-Regular", "Courier Prime Regular"],
+
+    "_comment_stack": [
+        "The fallbacks are damage limitation and never a design choice - a",
+        "title laid out against the wrong metrics is broken, not merely",
+        "different, which is what fontguard exists to catch before it is ever",
+        "drawn. They are still chosen rather than copied.",
+        "",
+        "'Courier Prime' second is the same typeface by its family name, for",
+        "the machine that has the family installed but not under the full name",
+        "above - raleway-regular's first fallback is the same move, and it is",
+        "as close as damage limitation gets: the caption loses the file and",
+        "keeps the typeface. Courier New behind it is the one typewriter face",
+        "every Windows has, and it is a metrically different design rather",
+        "than a version of this one - Courier Prime was drawn to fix exactly",
+        "what Courier New does at small sizes, so what survives is the idea",
+        "and not the fitting.",
+        "",
+        "The generic is `monospace` rather than `serif`, because that is what",
+        "this face IS: every glyph in it advances 1228 units, and a",
+        "proportional substitute would re-break every line it was asked to",
+        "set. Impact and Arial Black are absent for the reason",
+        "american-typewriter-itc-pro-bold gives - they are heavy display",
+        "grotesques, and this is a light monospaced text face."
+    ],
+    "stack": "'Courier Prime Regular', 'Courier Prime', 'Courier New', monospace"
+}

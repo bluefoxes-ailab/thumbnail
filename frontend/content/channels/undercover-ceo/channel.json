@@ -1,0 +1,32 @@
+{
+    "schema": 1,
+    "id": "undercover-ceo",
+    "name": "Undercover CEO",
+    "order": 20,
+    "group": "QDS Karma",
+
+    "title": {
+        "face": "trade-gothic-heavy-compressed",
+        "color": "#FFFFFF",
+
+        "_comment_shadow": [
+            "Nothing in this channel's type carries a shadow: the panel below",
+            "is what lifts the title off the photo, and shadowed letters ON a",
+            "shadowed slab read as a printing fault."
+        ],
+        "shadow": null,
+
+        "layout": { "uniformSize": false },
+
+        "_comment_highlight": "Highlighting recolours the line and nothing else — no box.",
+        "highlight": { "mode": "color", "color": "#FFBE00", "shadow": null },
+
+        "panel": { "use": "title-slab" }
+    },
+
+    "_comment_branding": [
+        "Title on the right, subject on the left — the arrangement every",
+        "example of this channel uses."
+    ],
+    "branding": { "gradient": false, "flipImage": true, "flipText": true }
+}

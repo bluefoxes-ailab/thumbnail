@@ -1,0 +1,92 @@
+{
+    "schema": 1,
+    "id": "montserrat-bold",
+
+    "_comment_family": [
+        "Montserrat ships as a family of static cuts, and the three in this",
+        "folder are named by that family inconsistently - which is the whole",
+        "reason all three packs declare a full name instead of a family.",
+        "",
+        "This file's name ID 1 is 'Montserrat', flat, with 'Bold' as its",
+        "subfamily: the Bold is one of the four styles the old family model",
+        "allows, so it answers to the family name itself. Its SemiBold and",
+        "ExtraBold neighbours cannot, and each carries its own full name as",
+        "name ID 1. Asking for 'Montserrat' here would therefore be asking for",
+        "a name the Bold shares with every other cut of Montserrat a machine",
+        "happens to have installed - the Regular among them - and the channels",
+        "set in these faces would be blocks silently set in whichever weight",
+        "answered first.",
+        "",
+        "So the full name (name ID 4) is what gets declared, the same way",
+        "telegraf-ultralight and raleway-bold declare theirs. Three files,",
+        "three distinct family names, which is also what lets one channel be",
+        "set in two of them at once (see `highlight.face` in js/channels.js):",
+        "fontguard keys its check by family, so each cut is verified in its",
+        "own right rather than one check answering for the rest."
+    ],
+    "family": "Montserrat Bold",
+    "weight": "700",
+
+    "_comment_weight": [
+        "700, which is the file's own usWeightClass and what the cut is",
+        "called. It matters more here than it usually would, because this cut",
+        "sits in the middle of the three and is a step away from both of them:",
+        "it is the block expulsion-science picks words out of in the 800, and",
+        "it is the highlight rap-lore picks words with out of the 600. Either",
+        "way the difference between two cuts IS the channel's highlight, and a",
+        "block asked for at the wrong weight would not look wrong on its own -",
+        "it would quietly close the one gap the highlight is made of."
+    ],
+
+    "file": "fonts/Montserrat-Bold.ttf",
+    "format": "truetype",
+
+    "_comment_css": [
+        "Not declared in styles.css: this face arrived with a channel and is",
+        "registered from this JSON, which is the route content/README.md",
+        "describes. Nothing has to be added to the stylesheet for it."
+    ],
+    "css": false,
+
+    "_comment_local": [
+        "What the machine may already know the face by, tried after the file.",
+        "The first is the Windows full name (name ID 4) and the second the",
+        "PostScript name; both name this one cut rather than the family, so a",
+        "machine answering to either is answering with the Bold.",
+        "",
+        "'Montserrat' on its own is deliberately absent, for the reason given",
+        "above: it is this file's own name ID 1, and it is also the name every",
+        "other weight of Montserrat installed on the machine answers to. It is",
+        "the one entry that could hand back a Regular - which on rap-lore,",
+        "where this cut is the highlight, would be a picked word lighter than",
+        "the words either side of it."
+    ],
+    "local": ["Montserrat Bold", "Montserrat-Bold"],
+
+    "_comment_stack": [
+        "The fallbacks are damage limitation and never a design choice - a",
+        "title laid out against the wrong metrics is broken, not merely",
+        "different, which is what fontguard exists to catch before it is ever",
+        "drawn. They are still chosen rather than copied.",
+        "",
+        "No Impact and no Arial Black, which most of this folder falls through",
+        "and which would be wrong twice over. Montserrat is a geometric text",
+        "sans at 700, not a heavy display cut, so a condensed grotesque behind",
+        "it is the furthest thing the machine could offer from what went",
+        "missing. And the Montserrat packs are weight pairs: dropping either",
+        "half of a pair into a face with one weight would take the highlight",
+        "with it.",
+        "",
+        "Segoe UI is on every Windows this app runs on and has a real Bold;",
+        "Arial is the floor and has one too. All three packs share these",
+        "entries and differ only in the weight they reach them at - 600, 700",
+        "and 800 - so the weight step survives a missing file as far as the",
+        "substitute family has the weights to survive it. Neither substitute",
+        "has a SemiBold, so the 600 lands on a Regular or a Bold depending on",
+        "the machine, and where it lands on the Bold the picked words come out",
+        "set as their neighbours.",
+        "That is the ordinary cost of a face that never arrived, and it is",
+        "reported rather than drawn."
+    ],
+    "stack": "'Montserrat Bold', 'Segoe UI', Arial, sans-serif"
+}
