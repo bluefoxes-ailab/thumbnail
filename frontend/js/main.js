@@ -412,6 +412,7 @@ el("videoFileInput").addEventListener("change", (e) => {
 initChannelPicker();
 // --- Platform Mode Switching (Optgroup Filter) ---
 // --- Platform Mode Switching & Clean Channel Grouping ---
+// --- Platform Mode Switching & Clean Channel Grouping ---
 const tabThumbnailBtn = document.getElementById("tabThumbnail");
 const tabStaticBtn = document.getElementById("tabStatic");
 const mainTitle = document.getElementById("mainTitle");
@@ -421,57 +422,75 @@ const STATIC_GROUPS = ["SNAPCHAT"];
 
 let currentMode = "thumbnail";
 
-function mergeAndFilterDropdown(selectEl, mode) {
+function storeAndRenderDropdown(selectEl, mode) {
     if (!selectEl) return;
 
-    // 1. First, merge any fragmented optgroups with identical labels
-    const groupsByLabel = new Map();
-    const optgroups = Array.from(selectEl.querySelectorAll("optgroup"));
+    // Cache the original complete list on first run
+    if (!selectEl._fullChannelStore) {
+        selectEl._fullChannelStore = [];
+        const optgroups = Array.from(selectEl.querySelectorAll("optgroup"));
 
-    optgroups.forEach(group => {
-        const rawLabel = (group.label || "").trim();
-        const key = rawLabel.toUpperCase();
-        
-        if (!groupsByLabel.has(key)) {
-            groupsByLabel.set(key, group);
-        } else {
-            // Move all options into the first group instance
-            const primaryGroup = groupsByLabel.get(key);
-            while (group.firstChild) {
-                primaryGroup.appendChild(group.firstChild);
-            }
-            // Remove the duplicate empty optgroup
-            group.remove();
-        }
-    });
-
-    // 2. Filter based on active mode
-    const isStatic = mode === "static";
-    const allowed = isStatic ? STATIC_GROUPS : THUMBNAIL_GROUPS;
-
-    // Process all unified optgroups
-    selectEl.querySelectorAll("optgroup").forEach(group => {
-        const key = (group.label || "").trim().toUpperCase();
-        const shouldShow = allowed.some(a => a === key);
-
-        if (isStatic && shouldShow) {
-            // In Static Studio, unwrap options so there are no category headers
-            while (group.firstChild) {
-                group.parentElement.insertBefore(group.firstChild, group);
-            }
-            group.remove();
-        } else {
-            group.style.display = shouldShow ? "" : "none";
+        optgroups.forEach(group => {
+            const rawLabel = (group.label || "").trim().toUpperCase();
             Array.from(group.children).forEach(opt => {
-                opt.hidden = !shouldShow;
-                opt.disabled = !shouldShow;
+                selectEl._fullChannelStore.push({
+                    value: opt.value,
+                    text: opt.textContent.trim(),
+                    group: rawLabel
+                });
             });
-        }
-    });
+        });
+    }
 
-    // Reset selection if currently selected item is hidden
-    const current = selectEl.selectedOptions[0];
-    if (current && (current.hidden || current.parentElement?.style.display === "none")) {
+    if (!selectEl._fullChannelStore.length) return;
+
+    const isStatic = mode === "static";
+    const selectedVal = selectEl.value;
+
+    // Rebuild the select cleanly from memory
+    selectEl.innerHTML = '<option value="">-</option>';
+
+    if (isStatic) {
+        // Static Studio: Clean flat list of Snapchat channels (no optgroup headers)
+        const snapChannels = selectEl._fullChannelStore.filter(item => 
+            STATIC_GROUPS.includes(item.group)
+        );
+
+        // Sort alphabetically
+        snapChannels.sort((a, b) => a.text.localeCompare(b.text));
+
+        snapChannels.forEach(item => {
+            const opt = document.createElement("option");
+            opt.value = item.value;
+            opt.textContent = item.text;
+            selectEl.appendChild(opt);
+        });
+    } else {
+        // Thumbnail Maker: Unified optgroups (QDS KARMA, FRANCE TV, BINGE)
+        THUMBNAIL_GROUPS.forEach(groupName => {
+            const groupChannels = selectEl._fullChannelStore.filter(item => item.group === groupName);
+            if (groupChannels.length > 0) {
+                const optgroup = document.createElement("optgroup");
+                optgroup.label = groupName;
+
+                groupChannels.sort((a, b) => a.text.localeCompare(b.text));
+
+                groupChannels.forEach(item => {
+                    const opt = document.createElement("option");
+                    opt.value = item.value;
+                    opt.textContent = item.text;
+                    optgroup.appendChild(opt);
+                });
+
+                selectEl.appendChild(optgroup);
+            }
+        });
+    }
+
+    // Preserve previous selection if it belongs to the current mode
+    if (Array.from(selectEl.options).some(o => o.value === selectedVal)) {
+        selectEl.value = selectedVal;
+    } else {
         selectEl.value = "";
     }
 }
@@ -487,8 +506,8 @@ function setAppMode(mode) {
     tabStaticBtn?.classList.toggle("active", isStatic);
     tabThumbnailBtn?.classList.toggle("active", !isStatic);
 
-    mergeAndFilterDropdown(document.getElementById("runChannelSelect"), mode);
-    mergeAndFilterDropdown(document.getElementById("channelSelect"), mode);
+    storeAndRenderDropdown(document.getElementById("runChannelSelect"), mode);
+    storeAndRenderDropdown(document.getElementById("channelSelect"), mode);
 
     if (typeof fitTitleToInputWidth === "function") {
         fitTitleToInputWidth();
@@ -498,18 +517,19 @@ function setAppMode(mode) {
 tabThumbnailBtn?.addEventListener("click", () => setAppMode("thumbnail"));
 tabStaticBtn?.addEventListener("click", () => setAppMode("static"));
 
-// Use a MutationObserver to auto-merge as soon as channel packs populate the select
-const targetSelect = document.getElementById("runChannelSelect");
-if (targetSelect) {
+// Trigger after content loads
+const channelSelectEl = document.getElementById("runChannelSelect");
+if (channelSelectEl) {
     const observer = new MutationObserver(() => {
-        observer.disconnect(); // prevent infinite loop
-        setAppMode(currentMode);
+        if (channelSelectEl.querySelectorAll("option, optgroup").length > 2) {
+            observer.disconnect();
+            setAppMode(currentMode);
+        }
     });
-    observer.observe(targetSelect, { childList: true });
+    observer.observe(channelSelectEl, { childList: true, subtree: true });
 }
 
-// Fallback execution
-setTimeout(() => setAppMode("thumbnail"), 150);
+setTimeout(() => setAppMode("thumbnail"), 200);
 setTimeout(() => setAppMode("thumbnail"), 600);
 // Both pickers are the same selection (see editor.CHANNEL_PICKERS), so both
 // answer the same way and each keeps the other in step.
