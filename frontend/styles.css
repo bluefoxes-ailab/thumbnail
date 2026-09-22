@@ -49,7 +49,7 @@ body {
     background: #060610; color: #fff;
     font-family: 'Raleway', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     min-height: 100vh;
-    padding: 20px;
+    padding: 0;
 }
 /* Soft blurred blue glow hugging the top edge, fading into a dark
    navy field — fixed behind all content (every panel/card already
@@ -77,11 +77,15 @@ body::before {
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     gap: 10px; margin-bottom: 36px;
 }
-h1 { font-size: 32px; font-weight: 900; margin: 0; color: #fffa00; text-transform: uppercase; }
-/* Section titles ("Select a frame", "Preview", "Title — Frame N",
-   "Edit preset", "Image overlay") — sized and weighted (900, the
-   "Black" cut of Raleway, same as h1) to read as headers you scan
-   the page by, not just small in-line labels. */
+h1 {
+    font-family: 'Work Sans', sans-serif;
+    font-style: italic;
+    font-weight: 900; /* Use 700 or 900 depending on how bold you want it */
+    font-size: 32px;
+    margin: 0;
+    color: #fffa00;
+    text-transform: uppercase;
+}
 h2 {
     font-size: 19px; font-weight: 900; color: #fff;
     margin: 32px 0 14px; text-align: center; text-transform: uppercase;
@@ -876,6 +880,81 @@ body.captions-mode .panel-group:not(:first-child) > h2 {
 /* The caption is the reason this channel has a panel at all, so it
    gets the height the other two do not need. */
 body.captions-mode #lineBlock { flex: 1 1 auto; min-height: 96px; resize: none; }
+/* Top Nav Layout */
+/* Top Nav Layout */
+.top-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start; /* Aligns both logo and buttons directly to the ceiling */
+    width: 100%;
+    margin-top: -20px;       /* Pulls the navbar right up against the top edge */
+    margin-bottom: 0;
+    padding-top: 0;
+}
+
+/* Brand Section */
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.brand-fox {
+    height: 250px;
+    max-height: none;
+    width: auto;
+    object-fit: contain;
+    display: block;
+    margin-top: -45px; /* Pulls the visible artwork up to eliminate top whitespace */
+}
+
+
+
+/* Mode Switch Tabs */
+.mode-tabs {
+    display: flex;
+    gap: 6px;
+    background: rgba(255, 255, 255, 0.08);
+    padding: 4px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    margin-top: 35px; /* Adjust between 10px-20px to match where you want them relative to the ceiling */
+}
+
+/* Align tab buttons with their icons */
+.tab-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px; /* Spacing between the logo and text */
+    background: transparent;
+    color: #94a3b8;
+    border: none;
+    padding: 8px 16px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+}
+
+/* Tab icon dimensions */
+.tab-icon {
+    width: 25px;
+    height: 20px;
+    object-fit: contain;
+    display: block;
+    flex-shrink: 0;
+}
+
+.tab-btn:hover {
+    color: #ffffff;
+}
+
+.tab-btn.active {
+    background: #2563eb;
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.4);
+}
 /* The edit presets stay a column, which is worth writing down because
    the obvious move here is to lay them across. Measured, they do not
    go: "Restore only", "Natural" and "Heavy edit" are 136, 98 and 113

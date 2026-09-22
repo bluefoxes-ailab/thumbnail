@@ -410,6 +410,65 @@ el("videoFileInput").addEventListener("change", (e) => {
 });
 
 initChannelPicker();
+// --- Platform Mode Switching (Optgroup Filter) ---
+const tabThumbnailBtn = document.getElementById("tabThumbnail");
+const tabStaticBtn = document.getElementById("tabStatic");
+const mainTitle = document.getElementById("mainTitle");
+
+// Tab 1: Thumbnail Maker displays QDS KARMA, FRANCE TV, and BINGE
+const THUMBNAIL_GROUPS = ["QDS KARMA", "FRANCE TV", "BINGE"];
+
+// Tab 2: Static Studio displays SNAPCHAT only
+const STATIC_GROUPS = ["SNAPCHAT"];
+
+function filterDropdownByGroup(selectEl, allowedGroups) {
+    if (!selectEl) return;
+
+    // Filter <optgroup> elements
+    const optgroups = selectEl.querySelectorAll("optgroup");
+    optgroups.forEach(group => {
+        const groupLabel = (group.label || "").trim().toUpperCase();
+        const shouldShow = allowedGroups.some(g => groupLabel === g.toUpperCase());
+        group.style.display = shouldShow ? "" : "none";
+        
+        // Also toggle child options so keyboard navigation skips hidden groups
+        Array.from(group.children).forEach(opt => {
+            opt.hidden = !shouldShow;
+            opt.disabled = !shouldShow;
+        });
+    });
+
+    // Reset selection if the currently chosen option belongs to a hidden group
+    const currentOpt = selectEl.selectedOptions[0];
+    if (currentOpt && (currentOpt.hidden || currentOpt.parentElement?.style.display === "none")) {
+        selectEl.value = "";
+    }
+}
+
+function setAppMode(mode) {
+    const isStatic = mode === "static";
+
+    if (mainTitle) {
+        mainTitle.textContent = isStatic ? "STATIC STUDIO" : "THUMBNAIL MAKER";
+    }
+
+    tabStaticBtn?.classList.toggle("active", isStatic);
+    tabThumbnailBtn?.classList.toggle("active", !isStatic);
+
+    const targetGroups = isStatic ? STATIC_GROUPS : THUMBNAIL_GROUPS;
+
+    // Apply filter to both the landing dropdown and the in-editor dropdown
+    filterDropdownByGroup(el("runChannelSelect"), targetGroups);
+    filterDropdownByGroup(el("channelSelect"), targetGroups);
+
+    fitTitleToInputWidth();
+}
+
+tabThumbnailBtn?.addEventListener("click", () => setAppMode("thumbnail"));
+tabStaticBtn?.addEventListener("click", () => setAppMode("static"));
+
+// Apply default Thumbnail Maker view on load
+setAppMode("thumbnail");
 // Both pickers are the same selection (see editor.CHANNEL_PICKERS), so both
 // answer the same way and each keeps the other in step.
 el("channelSelect").addEventListener("change", (e) => selectChannel(e.target.value));

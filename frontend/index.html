@@ -11,31 +11,36 @@
          entire canvas — preview, thumbnails and export — with it. -->
     <link rel="stylesheet" href="vendor/raleway.css">
     <link rel="preload" href="fonts/TradeGothicNextLTProHeavyCompressed.otf" as="font" type="font/otf" crossorigin>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Work+Sans:ital,wght@1,900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
     <script src="vendor/fabric.min.js"></script>
 </head>
 <body>
 <div class="app">
+    <div class="top-nav">
+        <div class="brand">
+            <img src="BLUEROOM.png" alt="Fox Logo" class="brand-fox">
+            
+        </div>
+        <div class="mode-tabs">
+    <button type="button" class="tab-btn active" id="tabThumbnail">
+        <img src="youtube.png" alt="YouTube" class="tab-icon">
+        <span>Thumbnail Maker</span>
+    </button>
+    <button type="button" class="tab-btn" id="tabStatic">
+        <img src="snapchat.png" alt="Snapchat" class="tab-icon">
+        <span>Static Studio</span>
+    </button>
+</div>
+    </div>
+
     <div class="app-header">
-        <img src="logo.webp" alt="BlueRoom" class="brand-logo">
-        
+        <h1 id="mainTitle">Thumbnail Maker</h1>
     </div>
 
     <div class="input-section">
-        <!-- The channel this RUN is for, as opposed to the one in the title
-             panel, which is the channel one finished frame is drawn in.
-
-             Two pickers because there are two questions, and only one of them
-             can be answered here. A channel may recalibrate how the video's
-             frames are chosen — how much of the canvas the subject fills, what
-             makes a frame worth keeping (see `framing` in js/channels.js) —
-             and that decision is spent the moment the frames exist. So it has
-             to be available BEFORE the link box, which is the one place in the
-             app that comes before there are any frames.
-
-             Picking one here also brands every frame the run produces with it,
-             so for the ordinary case (one video, one channel) this is the only
-             channel picker anybody has to touch. -->
         <label class="field-label" for="runChannelSelect">Channel</label>
         <select class="channel-select" id="runChannelSelect">
             <option value="">-</option>
