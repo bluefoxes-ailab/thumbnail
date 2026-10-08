@@ -993,3 +993,36 @@ body.captions-mode #lineBlock { flex: 1 1 auto; min-height: 96px; resize: none; 
    pixels wide against a column of 190, so a row of them wraps to the
    same three lines it started with and only loses the left edge they
    currently share. */
+
+/* ── Maintenance screen (maintenance.html) ─────────────────────────────
+   Nothing here sets a background: the page inherits body's navy field and
+   the blurred blue glow along the top edge, so it reads as the same app.
+
+   The logo is 2x the top bar's (.brand-fox is 250px; this is 500px) and
+   its -45px trim is doubled with it, because that trim exists to cancel
+   the transparent margin baked into BLUEROOM.png and the margin scales
+   with the picture. It is capped by max-width so a phone shrinks it
+   instead of scrolling sideways. */
+.maintenance { display: flex; flex-direction: column; align-items: center; }
+.maintenance-logo {
+    height: 500px; width: auto; max-width: 100%;
+    object-fit: contain; display: block;
+    margin-top: -190px; margin-bottom: -200px;
+}
+.maintenance-message { max-width: 1000px; width: 100%; text-align: center; margin-bottom: 28px; }
+.maintenance-message h1 { font-size: clamp(14px, 2.6vw, 28px); line-height: 1.2; margin-bottom: 14px; white-space: nowrap; }
+.maintenance-message .nowrap { display: block; white-space: nowrap; }
+.maintenance-message p { font-size: 16px; line-height: 1.55; color: #fff; margin-bottom: 18px; }
+.maintenance-message .maintenance-cta { font-weight: 800; color: #fffa00; }
+/* Same blue frame the inputs wear. The height is the game's own layout at
+   desktop width (masthead, screen, controls); below 920px the game stacks
+   its postcard album under the screen and needs the extra rows. */
+.maintenance-game {
+    width: 100%; max-width: 1180px; height: 820px;
+    border: 2px solid #026dff; border-radius: 8px;
+    background: #0d0f22; margin-bottom: 48px;
+}
+@media (max-width: 920px) {
+    .maintenance-logo { height: 320px; margin-top: -122px; margin-bottom: -128px; }
+    .maintenance-game { height: 1250px; } /* fallback only; see the script in maintenance.html */
+}

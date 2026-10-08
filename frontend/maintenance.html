@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thumbnail Maker — Maintenance</title>
+    <!-- The maintenance screen. It is a page of its own rather than a mode of
+         the editor on purpose: while the app is down for work, nothing in
+         main.js, fabric or the channel packs should be loaded at all, so the
+         only things pulled in here are the shared stylesheet — which is what
+         gives it the same background, fonts and colours as every other
+         screen — and the game. -->
+    <link rel="stylesheet" href="vendor/raleway.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Work+Sans:ital,wght@1,900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="app maintenance">
+    <!-- The same logo file the top bar uses, centred and at twice the size
+         (see .maintenance-logo for why it is a separate rule and not a
+         modifier on .brand-fox). -->
+    <img src="BLUEROOM.png" alt="BlueRoom" class="maintenance-logo">
+
+    <div class="maintenance-message">
+        <h1>The app is currently undergoing scheduled maintenance</h1>
+        <p>We’re working to improve the app and will be back online as soon as possible.<span class="nowrap">Thank you for your patience and understanding.</span></p>
+        <p class="maintenance-cta">In the meantime, why not test your skills with this game created by the AI Lab?</p>
+    </div>
+
+    <!-- The game is the AI Lab's artifact, saved next to the app as
+         maintenance-game.html. It is embedded from disk rather than from its
+         claude.ai link because that page refuses to be framed by any other
+         origin (frame-ancestors 'self'), and because a maintenance screen that
+         needs a third party to be up is a poor way to apologise for being
+         down. -->
+    <iframe class="maintenance-game" src="maintenance-game.html"
+            title="Renard Bleu — a game by the AI Lab"
+            allow="autoplay; fullscreen" scrolling="no"></iframe>
+</div>
+<script>
+/* The game sits in an iframe, and an iframe has a fixed height of its own: if
+   the game inside is taller, the frame grows a scrollbar of its own, a
+   second one nested in the page's. The game's height depends on its width
+   (a 16:9 canvas, and a layout that stacks under 920px), so no CSS height
+   is right for every window. Same origin, so the page can simply measure the
+   game and make the frame exactly that tall, and keep doing so as it
+   resizes. */
+(function () {
+    var frame = document.querySelector(".maintenance-game");
+    function fit() {
+        try {
+            var doc = frame.contentDocument;
+            doc.documentElement.style.overflow = "hidden";
+            var border = frame.offsetHeight - frame.clientHeight; // border-box: the frame's own border counts
+            frame.style.height = (doc.documentElement.scrollHeight + border) + "px";
+        } catch (e) { /* cross-origin: keep the CSS fallback height */ }
+    }
+    frame.addEventListener("load", function () {
+        fit();
+        try { new ResizeObserver(fit).observe(frame.contentDocument.body); } catch (e) {}
+    });
+    window.addEventListener("resize", fit);
+})();
+</script>
+</body>
+</html>
