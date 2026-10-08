@@ -37,3 +37,9 @@ libs/
 *.bat
 installer/releases/
 *.exe
+backend/secrets/
+logs/
+*.csv
+frontend/*.csv
+*.save
+fonts

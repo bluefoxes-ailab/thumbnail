@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "id": "kabel-extrabold",
+  "family": "Kabel Extra Bold",
+  "weight": "800",
+  "file": "fonts/Kabel MediumExttraBold.ttf",
+  "format": "truetype",
+  "css": false,
+  "local": [
+    "Kabel-ExtraBold",
+    "Kabel Extra Bold",
+    "KabelMediumExtraBold"
+  ],
+  "stack": "'Kabel Extra Bold', Impact, Arial, sans-serif",
+  "base": "content/faces/"
+}

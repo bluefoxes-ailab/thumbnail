@@ -19,7 +19,38 @@ import {
 import { invalidate as invalidateWide, prefetchWide } from "./wide.js";
 import { syncZoomSliderFor } from "./reframe.js";
 import { captureMode } from "./capture.js";
+function trackEvent(action, details = {}) {
+    // 1. Identify which tool this page represents
+    const toolName = window.location.pathname.includes("static") ? "static_studio" : "thumbnail_maker";
 
+    // 2. Identify the active channel using the module's activeChannelId()
+    const channel = (typeof activeChannelId === "function" && activeChannelId()) ? activeChannelId() : "default";
+
+    // 3. User identifier (asks once and saves locally)
+    let username = localStorage.getItem("editor_username");
+    if (!username) {
+        username = prompt("Please enter your name/nickname for editor logging:") || "anonymous";
+        localStorage.setItem("editor_username", username.trim());
+    }
+
+    const payload = JSON.stringify({
+        tool: toolName,
+        channel: channel,
+        user: username,
+        action: action,
+        details: details
+    });
+
+    if (navigator.sendBeacon) {
+        navigator.sendBeacon(`/api/track/${toolName}`, payload);
+    } else {
+        fetch(`/api/track/${toolName}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: payload
+        }).catch(() => {});
+    }
+}
 // ── Channel ───────────────────────────────────────────────────────────────
 
 /**
@@ -293,6 +324,7 @@ export function guardChannel() {
  * replaces a title composed against fallback metrics.
  */
 export async function selectChannel(id) {
+    trackEvent("channel_selected", { channel: id });
     const switched = setActiveChannel(id);
     syncChannelPickers();
 
@@ -1432,6 +1464,7 @@ export async function varyFrame() {
  * composed over the frame on the canvas, so they stay above it untouched.
  */
 export async function handleFrameFile(file) {
+    trackEvent("upload_custom_frame", { filename: file.name, size: file.size });
     const idx = selectedIndex();
     const f = frames()[idx];
     if (!f) return status("No frame selected");
@@ -1871,6 +1904,7 @@ export async function warmCutouts() {
  * a machine that is busy and one that looks broken.
  */
 export async function applyEditToAll() {
+    trackEvent("batch_edit_all_frames", { total_frames: frames().length });
     const grid = frames();
     for (let i = 0; i < grid.length; i++) {
         if (frames() !== grid) return;
@@ -1944,6 +1978,7 @@ export function removeLogoAt(i) {
 }
 
 export async function handleLogoFile(file) {
+    trackEvent("upload_overlay_logo", { filename: file.name, size: file.size });
     const f = current();
     if (!f) return;
     const dataUrl = await new Promise((resolve, reject) => {
@@ -1974,6 +2009,9 @@ export async function handleLogoFile(file) {
 
 export function togglePick(i, onCarryOver) {
     const picking = !frames()[i].picked;
+    if (picking) {
+        trackEvent("frame_picked", { frame_index: i });
+    }
     // Batch-ticking a frame is also its first real "touch" if it's never been
     // clicked into — without this, a frame only ever ticked (never selected)
     // stayed on blank defaults forever, so its download came out without the

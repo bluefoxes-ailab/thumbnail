@@ -32,7 +32,7 @@ RUN pip install --no-cache-dir \
     pydantic==2.11.7 \
     imageio-ffmpeg==0.6.0 \
     yt-dlp==2026.7.4 \
-    onnxruntime-gpu==1.20.1 \
+    onnxruntime-gpu==1.20.0 \
     faster-whisper==1.1.1 \
     ctranslate2==4.5.0 \
     opencv-python==4.13.0.92
@@ -46,11 +46,7 @@ RUN pip install --no-cache-dir --no-deps \
     simple-lama-inpainting==0.1.2
 
 # Patch torchvision issue in basicsr
-RUN python3 -c '\
-import os, basicsr;\
-p = os.path.join(os.path.dirname(basicsr.__file__), "data", "degradations.py");\
-f = open(p, "r").read().replace("functional_tensor", "functional");\
-open(p, "w").write(f)'
+RUN find /usr/local/lib -name "degradations.py" -exec sed -i "s/functional_tensor/functional/g" {} +
 
 # Pre-fetch models
 RUN mkdir -p /app/backend/models && \
@@ -59,9 +55,10 @@ RUN mkdir -p /app/backend/models && \
     wget -q -O /app/backend/models/text_detection_en_ppocrv3.onnx \
     https://media.githubusercontent.com/media/opencv/opencv_zoo/main/models/text_detection_ppocr/text_detection_en_ppocrv3_2023may.onnx
 
+RUN pip install --no-cache-dir gdown
 COPY . /app
 
 EXPOSE 8000
 
-WORKDIR /app/backend
-CMD ["python3", "server.py"]
+WORKDIR /app
+CMD ["python3", "api.py"]

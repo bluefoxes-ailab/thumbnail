@@ -1,0 +1,41 @@
+{
+  "schema": 1,
+  "id": "hall-of-femme-nw",
+  "name": "Hall of Femme NW",
+  "order": 905,
+  "group": "Snapchat",
+  "capture": {
+    "use": "snapchat-capture"
+  },
+  "framing": {
+    "use": "snapchat-framing"
+  },
+  "title": {
+    "use": "snapchat-caption",
+    "face": "kabel-extrabold",
+    "color": "#FFFFFF",
+    "colors": {
+      "text": [
+        "#c23371",
+        "#FFFFFF",
+        "#000000"
+      ],
+      "panel": [
+        "#c23371",
+        "#FFFFFF",
+        "#000000"
+      ]
+    },
+    "highlight": {
+      "face": "kabel-extrabold",
+      "color": "#FFFFFF"
+    },
+    "panel": {
+      "fill": "#c23371"
+    }
+  },
+  "branding": {
+    "gradient": false
+  },
+  "base": "content/channels/hall-of-femme-nw/"
+}

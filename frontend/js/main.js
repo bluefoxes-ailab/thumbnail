@@ -1,3 +1,32 @@
+
+// --- Output Mode Toggle (Frames with text vs Frames only) ---
+let framesOnlyMode = false;
+
+function initModeToggle() {
+    const btnText = document.getElementById("btnModeText");
+    const btnOnly = document.getElementById("btnModeFramesOnly");
+    if (!btnText || !btnOnly) return;
+
+    btnText.addEventListener("click", () => {
+        framesOnlyMode = false;
+        btnText.style.background = "#2563eb";
+        btnText.style.color = "#fff";
+        btnText.style.borderColor = "#3b82f6";
+        btnOnly.style.background = "#1e293b";
+        btnOnly.style.color = "#94a3b8";
+        btnOnly.style.borderColor = "#334155";
+    });
+
+    btnOnly.addEventListener("click", () => {
+        framesOnlyMode = true;
+        btnOnly.style.background = "#2563eb";
+        btnOnly.style.color = "#fff";
+        btnOnly.style.borderColor = "#3b82f6";
+        btnText.style.background = "#1e293b";
+        btnText.style.color = "#94a3b8";
+        btnText.style.borderColor = "#334155";
+    });
+}
 import { API, TITLE_FIELD_IDS, el } from "./config.js";
 import {
     store, frames, current, selectedIndex, setSelectedIndex,
@@ -161,7 +190,7 @@ async function runPipeline(prepare) {
         // and which applyCaptions waits for itself. Before the panel is
         // loaded and before the grid is drawn, so the first thing the user
         // sees already has the words on it.
-        await applyCaptions();
+        if (!framesOnlyMode) { await applyCaptions(); }
 
         initCanvas(setupReframeInteraction);
         renderGrid();
@@ -245,8 +274,8 @@ function runCapture() {
             // transcription nothing will draw or a rewrite nothing will read.
             request: {
                 count: requestedCount(id),
-                captions: !!capture.captions,
-                rewrite: !!capture.rewrite,
+                captions: framesOnlyMode ? false : !!capture.captions,
+                rewrite: framesOnlyMode ? false : !!capture.rewrite,
             },
         }
         : null;
@@ -506,6 +535,11 @@ function setAppMode(mode) {
     tabStaticBtn?.classList.toggle("active", isStatic);
     tabThumbnailBtn?.classList.toggle("active", !isStatic);
 
+    const modeToggle = document.getElementById("outputModeToggle");
+    if (modeToggle) {
+        modeToggle.style.display = isStatic ? "flex" : "none";
+    }
+
     storeAndRenderDropdown(document.getElementById("runChannelSelect"), mode);
     storeAndRenderDropdown(document.getElementById("channelSelect"), mode);
 
@@ -672,3 +706,5 @@ window.addEventListener("resize", () => {
     clearTimeout(_titleFitTimer);
     _titleFitTimer = setTimeout(fitTitleToInputWidth, 150);
 });
+
+initModeToggle();

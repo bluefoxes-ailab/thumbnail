@@ -1,273 +1,175 @@
-"""
-The static server the page is loaded from — plus the one thing it generates.
+import datetime
+import sys, os, urllib.request, urllib.error, json
+import uuid
+from http import cookies
+import urllib.request
+import urllib.error
+from urllib.parse import urlparse
+from http.server import SimpleHTTPRequestHandler, HTTPServer
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
-It serves `frontend/` as files, and it serves `/content/` out of two
-directories at once: the packs that shipped with the app, and the packs this
-machine added. The merge of those two is published at
-`/content/channels.json`, which `js/channels.js` fetches once at startup.
+BACKENDS = [
+    "http://127.0.0.1:8000",
+    "http://127.0.0.1:8001",
+    "http://127.0.0.1:8002",
+    "http://127.0.0.1:8003"
+]
 
-Two roots, because an update replaces the first one wholesale:
+PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 3000
 
-    <install>/app/frontend/content/   what shipped — a patch overwrites it
-    <install>/content/               what this machine added — never touched
+PROXY_PREFIXES = (
+    "/process-video", "/upload", "/upload-video", "/upload_video",
+    "/frame", "/vary-frame", "/enhance-frame", "/reframe-frame",
+    "/cleanup", "/selection", "/api")
+LOG_DIR = "/home/bluefoxesfreelancer/thumbnail/logs"
+os.makedirs(LOG_DIR, exist_ok=True)
 
-Both are served under the same `/content/` URL space, so a pack's own assets
-are reachable by the same path whichever root it came from, and neither the
-page nor a pack has to know which one it is in.
+def record_adoption(tool_name, payload, client_ip):
+    # Separate log files per tool
+    clean_tool = "static_studio" if "static" in tool_name.lower() else "thumbnail_maker"
+    log_file = os.path.join(LOG_DIR, f"adoption_{clean_tool}.jsonl")
 
-Serving them from HERE rather than from the backend on :8000 is deliberate.
-Channel textures are drawn into the export canvas, and a canvas that has been
-painted with an image from another origin is tainted: `toDataURL` throws and
-every download fails. Same-origin keeps that whole class of problem out.
-"""
+    entry = {
+        "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
+        "client_ip": client_ip,
+        "channel": payload.get("channel", "unknown"),
+        "user": payload.get("user", client_ip),
+        "action": payload.get("action", "activity"),
+        "details": payload.get("details", {})
+    }
 
-import functools
-import http.server
-import io
-import json
-import os
-import time
-from pathlib import Path
+    with open(log_file, "a", encoding="utf-8") as f:
+        f.write(json.dumps(entry) + "\n")
+def get_idle_backend():
+    for b in BACKENDS:
+        try:
+            req = urllib.request.Request(f"{b}/process-video/progress", headers={"User-Agent": "proxy"})
+            with urllib.request.urlopen(req, timeout=1.0) as resp:
+                data = json.loads(resp.read().decode())
+                if data.get("status") in ("idle", "done", "error"):
+                    return b
+        except Exception:
+            continue
+    return BACKENDS[0]
 
-FRONTEND = Path(__file__).resolve().parent
+class MultiUserProxyHandler(SimpleHTTPRequestHandler):
+    user_backends = {}
 
-# Where this machine's own packs live. The launcher points it at
-# <install>/content; running from the repo it is <repo>/content if that
-# exists, so a pack can be tried out without an install.
-_external = os.environ.get("TNMAKER_CONTENT_DIR", "").strip()
-EXTERNAL_CONTENT = Path(_external).resolve() if _external else (FRONTEND.parent / "content")
-
-BUNDLED_CONTENT = FRONTEND / "content"
-
-# Lowest first; a later root wins, so the machine's own packs override the
-# shipped ones of the same id.
-CONTENT_ROOTS = [BUNDLED_CONTENT, EXTERNAL_CONTENT]
-
-# The generated document, and how long it may be reused. Rebuilt on a timer
-# rather than per request because the page asks for it once per load, and
-# rather than never because dropping a folder in should not need a restart.
-CONTENT_DOC_PATH = "/content/channels.json"
-CONTENT_DOC_TTL_S = 2.0
-
-
-def _read_json(path, problems, label=None):
-    try:
-        with open(path, encoding="utf-8") as f:
-            return json.load(f)
-    except (OSError, ValueError) as e:
-        # Named, not swallowed: a pack with a trailing comma in it silently
-        # disappearing from the dropdown is the failure mode this whole
-        # data-driven arrangement could most easily hide. The label is the
-        # folder as well as the file, because "channel.json could not be read"
-        # is true of one of a dozen identically named files.
-        problems.append(f"{label or path.name} could not be read ({e}) — "
-                        "the channel it defines is missing")
+    def get_session_id(self):
+        cookie_hdr = self.headers.get("Cookie", "")
+        if cookie_hdr:
+            c = cookies.SimpleCookie()
+            try:
+                c.load(cookie_hdr)
+                if "user_session" in c:
+                    return c["user_session"].value
+            except Exception:
+                pass
         return None
 
+    def get_backend_url(self):
+        session_id = self.get_session_id()
+        
+        # When initiating a new run or upload, always route to an idle worker
+        if self.path.startswith(("/process-video", "/upload", "/upload-video", "/upload_video")) and not self.path.startswith(("/process-video/progress", "/process-video/result")):
+            chosen = get_idle_backend()
+            if session_id:
+                MultiUserProxyHandler.user_backends[session_id] = chosen
+            return chosen
 
-def _collect_singles(kind, problems):
-    """
-    Reads `<root>/<kind>/*.json` from every root into one id -> spec map.
+        # Otherwise stick to the assigned backend for polling, frames, and edits
+        if session_id and session_id in MultiUserProxyHandler.user_backends:
+            return MultiUserProxyHandler.user_backends[session_id]
 
-    Used for faces/ and presets/, which are one file per thing. The id comes
-    from the file's own `id` if it has one, and from its filename otherwise,
-    so a pack that omits it still lands somewhere predictable.
-    """
-    out = {}
-    for root in CONTENT_ROOTS:
-        folder = root / kind
-        if not folder.is_dir():
-            continue
-        for path in sorted(folder.glob("*.json")):
-            spec = _read_json(path, problems, f"{kind}/{path.name}")
-            if spec is None:
-                continue
-            spec_id = str(spec.get("id") or path.stem)
-            spec["id"] = spec_id
-            spec["base"] = f"content/{kind}"
-            out[spec_id] = spec
-    return out
+        chosen = get_idle_backend()
+        if session_id:
+            MultiUserProxyHandler.user_backends[session_id] = chosen
+        return chosen
 
+    def forward(self, method):
+        # Extract pure relative path in case full URL was passed in self.path
+        parsed = urlparse(self.path)
+        path = parsed.path
+        if parsed.query:
+            path += "?" + parsed.query
+        backend = self.get_backend_url()
+        target_url = backend + path
 
-def _collect_channels(problems):
-    """
-    Reads `<root>/channels/<id>/channel.json` from every root.
+        session_id = self.get_session_id()
+        new_session = False
+        if not session_id:
+            session_id = str(uuid.uuid4())
+            new_session = True
+            MultiUserProxyHandler.user_backends[session_id] = backend
 
-    A folder name is the id. A channel present in both roots is taken from the
-    later one WHOLE rather than merged with the earlier: half of one brand
-    laid over half of another is not a thing anyone means, and "my copy of
-    this channel" is.
-    """
-    found = {}
-    for root in CONTENT_ROOTS:
-        folder = root / "channels"
-        if not folder.is_dir():
-            continue
-        for pack_dir in sorted(p for p in folder.iterdir() if p.is_dir()):
-            manifest = pack_dir / "channel.json"
-            if not manifest.is_file():
-                problems.append(f"{pack_dir.name}/ has no channel.json, so it is not a channel pack")
-                continue
-            spec = _read_json(manifest, problems, f"{pack_dir.name}/channel.json")
-            if spec is None:
-                continue
-            declared = spec.get("id")
-            if declared and declared != pack_dir.name:
-                problems.append(
-                    f'the pack in {pack_dir.name}/ calls itself "{declared}". The folder name is '
-                    "what identifies a channel, so that is what it is being loaded as."
-                )
-            spec["id"] = pack_dir.name
-            # What a "./" path inside this pack is relative to. Always the URL
-            # space, never the disk path — the page has no idea which root the
-            # pack came from and does not need one.
-            spec["base"] = f"content/channels/{pack_dir.name}"
-            found[pack_dir.name] = spec
+        headers = {k: v for k, v in self.headers.items() if k.lower() != "host"}
+        body = None
+        if "Content-Length" in self.headers:
+            body = self.rfile.read(int(self.headers["Content-Length"]))
 
-    # Order in the dropdown. `order` is what a pack uses to place itself
-    # among the others; name is the tiebreak, so packs that all left it out
-    # are at least alphabetical rather than in whatever order the filesystem
-    # happened to list them.
-    #
-    # The tiebreak is not a fallback for the Snapchat packs, it is the whole
-    # arrangement: every one of them declares the SAME `order`, so the group
-    # is sorted by name and stays that way. Forty shows numbered one by one
-    # is a list that goes wrong the moment a show is added in the middle --
-    # either the new pack takes a number already spoken for, or every pack
-    # after it is renumbered in the same commit. Sharing one number costs a
-    # channel the ability to sit at a chosen spot inside its group, which no
-    # Snapchat pack wants, and buys a new folder landing in its alphabetical
-    # place with nothing else edited.
-    return sorted(found.values(), key=lambda c: (c.get("order", 1000), str(c.get("name", c["id"])).lower()))
-
-
-def content_document():
-    """The merged view of every root — faces, presets, channels, and what went wrong."""
-    problems = []
-    doc = {
-        "schema": 1,
-        "generated": time.time(),
-        "roots": [str(r) for r in CONTENT_ROOTS if r.is_dir()],
-        "faces": _collect_singles("faces", problems),
-        "presets": _collect_singles("presets", problems),
-        "channels": _collect_channels(problems),
-    }
-    doc["problems"] = problems
-    return doc
-
-
-class ContentServingHandler(http.server.SimpleHTTPRequestHandler):
-    """
-    Disables caching entirely. This is a dev server for actively-edited
-    frontend code — SimpleHTTPRequestHandler's default Last-Modified/ETag
-    conditional-caching means a browser can keep serving a pre-edit copy of
-    index.html after a real reload, making a just-shipped fix look like it
-    silently didn't take effect. It applies just as well to an installed copy
-    that has been patched underneath a browser tab that stayed open.
-    """
-
-    # Pinned rather than left to the platform: on Windows, mimetypes seeds
-    # itself from the registry, where .js is routinely registered as
-    # text/plain. A module script served with that type is rejected outright
-    # by the browser's strict MIME checking, so the whole app would fail to
-    # start on some machines and work on others.
-    extensions_map = {
-        **http.server.SimpleHTTPRequestHandler.extensions_map,
-        ".js": "text/javascript",
-        ".mjs": "text/javascript",
-        ".css": "text/css",
-        ".json": "application/json",
-        ".woff2": "font/woff2",
-        ".woff": "font/woff",
-        ".ttf": "font/ttf",
-        ".otf": "font/otf",
-        ".webp": "image/webp",
-        ".svg": "image/svg+xml",
-    }
-
-    _doc_cache = None
-    _doc_cached_at = 0.0
-
-    def end_headers(self):
-        self.send_header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
-        self.send_header("Pragma", "no-cache")
-        super().end_headers()
-
-    def translate_path(self, path):
-        """
-        Maps a URL to a file, looking through the content roots in turn.
-
-        The base class is asked first and its answer is used as the sanitised
-        form — that is where `..` and friends are neutralised, and redoing it
-        here would mean maintaining a second copy of a security check. Only
-        after it has produced a path under `frontend/` is the same relative
-        path tried in the other roots.
-        """
-        local = super().translate_path(path)
+        req = urllib.request.Request(target_url, data=body, headers=headers, method=method)
         try:
-            rel = Path(local).resolve().relative_to(FRONTEND)
-        except ValueError:
-            return local
-        parts = rel.parts
-        if len(parts) < 2 or parts[0] != "content":
-            return local
+            with urllib.request.urlopen(req, timeout=600) as resp:
+                self.send_response(resp.status)
+                if new_session:
+                    self.send_header("Set-Cookie", f"user_session={session_id}; Path=/; SameSite=Lax")
+                for k, v in resp.getheaders():
+                    if k.lower() not in ("transfer-encoding", "content-encoding", "content-length"):
+                        self.send_header(k, v)
+                data = resp.read()
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+        except urllib.error.HTTPError as e:
+            self.send_response(e.code)
+            if new_session:
+                self.send_header("Set-Cookie", f"user_session={session_id}; Path=/; SameSite=Lax")
+            for k, v in e.headers.items():
+                if k.lower() not in ("transfer-encoding", "content-encoding", "content-length"):
+                    self.send_header(k, v)
+            err_data = e.read()
+            self.send_header("Content-Length", str(len(err_data)))
+            self.end_headers()
+            self.wfile.write(err_data)
+        except Exception as ex:
+            self.send_error(502, f"Bad Gateway: {ex}")
 
-        inner = Path(*parts[1:])
-        # Later roots win, so the machine's own copy of a file is preferred
-        # over the shipped one — same rule as the packs themselves.
-        for root in reversed(CONTENT_ROOTS):
-            candidate = root / inner
-            if candidate.exists():
-                return str(candidate)
-        return local
+    def do_GET(self):
+        req_path = urlparse(self.path).path
+        clean_path = req_path.lstrip("/")
 
-    def send_head(self):
-        """Intercepts the one path that is generated rather than read off disk."""
-        if self.path.split("?", 1)[0].rstrip("/") == CONTENT_DOC_PATH.rstrip("/"):
-            return self._send_content_document()
-        return super().send_head()
+        if clean_path == "" or os.path.exists(clean_path):
+            self.path = req_path
+            super().do_GET()
+        else:
+            self.forward("GET")
 
-    def _send_content_document(self):
-        cls = type(self)
-        now = time.monotonic()
-        if cls._doc_cache is None or now - cls._doc_cached_at > CONTENT_DOC_TTL_S:
-            cls._doc_cache = json.dumps(content_document()).encode("utf-8")
-            cls._doc_cached_at = now
-        body = cls._doc_cache
-
-        self.send_response(200)
-        self.send_header("Content-Type", "application/json; charset=utf-8")
-        self.send_header("Content-Length", str(len(body)))
-        self.end_headers()
-        # send_head's contract is to return an open stream for do_GET to copy
-        # and for do_HEAD to close, which is why this is a BytesIO rather than
-        # a direct write.
-        return io.BytesIO(body)
-
-
-# Kept under the old name so anything that imported it still works.
-NoCacheRequestHandler = ContentServingHandler
-
-
-def main():
-    port = int(os.environ.get("PORT", 3000))
-    # Empty means every interface, which is what a dev box wants. The
-    # installed app passes 127.0.0.1 instead: it is a single-machine tool, and
-    # binding publicly only serves to raise a Windows Firewall prompt on first
-    # run.
-    host = os.environ.get("HOST", "")
-    handler = functools.partial(ContentServingHandler, directory=str(FRONTEND))
-
-    # Threaded, and with the address reusable. A page load is one document and
-    # a dozen assets, and a single-threaded server hands them out strictly one
-    # at a time behind whichever connection the browser opened first — which
-    # is fine until one of them is slow and the whole page waits on it.
-    with http.server.ThreadingHTTPServer((host, port), handler) as httpd:
-        print(f"Serving {FRONTEND} on port {port}")
-        for root in CONTENT_ROOTS:
-            print(f"  content: {root}" + ("" if root.is_dir() else "  (absent)"))
-        httpd.serve_forever()
-
+    def do_POST(self):
+        req_path = urlparse(self.path).path
+        if req_path.startswith("/api/track"):
+            length = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(length) if length > 0 else b"{}"
+            try:
+                data = json.loads(body.decode("utf-8"))
+                tool = data.get("tool", "thumbnail_maker")
+                log_file = f"/home/bluefoxesfreelancer/thumbnail/logs/adoption_{tool}.jsonl"
+                os.makedirs(os.path.dirname(log_file), exist_ok=True)
+                with open(log_file, "a", encoding="utf-8") as f:
+                    f.write(json.dumps(data) + "\n")
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(b'{"status":"ok"}')
+            except Exception as e:
+                self.send_response(500)
+                self.end_headers()
+                self.wfile.write(str(e).encode("utf-8"))
+        else:
+            self.forward("POST")
 
 if __name__ == "__main__":
-    main()
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
+    server = ThreadingHTTPServer(("0.0.0.0", PORT), MultiUserProxyHandler)
+    server.active_backend = BACKENDS[0]
+    print(f"Multi-user proxy serving on {PORT} with workers {BACKENDS}...")
+    server.serve_forever()
