@@ -1,4 +1,4 @@
-import { CW, CH, HANDLE_SIZE } from "./config.js";
+import { CW, CH, HANDLE_SIZE, NO_PANEL } from "./config.js";
 import { titleStyle, hasChannel } from "./channels.js";
 import { titleFontReady } from "./fontguard.js";
 
@@ -980,44 +980,82 @@ function patchPaint(ctx, spec, margin, box) {
  *
  * Nothing here can change a measurement — `styleKey` is face, weight, line
  * height and outline — so recolouring costs nothing off the caches and no
- * layout is taken twice.
+ * layout is taken twice. The one exception is the slab switched off
+ * (config.NO_PANEL), which is not a recolour at all: it takes `panel` away,
+ * and the rows are then stacked as type with nothing behind it, exactly as
+ * on a channel that never had a slab. That is meant — the block keeps its
+ * margin from the edge of the frame rather than a margin from a box that is
+ * no longer drawn.
+ *
+ * Exported because the swatches have to agree with it: the one marked as
+ * chosen is the one whose colour this function hands the renderer (see
+ * editor.chosenColor), and a second copy of these rules in the panel would
+ * be a second answer free to disagree with the canvas.
  */
-function recolored(style, opts) {
+export function recolored(style, opts) {
     const palette = style.colors;
     if (!palette) return style;
     const at = (list, i) => (i == null ? null : (list || [])[i]);
     const text = at(palette.text, opts.textColor);
     const highlight = at(palette.highlight, opts.highlightColor);
-    const panel = at(palette.panel, opts.panelColor);
-    if (!text && !highlight && !panel) return style;
-
-    // Whether the picked words are a colour of their OWN, which is a fact
-    // about the channel and not about this frame: a pack that states the list
-    // is offering the choice, and it goes on offering it on the frame nobody
-    // has pressed that row's swatch on. Read from the pack rather than from
-    // `highlight` above, or an untouched frame would take the block's colour
-    // for one draw and its own the moment a swatch was pressed — the picked
-    // words changing colour because the user recoloured the BLOCK.
-    const ownHighlight = Array.isArray(palette.highlight) && palette.highlight.length > 0;
+    const noPanel = opts.panelColor === NO_PANEL;
+    const panel = noPanel ? null : at(palette.panel, opts.panelColor);
+    if (!text && !highlight && !panel && !noPanel) return style;
 
     const out = { ...style };
     if (text) {
         out.color = text;
-        // The picked lines too — see the note on `colors.text` in
-        // channels.js. A channel that offers a palette and no `highlight`
-        // list is one whose type is one colour, and its highlight is a
-        // different cut of the face rather than a different colour; leaving
-        // the highlight behind would mean choosing pink and getting one line
-        // still in the pack's white.
+        // The picked words follow the block while they are the block's
+        // colour and nobody has given them one of their own.
         //
-        // A channel that DOES offer the list has said the opposite in as many
-        // words: the two are separate decisions, and reaching in here would
-        // undo the one the user just made in the row above.
-        if (out.highlight && !ownHighlight) out.highlight = { ...out.highlight, color: text };
+        // Every carded pack under the Snapchat heading picks its words out
+        // with a different CUT of the face — a heavier weight, a script —
+        // and sets them in the block's own colour, so before the highlight
+        // had a palette of its own, the text row recoloured both: choosing
+        // pink and getting the picked words still in the pack's white would
+        // have been a caption in two colours nobody chose.
+        //
+        // That is still the right answer for a frame whose highlight row has
+        // not been pressed. What changed is that the row now exists on every
+        // channel with a palette (see `colors.highlight` in channels.js), so
+        // a press on it — and only a press on it — is what separates the two.
+        // `highlight` above is null both for that untouched frame and for an
+        // index with no colour behind it, which falls back the way every
+        // other out-of-range index here does.
+        //
+        // A pack whose picked words are ALREADY another colour (laugh-society-
+        // snapchat: white type, red words) has said the opposite in its own
+        // numbers, and keeps that colour when the block is recoloured —
+        // otherwise the words would change colour because the user recoloured
+        // the BLOCK.
+        if (!highlight && highlightFollowsBlock(style)) {
+            out.highlight = { ...out.highlight, color: text };
+        }
     }
     if (highlight && out.highlight) out.highlight = { ...out.highlight, color: highlight };
-    if (panel && out.panel) out.panel = { ...out.panel, fill: panel };
+    if (noPanel) out.panel = null;
+    else if (panel && out.panel) out.panel = { ...out.panel, fill: panel };
     return out;
+}
+
+/**
+ * Whether a channel's picked words are set in the block's own colour, and so
+ * follow the block when it is recoloured until they are given one of their
+ * own (see recolored).
+ *
+ * Asked of the pack's style, never of a recoloured one: it is a fact about
+ * how the channel picks words out — by a cut of the face, or by a colour —
+ * and not about what this frame has been set in. Exported for the one other
+ * place that has to know it, setTitleColor, where a press on the swatch the
+ * following words happen to match is a real choice and not a repeat of one.
+ *
+ * Compared the way a person reads colours: "#ffffff" and " #FFFFFF" are one
+ * white.
+ */
+export function highlightFollowsBlock(style) {
+    if (!style.highlight) return false;
+    const norm = (c) => String(c).trim().toLowerCase();
+    return norm(style.highlight.color) === norm(style.color);
 }
 
 /**
@@ -1047,7 +1085,9 @@ function recolored(style, opts) {
  *   panelColor      and which the slab behind them is filled with — indices
  *                   into `colors.text`, `colors.highlight` and `colors.panel`
  *                   (see channels.js). Ignored, and never read, by a channel
- *                   that offers no palette.
+ *                   that offers no palette. `panelColor` may instead be
+ *                   config.NO_PANEL: the slab switched off, and the type
+ *                   drawn with nothing behind it.
  *
  * `mirror` moves the whole text block to the other side of the canvas: the
  * block is mirrored about the vertical centerline, so the margin it keeps

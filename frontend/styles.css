@@ -227,6 +227,32 @@ input[type="text"]::-moz-selection { background: #fffa00; color: #1b2fea; }
         0 0 0 5px #fffa00;
 }
 .btn-swatch:disabled { opacity: 0.4; cursor: not-allowed; }
+/* "No background": an empty box with a red bar struck across it, corner
+   to corner, which is the sign for "none" people already read without a
+   label. The bar runs bottom-left to top-right: a gradient aimed at a
+   CORNER puts its midpoint on the diagonal through the other two, so
+   "to bottom right" is the one that draws "/".
+
+   Its ring is light rather than the colours' dark one, because there is
+   no paint inside this box for a dark ring to stand against - on the
+   panel's dark blue a dark ring would leave a red stripe floating in
+   nothing. The chosen ring is the colours' own (.btn-active, above),
+   restated here with the light inset, because that rule is the more
+   specific of the two and would otherwise put the dark one back. */
+.btn-swatch-none {
+    background:
+        linear-gradient(to bottom right,
+            transparent calc(50% - 1.5px),
+            #ff2b2b calc(50% - 1.5px), #ff2b2b calc(50% + 1.5px),
+            transparent calc(50% + 1.5px));
+    box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.75);
+}
+.btn-swatch-none.btn-active {
+    box-shadow:
+        inset 0 0 0 2px rgba(255, 255, 255, 0.75),
+        0 0 0 2px #060610,
+        0 0 0 5px #fffa00;
+}
 /* "Download selected (N)" — the count sits in its own pill so it
    stays legible regardless of the button's idle/hover colors,
    instead of having to flip in step with them. */

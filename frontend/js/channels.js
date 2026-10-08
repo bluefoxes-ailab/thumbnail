@@ -526,21 +526,29 @@ const BASE_TITLE_STYLE = {
     //              rather than repeating itself. A pack may state any of them
     //              and not the others.
     //
-    // `text` recolours the highlight as well as the block UNLESS `highlight`
-    // is stated, and that is a decision rather than an omission. A channel
-    // offering the choice at all is usually one whose type is a single colour
-    // the user picks — where the highlight is a different CUT of the face
-    // (see `highlight.face`) and not a different colour, leaving it at the
-    // pack's own value would mean choosing pink and getting one line still in
-    // white.
+    // `highlight` defaults to `text`. A channel offering the letters a choice
+    // offers the picked words the same one, as a row of its own, without the
+    // pack having to say so (see buildChannel) — what the user is offered is
+    // the picked words being a different answer to the block, or the same
+    // one. A pack states its own `highlight` list only to offer the picked
+    // words DIFFERENT colours from the letters'.
     //
-    // Stating `highlight` says the opposite in as many words: this channel's
-    // picked words ARE a different colour, and which one is the user's too. A
-    // pack usually offers the same list twice over, because what it is really
-    // offering is the second choice being a different answer to the first —
-    // the highlight is whichever of the channel's colours the block is not.
+    // Until that row is pressed on a frame, picked words that the pack sets
+    // in the block's own colour follow the block (see text.recolored). That is
+    // every carded pack under the Snapchat heading: each picks its words out
+    // by a different CUT of the face (see `highlight.face`) and not by
+    // colour, so choosing pink for the letters and getting the picked words
+    // still in white would be a caption in two colours nobody chose. Picked
+    // words the pack sets in a colour of their own keep it — laugh-society-
+    // snapchat's red does not turn white because the block did.
+    //
     // The row is hidden on a channel with no highlight at all (see
     // editor.paletteOf), the same way the slab's row is hidden with no slab.
+    //
+    // The slab's row also offers one answer that is not a colour: no slab.
+    // Pressed, the frame's title is drawn with nothing behind it (see
+    // config.NO_PANEL). It is the panel's alone, and offered wherever the
+    // panel row is, with nothing for a pack to state.
     //
     // Which entry a frame is wearing is the FRAME's (see state.textColorFor,
     // highlightColorFor and panelColorFor), for the reason the gradient and
@@ -1252,6 +1260,24 @@ function buildChannel(pack, faces, presets) {
                 ? { texture: assetUrl(style.highlight.texture, pack.base) }
                 : {}),
         };
+    }
+
+    // A channel that hands the user the colour of its letters hands them the
+    // colour of its picked words too, from the same list, unless the pack
+    // offers a list of its own for them. See `colors` in BASE_TITLE_STYLE for
+    // why, and text.recolored for how a frame nobody has pressed that row on
+    // still follows the letters.
+    //
+    // Here, once, rather than in every pack: every channel with a palette
+    // wanted this row, and a key every pack has to remember to restate is a
+    // key the next pack copied from an older one silently goes without. A
+    // copy rather than the same array, so nothing downstream can reach the
+    // text list through the highlight's.
+    const palette = style.colors;
+    if (palette && style.highlight
+        && Array.isArray(palette.text) && palette.text.length
+        && !(Array.isArray(palette.highlight) && palette.highlight.length)) {
+        style.colors = { ...palette, highlight: palette.text.slice() };
     }
 
     const decor = merge(BASE_DECOR, {
