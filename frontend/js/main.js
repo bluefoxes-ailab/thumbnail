@@ -216,7 +216,7 @@ async function runPipeline(prepare) {
         if (isCapture()) applyEditToAll();
         else warmCutouts();
     } catch (e) {
-        status("Error: " + e.message);
+        status(e.message);
     } finally {
         hideProgress();
         setSourceBusy(false);
