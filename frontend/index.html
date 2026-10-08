@@ -72,10 +72,19 @@
             </div>
             <div class="panel-hint" id="frameCountHint"></div>
         </div>
-                <!-- Output mode: Frames with text vs Frames only -->
-        <div id="outputModeToggle" class="output-mode-toggle" style="display: none; gap: 8px; margin-bottom: 12px;">
-            <button type="button" id="btnModeText" class="btn mode-btn active" style="flex: 1; padding: 8px; font-size: 13px; font-weight: 600; background: #2563eb; color: #fff; border: 1px solid #3b82f6; border-radius: 6px; cursor: pointer;">Frames with text</button>
-            <button type="button" id="btnModeFramesOnly" class="btn mode-btn" style="flex: 1; padding: 8px; font-size: 13px; font-weight: 600; background: #1e293b; color: #94a3b8; border: 1px solid #334155; border-radius: 6px; cursor: pointer;">Frames only</button>
+        <!-- Output mode, Static Studio only (see setAppMode in main.js):
+             frames with their captions, or the bare frames with no
+             transcription at all.
+
+             Two ordinary .btn buttons and the choice held in .btn-active,
+             the way every other one-of-two choice in the app shows itself
+             (the edit presets, the alignment): blue at rest, yellow on hover,
+             and yellow held on the one that is chosen. No styling of their
+             own beyond sharing the row equally, because a second button
+             system on the same page reads as a different app. -->
+        <div class="btn-row output-mode-toggle hidden" id="outputModeToggle">
+            <button type="button" class="btn btn-active" id="btnModeText" aria-pressed="true">Frames with text</button>
+            <button type="button" class="btn" id="btnModeFramesOnly" aria-pressed="false">Frames only</button>
         </div>
         <input type="text" id="driveUrl" placeholder="Paste Google Drive, Dropbox, or YouTube link here">
         <button class="btn" style="width:100%" id="processBtn">Process Video</button>

@@ -422,6 +422,12 @@ input[type="text"]::-moz-selection { background: #fffa00; color: #1b2fea; }
    typed, in the same group, answering the same moment. Its own
    column so the label, the box and the hint stack the way the
    channel picker's three do. */
+/* Frames with text / Frames only (Static Studio). Ordinary .btn
+   buttons in a .btn-row; the one thing they need beyond that is to
+   share the row's width equally, so the pair reads as one two-way
+   switch the width of the link box under it rather than as two
+   buttons of different lengths that happen to sit together. */
+.output-mode-toggle .btn { flex: 1; }
 #frameCountRow { display: flex; flex-direction: column; gap: 10px; }
 #frameCountRow.hidden { display: none; }
 /* Slider and its readout on one row, the readout wide enough for
