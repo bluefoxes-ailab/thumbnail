@@ -24,9 +24,9 @@
         "own is edited in one place; a pack that borrowed its neighbour's would",
         "have to be unpicked from it first.",
         "",
-        "Read dr-football-us for the face and for why these channels have no",
-        "highlight, Hall of Femme for the frame fetch and the card, and Oh My",
-        "Goal for these two colours."
+        "Read dr-football-us for the face and for why these channels pick",
+        "their words out by colour alone, Hall of Femme for the frame fetch and",
+        "the card, and Oh My Goal for these two colours."
     ],
     "order": 900,
     "group": "Snapchat",
@@ -79,11 +79,10 @@
             "The brand's two colours, offered for the letters and for the card",
             "behind them - the pairing and its inverse.",
             "",
-            "Why the same list appears twice, and why there are two rows rather",
-            "than three, is written out in dr-football-us. The short version of",
-            "the second: this channel has no highlight, so a third row would",
-            "recolour something that is never drawn, and a row like that is",
-            "hidden rather than drawn dead."
+            "Why the same list appears twice is written out in dr-football-us.",
+            "The panel shows a third row, for the picked words, from the",
+            "letters' list: the loader offers it to every pack that names no",
+            "`highlight` list of its own (see buildChannel in js/channels.js)."
         ],
         "colors": {
             "text": ["#312ED5", "#FFFFFF"],
@@ -91,16 +90,17 @@
         },
 
         "_comment_highlight": [
-            "None. Every line of every caption on this channel is set the same",
-            "way, and the highlight buttons stand where they stand everywhere",
-            "else and go dead with a tooltip saying whose decision that was.",
+            "The preset's word highlight, in the block's own face and its own",
+            "white, recoloured from the highlight row every palette now",
+            "carries. Until that row is pressed on a frame, a picked word looks",
+            "exactly like its neighbours and follows the letters' colour.",
             "",
             "dr-football-us is where this is argued: one cut of League Spartan",
             "means the change of CUT every sibling picks its words out with is",
-            "not available, and neither of the two ways round it is worth",
-            "having on a caption that is already sitting on a solid card."
+            "not available, and colour - the user's, per frame - is what is",
+            "left."
         ],
-        "highlight": null,
+        "highlight": { "color": "#FFFFFF" },
 
         "_comment_panel": [
             "Electric blue, and the fill is the one thing about the card this",

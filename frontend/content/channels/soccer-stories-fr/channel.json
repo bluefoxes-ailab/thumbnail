@@ -15,9 +15,9 @@
         "stills comes out, each captioned with what was being said over it.",
         "",
         "It is the fourth of the packs set in League Spartan, and",
-        "dr-football-us is the one to read: this pack's face, its two-question",
-        "palette and its absent highlight are all that pack's, argued there at",
-        "length, and the argument is about the FACE rather than about either",
+        "dr-football-us is the one to read: this pack's face, its two-colour",
+        "palette and its colour-only highlight are all that pack's, argued there",
+        "at length, and the argument is about the FACE rather than about either",
         "show. Behind that sits Hall of Femme, whose design all four are cut",
         "to.",
         "",
@@ -53,8 +53,8 @@
         "stated once, in content/presets/snapchat-caption.json.",
         "",
         "Why League Spartan suits a caption at this size, and why its single",
-        "cut leaves this channel with no highlight, is written out in",
-        "dr-football-us. Nothing about it is different here."
+        "cut leaves this channel picking words out by colour alone, is written",
+        "out in dr-football-us. Nothing about it is different here."
     ],
     "title": {
         "use": "snapchat-caption",
@@ -88,16 +88,17 @@
         "color": "#000000",
 
         "_comment_colors": [
-            "The two colours this show is set in, offered for the letters and",
-            "for the card behind them - two buttons in each of the two rows in",
-            "the title panel.",
+            "The two colours this show is set in, offered for the letters, for",
+            "the words picked out of them and for the card behind them - two",
+            "buttons in each of the three rows in the title panel.",
             "",
             "The same shape of palette dr-football-us has, and for the same",
             "reasons, written out there: one brand colour and one absolute,",
             "offered as the pairing and its inverse; the same list twice",
             "because what is on offer is the pairing rather than two unrelated",
-            "sets; and two rows and not three, because there is no highlight",
-            "for a third to recolour."
+            "sets. The third row is the letters' list again, offered by the",
+            "loader to every pack that names no `highlight` list of its own",
+            "(see buildChannel in js/channels.js)."
         ],
         "colors": {
             "text": ["#EB523A", "#000000"],
@@ -105,19 +106,22 @@
         },
 
         "_comment_highlight": [
-            "None. Every line of every caption on this channel is set the same",
-            "way, and the highlight buttons stand where they stand everywhere",
-            "else and go dead with a tooltip saying whose decision that was.",
+            "The preset's word highlight, in the block's own face and its own",
+            "black, recoloured from the highlight row every palette now",
+            "carries. Until that row is pressed on a frame, a picked word looks",
+            "exactly like its neighbours and follows the letters' colour.",
             "",
             "dr-football-us is where this is argued: the app carries one cut of",
             "League Spartan, so the change of CUT every sibling picks its words",
-            "out with is not available, a synthesised weight would be measured",
-            "as well as drawn, and a recolour into the palette's other colour",
-            "is the card's own colour. A pack in that position says it has no",
-            "highlight rather than shipping one nobody could tell apart from",
-            "the type."
+            "out with is not available, and colour - the user's, per frame - is",
+            "what is left. That pack also says why a picked word in the card's",
+            "own colour is no longer a reason to have no highlight at all.",
+            "",
+            "The `color` is stated because the skeleton's is white, and a",
+            "highlight that opened in a colour the block is not would be the",
+            "pack choosing the split rather than the user."
         ],
-        "highlight": null,
+        "highlight": { "color": "#000000" },
 
         "_comment_panel": [
             "Vermilion, and the fill is the one thing about the card this pack",

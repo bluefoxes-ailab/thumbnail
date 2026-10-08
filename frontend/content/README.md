@@ -196,18 +196,28 @@ Five things are worth knowing before reaching for it.
   measured against. A brand's colours are its colours; a picker in front of
   them is a picker in front of the guidelines. A channel offers a palette when
   the choice is part of the look, not to spare itself a decision.
-- **`text` recolours the highlight too, unless `highlight` is stated.** A
-  channel offering `text` alone is one whose type is a single colour the user
-  picks — which is true where the highlight is a different CUT of the face
-  rather than a different colour (see `highlight.face` above), and leaving it
-  behind would mean choosing pink and getting one line still in white.
-- **`highlight` says the picked words are their own question.** A channel whose
-  highlight IS a colour, and whose colour is also the user's, states the list
-  and `text` then stops reaching the highlight. Usually the same list twice
-  over, because what is being offered is the second choice being a different
-  answer to the first. `laugh-society-snapchat` is the pack that does it: a
-  block in one of three colours, a picked word in another of the same three,
-  set in a second face.
+- **`highlight` defaults to `text`.** A channel offering the letters a
+  palette offers the picked words the same one, as a row of its own, without
+  the pack saying so — the loader copies the list (`buildChannel` in
+  `js/channels.js`). A pack states its own `highlight` list only to offer the
+  picked words colours the letters are NOT offered. See "Every palette offers
+  the picked words too" below.
+- **Picked words in the block's colour follow the block until their own row
+  is pressed.** That is every carded pack under the Snapchat heading, whose
+  highlight is a different CUT of the face rather than a different colour (see
+  `highlight.face` above): choosing pink for the letters and getting the
+  picked words still in white would be two colours nobody chose. Once the
+  highlight row is pressed on a frame, the two are separate answers. A pack
+  whose picked words are ALREADY another colour keeps it when the letters
+  change — `laugh-society-snapchat`'s red words do not turn white because the
+  block did. See `text.recolored`.
+- **The background row can switch the card off.** It ends in a swatch that is
+  not a colour — an empty box with a red bar across it — and pressing it draws
+  that frame's caption with no card behind it at all, the type alone on the
+  picture. Pressing any colour puts the card back. Nothing for a pack to state:
+  it is on every background row. Stored as `config.NO_PANEL` in the same
+  per-frame field the card's colour is, so it carries over to the next frame
+  and reaches the download exactly as a colour does.
 - **`panel` needs a `panel`, and `highlight` needs a `highlight`.** With no
   slab there is nothing to fill and with no highlight there are no picked words
   to recolour, so that row of buttons is simply not drawn rather than drawn
@@ -218,6 +228,81 @@ Five things are worth knowing before reaching for it.
   — and the swatch that shows as chosen is whichever one matches those. That is
   what lets every row be written in the same order while the channel still opens
   on white type and a hot pink card.
+
+### A channel that set its caption on the photograph may take the card back
+
+Nine Snapchat packs were written with `"panel": null` — one colour of type,
+lying straight on the picture, held off it by a shadow or a halo. Each of them
+said, in its own comments, that the honest remedy the day the show wanted more
+was a card and a second colour. The shows asked for exactly that: a palette
+for the letters AND for a card behind them. `inkjection-fr`, `re-belle`,
+`crowned-ladies-fr`, `fight-source-de`, `buzzer-beater-de`, `beauty-tipps`,
+`expulsion-science`, `feeddrama` and `fitness-story-nw` now carry one, and they
+all made the same four decisions, written down once here rather than nine
+times.
+
+- **The card is the preset's.** `panel` goes from `null` to `{ "fill": … }`,
+  and the shape, padding, corners and shadow arrive from
+  `presets/snapchat-caption.json` exactly as they do under Hall of Femme. A
+  panel palette needs a panel (see `editor.paletteOf`), so the background row
+  cannot exist without one. The card can still be taken away per frame, from
+  the crossed-out swatch at the end of that row — which is a choice the user
+  makes about one picture, not a pack going back to having no card.
+- **The shadow goes, and so does the halo.** They were there because a
+  photograph was under the letters, and the preset's argument for `null` —
+  a solid ground somebody chose, which a shadow would only smear — becomes
+  true again the moment the card is back. Removing the key lets the preset's
+  `null` through. A highlight's shadow is removed with it for the same reason,
+  so a picked word is not the one word on the card with a glow round it.
+- **The show's own colour stays in the list, first.** It is what the channel
+  was set in until now and the swatch a user reaches for to undo a choice. The
+  colours the show asked for follow it in the order they were asked for, and
+  the same list is offered twice — letters and card — because the pairing is
+  the feature, as on every carded sibling.
+- **The card opens on the first asked-for colour that reads under the type.**
+  A frame is drawn in `panel.fill` until somebody presses a swatch, so that
+  fill is the channel's new face. It is the first colour of the request unless
+  that colour is too close to the type to hold a caption (a dark plum on black,
+  a bone white on yellow), in which case it is the next one. Every pack says
+  which, and why, in its `_comment_panel`.
+
+`branding.gradient` stays `false` on all nine. It was off because the side
+gradient has nothing to do on a vertical still, and it has even less to do
+with a card in front of it.
+
+### Every palette offers the picked words too
+
+Every channel with a `text` palette and a highlight shows three rows of
+swatches — letters, picked words, background — and the middle one is the
+letters' list unless the pack states its own. That is decided once, in the
+loader, rather than in each pack, because a key every pack has to remember to
+restate is a key the next pack copied from an older one goes without.
+
+Nine packs used to have no highlight at all — `buzzer-beater-de`,
+`crowned-ladies-fr`, `dr-football-us`, `feeddrama`, `fight-source-de`,
+`fitness-story-nw`, `oh-my-goal`, `oh-my-goal-news` and `soccer-stories-fr`.
+Each had one cut of its face, so the change of weight its siblings pick words
+out with was not available, and each had argued that a recolour would split a
+colour inside one sentence that was the user's to choose, not the pack's. The
+highlight row answers that argument rather than overruling it: the split is
+now the user's choice too. So all nine made the same three decisions:
+
+- **The preset's highlight comes through.** `"highlight": null` is gone, so
+  the word-scope colour highlight `presets/snapchat-caption.json` gives every
+  channel under the heading arrives here too, in the block's own face.
+- **It opens in the block's own colour**, stated as `highlight.color` because
+  the skeleton's is white. A picked word on a frame nobody has pressed the
+  highlight row on therefore looks exactly like its neighbours and follows the
+  letters' colour — nothing changes for anybody who never reaches for it, and
+  the first press on the highlight row is what sets the words apart.
+- **No second face.** Where a pack names a real second cut that would give it
+  its siblings' highlight (a roman beside an italic, a Demi beside a Medium),
+  it still names it and says it is not here; `highlight.face` is where it goes
+  the day the show wants it.
+
+The three channels under the heading with no palette at all — `binge-us`,
+`noisy-dish` and `conspiracy-central` — have no swatches to offer the picked
+words and are unchanged.
 
 ### `framing` is the one key with a deadline
 
