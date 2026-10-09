@@ -61,6 +61,7 @@ ROOT = Path(__file__).resolve().parent.parent
 # third-party (libs/, vendor/), generated, or data.
 SCANNED = [
     ("frontend", "index.html"),
+    ("frontend", "maintenance.html"),
     ("frontend", "styles.css"),
     ("frontend", "serve.py"),
     ("frontend/js", "*.js"),

@@ -223,11 +223,10 @@ export function figureGlowFor(i) {
  * Three questions rather than one, because the pairing is the whole feature: a
  * channel offering the same three colours for the letters and for the slab
  * is offering nine combinations, and a single index would only ever give
- * three of them. The third is asked only by a channel whose picked words are
- * a colour the user chooses as well — see `colors.highlight` in channels.js,
- * and note that a channel NOT stating that list has its highlight recoloured
- * by `text` instead, which is what every palette here did until one wanted
- * the two to differ.
+ * three of them. The third is asked by every channel that offers the letters a
+ * palette and has a highlight — see `colors.highlight` in channels.js — and
+ * while it is null, picked words set in the block's own colour follow
+ * whatever the letters were set in (see text.recolored).
  *
  * Null means the channel decides, exactly as it does for titleAlignFor: the
  * pack's own `color` and `panel.fill` ARE its first answer, and a frame that
@@ -241,6 +240,14 @@ export function figureGlowFor(i) {
  * is — the list belongs to the channel, and an index carried over from one
  * with a longer palette falls back to the pack's own colour rather than to
  * nothing (see text.recolored).
+ *
+ * The slab's field may also hold config.NO_PANEL instead of an index, which
+ * is the user switching the slab off for this frame: the type is drawn with
+ * no background behind it at all. It is stored in the same field rather than
+ * beside it because it is one more answer to the same question — what is
+ * behind the letters on this frame — and so it travels everywhere a colour
+ * already does: the carry-over to the next frame, the grid card's signature,
+ * the download.
  */
 export function textColorFor(i) {
     const f = store.frames[i];

@@ -119,9 +119,9 @@
             "Two of the three colours here could not be handed over even if",
             "somebody wanted to. `colors.panel` needs a panel and there is none",
             "(see the note on `colors` in js/channels.js), and `colors.text`",
-            "recolours the highlight along with the block unless `highlight` is",
-            "stated too — which on this channel would take the near-black off",
-            "the yellow, where the contrast between the two is the highlight.",
+            "brings a highlight row of the same colours with it — which on this",
+            "channel would put the near-black on the yellow one button away from",
+            "something else, where the contrast between the two is the highlight.",
 
             "The deeper reason is the one that would hold even without those:",
             "this show's three colours are the brand and were given as the",

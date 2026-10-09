@@ -1,4 +1,4 @@
-import { CW, CH, LINE_IDS, BLOCK_ID, TITLE_FIELD_IDS, FIDELITY, DEFAULT_PRESET, el } from "./config.js";
+import { CW, CH, LINE_IDS, BLOCK_ID, TITLE_FIELD_IDS, FIDELITY, DEFAULT_PRESET, NO_PANEL, el } from "./config.js";
 import {
     frames, current, selectedIndex, linesFor, hlFor, logosFor,
     backendPresentation, setFrameImage, clearCutout, channelFor,
@@ -9,7 +9,9 @@ import {
     channels, activeChannelId, setActiveChannel, hasChannel, titleStyle, branding,
     decorFor, usesCutout, NO_CHANNEL,
 } from "./channels.js";
-import { prepareTitleFont, prepareTitleTexture, wordsOf, wordKey } from "./text.js";
+import {
+    prepareTitleFont, prepareTitleTexture, wordsOf, wordKey, recolored, highlightFollowsBlock,
+} from "./text.js";
 import { reportMissingTitleFont } from "./fontguard.js";
 import { postImage, loadImage, discardImage, postImageFile } from "./net.js";
 import { updatePreview, refreshThumb, refreshAllThumbs, fitCutout } from "./compose.js";
@@ -866,6 +868,12 @@ function paletteOf(which) {
  * as a whole disappears when none of them is offered — this is a feature a
  * channel HAS or does not, unlike the highlight buttons, which stay in place
  * and go dead because every channel is expected to have one.
+ *
+ * The slab's row ends in one swatch that is not a colour: an empty box with
+ * a red bar across it, which switches the slab off for this frame and leaves
+ * the type alone on the picture (config.NO_PANEL). Only that row has it. The
+ * letters cannot be switched off and still be a caption, and the picked words
+ * already have a way back to the block's treatment — un-picking them.
  */
 export function renderColorButtons() {
     let any = false;
@@ -879,6 +887,10 @@ export function renderColorButtons() {
         if (!colors) continue;
         any = true;
 
+        // With the slab switched off, the ring belongs to the crossed-out
+        // swatch and to none of the colours: no colour is what is drawn.
+        const off = which === "panel" && panelColorFor(selectedIndex()) === NO_PANEL;
+
         // Marked, never unmarked. chosenColor answers -1 only for a pack that
         // contradicts itself — one whose own colour is not among the ones it
         // offers — and a row of colours with no ring on any of them reads as
@@ -886,7 +898,7 @@ export function renderColorButtons() {
         // to show the user than a ring on the wrong swatch that the first
         // press makes true. The press is still a real write in that case:
         // setTitleColor asks chosenColor, not this.
-        const at = Math.max(chosenColor(which, colors), 0);
+        const at = off ? -1 : Math.max(chosenColor(which, colors), 0);
         colors.forEach((color, k) => {
             const b = document.createElement("button");
             b.type = "button";
@@ -898,6 +910,21 @@ export function renderColorButtons() {
             b.onclick = () => setTitleColor(which, k);
             row.appendChild(b);
         });
+
+        if (which === "panel") {
+            // After the colours rather than before them: the row is read as
+            // "fill it with one of these", and the last answer is "with
+            // nothing". Its look is the stylesheet's (.btn-swatch-none),
+            // because unlike the colours beside it, nothing about it comes
+            // from the pack.
+            const b = document.createElement("button");
+            b.type = "button";
+            b.className = "btn-swatch btn-swatch-none " + (off ? "btn-active" : "");
+            b.title = "No background";
+            b.setAttribute("aria-label", "No background");
+            b.onclick = () => setTitleColor("panel", NO_PANEL);
+            row.appendChild(b);
+        }
     }
     const block = el("colorRows");
     if (block) block.classList.toggle("hidden", !any);
@@ -933,15 +960,22 @@ function chosenColor(which, colors) {
     const row = PALETTES.find(([key]) => key === which);
     if (!row) return -1;
     const [, , , field, ownOf] = row;
-    const stored = STORED_COLOR[field](selectedIndex());
-    if (stored != null && stored < colors.length) return stored;
+    const i = selectedIndex();
+    const stored = STORED_COLOR[field](i);
+    // The slab switched off is marked on its own swatch (see
+    // renderColorButtons), so none of the colours is the one chosen.
+    if (stored === NO_PANEL) return -1;
+    if (Number.isInteger(stored) && stored >= 0 && stored < colors.length) return stored;
 
-    // Everything else is the channel's own colour, because that is what the
-    // renderer draws for it. text.recolored makes no distinction between the
-    // frame nobody has pressed this row's swatch on and the frame carrying an
-    // index with no colour behind it — both get the pack's `color`,
-    // `highlight.color` or `panel.fill` — so neither is a distinction this
-    // function may make either.
+    // Everything else is whatever the renderer draws for it, asked of the
+    // renderer itself. text.recolored makes no distinction between the frame
+    // nobody has pressed this row's swatch on and the frame carrying an index
+    // with no colour behind it, so neither is a distinction this function may
+    // make either. For the letters and the slab that answer is the pack's
+    // `color` or `panel.fill`. For the picked words it is usually the
+    // LETTERS' colour, chosen or not — a highlight that is the block's colour
+    // follows the block until its own row is pressed — and the ring has to
+    // say so, or it sits on the pack's white while the canvas shows pink.
     //
     // The out-of-range index used to stop here with -1, and that was the one
     // way a whole row could end up with nothing marked on it: switch a run
@@ -949,7 +983,11 @@ function chosenColor(which, colors) {
     // index 3, 4 or 5 lost its ring, while the title on screen was plainly
     // one of the three offered. The swatch matching the pack's own colour is
     // both the honest answer and the one the user is looking for.
-    const own = ownOf(titleStyle());
+    const own = ownOf(recolored(titleStyle(), {
+        textColor: textColorFor(i),
+        highlightColor: highlightColorFor(i),
+        panelColor: panelColorFor(i),
+    }));
     if (!own) return -1;
     const same = (a, b) => String(a).trim().toLowerCase() === String(b).trim().toLowerCase();
     return colors.findIndex(c => same(c, own));
@@ -966,12 +1004,14 @@ const STORED_COLOR = {
 };
 
 /**
- * Sets one of this frame's two title colours.
+ * Sets one of this frame's three title colours — or, for the slab, switches
+ * it off (`index` is then config.NO_PANEL rather than a position in the list).
  *
  * Per frame, like the gradient and the halo, and for the same reason: it is
  * an answer about one picture. Unlike the alignment there is no way back to
  * "the channel decides" — every entry in the palette is one of the channel's
- * own answers, so a second press on a swatch has nothing to release.
+ * own answers, so a second press on a swatch has nothing to release. The slab
+ * switched off is undone the same way it was done: by pressing a colour.
  *
  * Which is why a press on the swatch already showing can be a no-op — but
  * only when the frame has nothing to write. That is a question about what the
@@ -997,19 +1037,31 @@ const STORED_COLOR = {
  *                        The frame is already edited either way — an index
  *                        only ever gets there through this function or
  *                        through the carry-over, and both set the flag.
+ *
+ * And one case where `stores null` is not the channel deciding at all: picked
+ * words in the block's colour, which follow the block until their own row is
+ * pressed (see text.recolored). The ring on their row is then on whatever the
+ * LETTERS were set in, and pressing it is the user saying "this colour, and
+ * stay it" — the very thing that stops the words changing the next time the
+ * letters do. So that press always writes.
  */
 export function setTitleColor(which, index) {
     const f = current();
     if (!f) return;
     if (!guardChannel()) return;
     const colors = paletteOf(which);
-    if (!colors || index < 0 || index >= colors.length) return;
+    if (!colors) return;
+    // The one value that is not an index, and it is only ever the slab's: the
+    // letters have no "off", and see renderColorButtons for the picked words.
+    const off = which === "panel" && index === NO_PANEL;
+    if (!off && !(Number.isInteger(index) && index >= 0 && index < colors.length)) return;
     const row = PALETTES.find(([key]) => key === which);
     if (!row) return;
     const field = row[3];
     const stored = STORED_COLOR[field](selectedIndex());
     if (stored === index) return;
-    if (stored == null && chosenColor(which, colors) === index) return;
+    const following = which === "highlight" && highlightFollowsBlock(titleStyle());
+    if (stored == null && !following && chosenColor(which, colors) === index) return;
     f.edited = true;
     f[field] = index;
     renderColorButtons();

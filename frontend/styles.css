@@ -227,6 +227,32 @@ input[type="text"]::-moz-selection { background: #fffa00; color: #1b2fea; }
         0 0 0 5px #fffa00;
 }
 .btn-swatch:disabled { opacity: 0.4; cursor: not-allowed; }
+/* "No background": an empty box with a red bar struck across it, corner
+   to corner, which is the sign for "none" people already read without a
+   label. The bar runs bottom-left to top-right: a gradient aimed at a
+   CORNER puts its midpoint on the diagonal through the other two, so
+   "to bottom right" is the one that draws "/".
+
+   Its ring is light rather than the colours' dark one, because there is
+   no paint inside this box for a dark ring to stand against - on the
+   panel's dark blue a dark ring would leave a red stripe floating in
+   nothing. The chosen ring is the colours' own (.btn-active, above),
+   restated here with the light inset, because that rule is the more
+   specific of the two and would otherwise put the dark one back. */
+.btn-swatch-none {
+    background:
+        linear-gradient(to bottom right,
+            transparent calc(50% - 1.5px),
+            #ff2b2b calc(50% - 1.5px), #ff2b2b calc(50% + 1.5px),
+            transparent calc(50% + 1.5px));
+    box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.75);
+}
+.btn-swatch-none.btn-active {
+    box-shadow:
+        inset 0 0 0 2px rgba(255, 255, 255, 0.75),
+        0 0 0 2px #060610,
+        0 0 0 5px #fffa00;
+}
 /* "Download selected (N)" — the count sits in its own pill so it
    stays legible regardless of the button's idle/hover colors,
    instead of having to flip in step with them. */
@@ -396,6 +422,12 @@ input[type="text"]::-moz-selection { background: #fffa00; color: #1b2fea; }
    typed, in the same group, answering the same moment. Its own
    column so the label, the box and the hint stack the way the
    channel picker's three do. */
+/* Frames with text / Frames only (Static Studio). Ordinary .btn
+   buttons in a .btn-row; the one thing they need beyond that is to
+   share the row's width equally, so the pair reads as one two-way
+   switch the width of the link box under it rather than as two
+   buttons of different lengths that happen to sit together. */
+.output-mode-toggle .btn { flex: 1; }
 #frameCountRow { display: flex; flex-direction: column; gap: 10px; }
 #frameCountRow.hidden { display: none; }
 /* Slider and its readout on one row, the readout wide enough for
@@ -961,3 +993,36 @@ body.captions-mode #lineBlock { flex: 1 1 auto; min-height: 96px; resize: none; 
    pixels wide against a column of 190, so a row of them wraps to the
    same three lines it started with and only loses the left edge they
    currently share. */
+
+/* ── Maintenance screen (maintenance.html) ─────────────────────────────
+   Nothing here sets a background: the page inherits body's navy field and
+   the blurred blue glow along the top edge, so it reads as the same app.
+
+   The logo is 2x the top bar's (.brand-fox is 250px; this is 500px) and
+   its -45px trim is doubled with it, because that trim exists to cancel
+   the transparent margin baked into BLUEROOM.png and the margin scales
+   with the picture. It is capped by max-width so a phone shrinks it
+   instead of scrolling sideways. */
+.maintenance { display: flex; flex-direction: column; align-items: center; }
+.maintenance-logo {
+    height: 500px; width: auto; max-width: 100%;
+    object-fit: contain; display: block;
+    margin-top: -190px; margin-bottom: -200px;
+}
+.maintenance-message { max-width: 1000px; width: 100%; text-align: center; margin-bottom: 28px; }
+.maintenance-message h1 { font-size: clamp(14px, 2.6vw, 28px); line-height: 1.2; margin-bottom: 14px; white-space: nowrap; }
+.maintenance-message .nowrap { display: block; white-space: nowrap; }
+.maintenance-message p { font-size: 16px; line-height: 1.55; color: #fff; margin-bottom: 18px; }
+.maintenance-message .maintenance-cta { font-weight: 800; color: #fffa00; }
+/* Same blue frame the inputs wear. The height is the game's own layout at
+   desktop width (masthead, screen, controls); below 920px the game stacks
+   its postcard album under the screen and needs the extra rows. */
+.maintenance-game {
+    width: 100%; max-width: 1180px; height: 820px;
+    border: 2px solid #026dff; border-radius: 8px;
+    background: #0d0f22; margin-bottom: 48px;
+}
+@media (max-width: 920px) {
+    .maintenance-logo { height: 320px; margin-top: -122px; margin-bottom: -128px; }
+    .maintenance-game { height: 1250px; } /* fallback only; see the script in maintenance.html */
+}

@@ -80,6 +80,22 @@ export const HANDLE_SIZE = 26;
 // YouTube rejects thumbnail files over 2MB, so every export is capped.
 export const MAX_EXPORT_BYTES = 2 * 1024 * 1024;
 
+// What a frame's `panelColor` holds when the user has switched the slab behind
+// its title OFF, as opposed to choosing one of the colours it may be filled with
+// (see state.panelColorFor and the crossed-out swatch in
+// editor.renderColorButtons).
+//
+// A string and not a number on purpose. Every other value that field holds is
+// an index into `colors.panel`, and every reader of it either looks the index
+// up or compares it against the length of the list — a -1 would pass the
+// second test (it is less than any length) and be read as a colour. A string
+// fails both, so a reader that has not been taught about it falls back to the
+// pack's own fill rather than to a colour nobody chose.
+//
+// Here rather than in state.js because text.js has to recognise it too, and
+// text.js imports nothing from state.js.
+export const NO_PANEL = "none";
+
 export const DEFAULT_PRESET = "natural";
 export const FIDELITY = 0.60;
 

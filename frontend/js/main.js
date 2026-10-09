@@ -7,25 +7,18 @@ function initModeToggle() {
     const btnOnly = document.getElementById("btnModeFramesOnly");
     if (!btnText || !btnOnly) return;
 
-    btnText.addEventListener("click", () => {
-        framesOnlyMode = false;
-        btnText.style.background = "#2563eb";
-        btnText.style.color = "#fff";
-        btnText.style.borderColor = "#3b82f6";
-        btnOnly.style.background = "#1e293b";
-        btnOnly.style.color = "#94a3b8";
-        btnOnly.style.borderColor = "#334155";
-    });
-
-    btnOnly.addEventListener("click", () => {
-        framesOnlyMode = true;
-        btnOnly.style.background = "#2563eb";
-        btnOnly.style.color = "#fff";
-        btnOnly.style.borderColor = "#3b82f6";
-        btnText.style.background = "#1e293b";
-        btnText.style.color = "#94a3b8";
-        btnText.style.borderColor = "#334155";
-    });
+    // The chosen button is marked with .btn-active and nothing else — the
+    // look is the stylesheet's, shared with every other one-of-two choice in
+    // the app, so the colours are written down once rather than here.
+    const show = () => {
+        btnText.classList.toggle("btn-active", !framesOnlyMode);
+        btnOnly.classList.toggle("btn-active", framesOnlyMode);
+        btnText.setAttribute("aria-pressed", String(!framesOnlyMode));
+        btnOnly.setAttribute("aria-pressed", String(framesOnlyMode));
+    };
+    btnText.addEventListener("click", () => { framesOnlyMode = false; show(); });
+    btnOnly.addEventListener("click", () => { framesOnlyMode = true; show(); });
+    show();
 }
 import { API, TITLE_FIELD_IDS, el } from "./config.js";
 import {
@@ -535,10 +528,10 @@ function setAppMode(mode) {
     tabStaticBtn?.classList.toggle("active", isStatic);
     tabThumbnailBtn?.classList.toggle("active", !isStatic);
 
+    // Through the shared .hidden class rather than an inline display, so
+    // the row keeps the layout .btn-row gives it whenever it is shown.
     const modeToggle = document.getElementById("outputModeToggle");
-    if (modeToggle) {
-        modeToggle.style.display = isStatic ? "flex" : "none";
-    }
+    if (modeToggle) modeToggle.classList.toggle("hidden", !isStatic);
 
     storeAndRenderDropdown(document.getElementById("runChannelSelect"), mode);
     storeAndRenderDropdown(document.getElementById("channelSelect"), mode);
