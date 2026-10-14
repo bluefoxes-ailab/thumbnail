@@ -977,9 +977,11 @@ const BASE_CAPTURE = {
     // Off by default, so a capture channel that says nothing about it behaves
     // exactly as the only one that existed before this did.
     captions: false,
-    // Whether those captions are REWRITTEN before they are set: the same
-    // words, on the same timeline, turned from speech into third-person
-    // report (see backend/narrator.py).
+    // Whether those captions are REWRITTEN before they are set: the
+    // transcript turned from speech into one third-person account, written
+    // to the frame count (80 characters a frame) and dealt out over the
+    // frames in order, every frame with a piece of it (see
+    // backend/narrator.py).
     //
     // Beside `captions` rather than inside `title` for the reason `captions`
     // is: it is not a question about type. It decides what the RUN does with

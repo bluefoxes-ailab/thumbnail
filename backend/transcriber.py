@@ -197,6 +197,10 @@ MATCH_MAX_GAP_S = 2.5
 # there), and this module holds it because both halves need it and the
 # dependency runs this way — narrator imports transcriber, never the reverse.
 #
+# It is also the BUDGET of a rewritten run: an account written for forty
+# frames is at most forty times this, 3,200 characters, because that is what
+# forty frames hold.
+#
 # Eighty, because that is a caption a viewer takes in at a glance on a phone
 # and it is roughly what four lines of this app's caption type can hold at
 # twenty characters a line (see `maxChars` in js/channels.js). It used to be
@@ -208,11 +212,12 @@ CAPTION_CHARS = 80
 #
 # Twice it, and the doubling is not a rounding — it is the second frame. A
 # caption over CAPTION_CHARS is not set on one still; it is split across two
-# consecutive ones (see captions_for), so what this really says is "a thought
-# may take two images and never three". Past 160 the rewrite is cut back at a
-# clause boundary rather than spread further, because a sentence that needs
-# three frames is a sentence nobody reads to the end of: by the third the
-# picture has changed twice.
+# consecutive ones (see captions_for, and narrator._deal), so what this really
+# says is "a sentence may take two images and never three". Past 160 the
+# rewrite CUTS the sentence there and carries the rest on in the next one
+# (see narrator._bounded) rather than letting it run onto a third frame,
+# because a sentence that needs three frames is a sentence nobody reads to the
+# end of: by the third the picture has changed twice.
 CAPTION_CHARS_MAX = CAPTION_CHARS * 2
 
 # Where one caption may be cut in two when it will not fit on one still — see
@@ -670,10 +675,14 @@ def split_caption(text: str, limit: int, most: int = 2) -> list[str]:
     A caption with nowhere to come apart comes back WHOLE, on one still. It is
     over the limit and the renderer sets it anyway (a long line wraps; it is
     not lost), which is a caption that is too long rather than two that are
-    not sentences. Which of those is worse is not a close call — and it is not
-    a case that should arise, because narrator._fit puts every line it writes
-    through this function and refuses to keep one over a screen that does not
-    survive it.
+    not sentences. Which of those is worse is not a close call.
+
+    All of that is about the transcript AS SPOKEN, where each frame carries
+    what was being said over it and is read on its own. A rewritten run does
+    not come through here: its account is read as one text from the first
+    frame to the last, so a sentence carried on over the next frame is the
+    account going on rather than a fragment, and narrator._pieces divides it
+    by that rule instead.
 
     A DANGLING mark left at the end of the first half is stripped, for the
     reason the sentence assembly strips it: a comma says "this goes on", which
@@ -711,42 +720,38 @@ def captions_for(sentences: list[Sentence], moments: list[float]) -> list[str]:
     is a grid the user has to retype: what it looks like is not four captions
     but one caption that failed to advance.
 
-    Two ways of laying the account over the grid, and which one runs is
-    decided by whether the account was WRITTEN for this grid.
+    This is how the transcript AS SPOKEN is placed: for a channel that asks
+    for captions and no rewrite, and for a rewriting run whose rewrite could
+    not be had. A rewritten account never comes through here — narrator.py
+    deals it out itself, in order, written to the frame count, with no
+    timestamp involved (see narrator._deal).
 
-    ## In order, when there is a caption for every still
+    Two ways of laying the sentences over the grid, and which one runs is
+    decided by whether there are more of them than there are frames.
 
-    narrator.py is told how many stills the run is about to deliver and writes
-    that many captions (see `_group` there). When it has — when there are no
-    more captions than there are frames — they are dealt out in order: the
-    first caption to the first still, the second to the second, a caption that
-    needs two screens taking two of them.
+    ## In order, when there is a frame for every sentence
 
-    That is the arrangement the whole pipeline is pointed at. Every still
-    carries a line, every line the model wrote is seen, and the account reads
-    down the grid in the order it was written. Matching by timestamp cannot
-    promise any of it: frames are chosen on picture quality, so two of them
-    fall inside one sentence while the next sentence has none, and the run
-    comes back with duplicated blanks in the middle of a story that had
-    exactly enough words to fill it.
+    A short transcript on a long grid is dealt out in order: the first
+    sentence to the first still, the second to the second, a sentence that
+    needs two screens taking two of them. Every sentence is seen and the
+    words read down the grid in the order they were spoken. Matching by
+    timestamp cannot promise that: frames are chosen on picture quality, so
+    two of them fall inside one sentence while the next sentence has none, and
+    the run comes back with duplicated blanks in the middle of a transcript
+    that had exactly enough words to fill it.
 
-    What it gives up is the last of the timing. A caption no longer sits over
-    the instant its words were spoken; it sits at its own place in the
-    account. Both lists are in time order, so the two stay close — caption ten
-    of forty lands on still ten of forty, and both are about a quarter of the
-    way through the video — but "close" is the whole of the promise now. That
-    is a deliberate trade and the second half of one that started when a
-    sentence was first split across two frames.
+    What it gives up is the timing. A caption no longer sits over the instant
+    its words were spoken; it sits at its own place in the order. Both lists
+    are in time order, so the two stay close — but "close" is the whole of the
+    promise in this branch.
 
     ## By timestamp, when there is not
 
-    A run with more captions than frames was not written for this grid: the
-    rewrite was unavailable and these are the sentences as spoken, or the
-    transcript made more thoughts than the model could condense. Dealing those
-    out in order would caption the whole grid with the opening minute of the
-    video and never reach the rest, so each frame takes the sentence that was
-    being said at the moment it was cut from, and the sentences that no frame
-    lands on are not shown.
+    A transcript with more sentences than frames cannot all be shown. Dealing
+    them out in order would caption the whole grid with the opening minute of
+    the video and never reach the rest, so each frame takes the sentence that
+    was being said at the moment it was cut from, and the sentences that no
+    frame lands on are not shown.
 
     ## Both ways
 

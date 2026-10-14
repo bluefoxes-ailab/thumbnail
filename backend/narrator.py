@@ -1,5 +1,6 @@
 """
-narrator.py - the transcript, rewritten as reported information.
+narrator.py - the transcript, rewritten as one reported account and dealt out
+over the frames of a run.
 
 transcriber.py ends with an admission and an invitation. It says its sentence
 assembly decides whether a line is COMPLETE, not whether it is INFORMATIVE,
@@ -11,21 +12,54 @@ What it is for is one specific failure of raw transcription as caption. These
 videos are cut from news packages, and a news package is half narration and
 half interview. The narration already reads as information. The interview does
 not: it is somebody talking about themselves, in the first person, to a
-reporter who is not on screen. Laid on a still as a caption it reads as a
-caption of nobody -
+reporter who is not on screen. Laid over the stills it reads as nobody's
+words -
 
     "I am Brian, Dolly's son."
     "...and that is how the world found out she had passed."
 
 - two lines a viewer scrolling past has no way to place. The same two facts
-written as report are one line that stands on its own:
+written as report are news:
 
     "The world learned of her death through a message from her son Brian."
 
-So this module rewrites first-person speech into third-person report, and it
-does it with the whole transcript in view, because that is the only way the
+So this module turns direct speech into described speech - "I am Dolly
+Parton's grandson" becomes "Brian said he was Dolly Parton's grandson" - and
+it does it with the whole transcript in view, because that is the only way the
 second line above can know who "I" was. The identity is established in one
 sentence and needed in another.
+
+## The dynamics, in order
+
+  1. The transcript arrives as TEXT. The seconds each sentence was spoken at
+     stay behind in transcriber.py: nothing here maps a caption to a moment
+     and nothing here keeps a timestamp. See "Why there is no timeline".
+  2. The frame count is confirmed. It is the number of stills the run
+     actually DELIVERS - api.py asks for the rewrite once the frames are
+     prepared - so a video that yielded thirty-one usable stills out of the
+     forty asked for is written for thirty-one, and no line is left over.
+  3. The budget follows from it: CAPTION_CHARS per frame. Forty frames is an
+     account of at most 3,200 characters; two hundred, of at most 16,000.
+  4. The transcript is planned into ITEMS - runs of consecutive sentences,
+     each to be reported by one line of the account - and every item is given
+     one frame or two, the sizes adding up to the frame count (see _plan).
+  5. The model writes one line per item, in order, as ONE account: a single
+     text read from the first frame to the last, not forty captions that each
+     have to stand alone.
+  6. The account is held to the budget. No sentence runs past two frames'
+     worth - CAPTION_CHARS_MAX, each frame within CAPTION_CHARS: one that does
+     is cut there and carries on in the next (see _bounded). Lines that came
+     back longer than their frames are joined with a short neighbour where the
+     two fit, shortened by a second pass where they do not (see
+     CONDENSE_SYSTEM), and only as the very last resort set longer than a
+     frame holds (see _deal).
+  7. Names are varied. reference.py takes the second and later of a run of
+     lines that open with the same person and names them another way - a
+     pronoun, a role, the surname, the given name.
+  8. The account is dealt out over the frames, in order: the first piece to
+     the first still, the next to the next. A line of up to CAPTION_CHARS
+     takes one still and a longer one takes two. EVERY frame gets text, and
+     no text is left without a frame.
 
 ## What it may and may not do
 
@@ -36,66 +70,39 @@ photograph of a real person. The prompt says so and the validation below
 cannot check it - that is worth stating plainly rather than implying the guard
 is stronger than it is.
 
-## Why the timestamps cannot drift
+The same rule decides what happens to a short video on a long grid. Eight
+sentences of speech do not become forty sentences of account: the lines are as
+long as the transcript can honestly fill, and the dealing spreads them over
+more frames each, so every frame still carries a piece of the text - a shorter
+one. The budget is a ceiling, not a quota.
 
-A caption is only right because it is the words that were being said when that
-frame was on screen (see transcriber.captions_for). A rewrite that loses the
-timing does not produce a worse caption, it produces a caption of a different
-moment - which is invisible in review, because every line still reads well.
+## Why there is no timeline
 
-One thing downstream of here does loosen that, and it is worth knowing about
-before reading the contract below as stronger than it is. A sentence that
-several frames land on is SPLIT between them rather than repeated on all of
-them (transcriber.captions_for), so a frame in the middle of one carries the
-middle of it. The sentence still belongs to the moment; what is no longer true
-is that the frame carries the whole of what was said at it. That is a decision
-about repetition on the grid, taken where the grid is known — and it is
-exactly why it is not taken here: this module cannot see how many frames will
-land on a line it is writing.
+This module used to keep one. Every caption carried the seconds of the
+sentences it reported, and was matched to the frames by them, and it cost
+more than it gave: frames are chosen on picture quality, so two of them fell
+inside one sentence while the next sentence had none, and a run came back with
+blanks in the middle of a story that had exactly enough words to fill it.
 
-So the model is never asked for timings. It is asked for TEXT KEYED TO THE IDS
-it was given, and the spans come from the sentences that were already there.
-The contract it works under is deliberately narrow:
-
-  * it may rewrite the text at an id.
-  * it may not reorder, invent an id, drop one, or overlap two runs.
-
-Nor is it asked WHERE a caption should begin. The transcript is gathered into
-thoughts before the model sees it — an interview turn and the line that
-completes it become one item, one caption — so each id it is handed is
-already a whole unit and its only job is to say that unit as report. That was
-not the first design: the model was offered a syntax for joining ids itself,
-and used it zero times in sixty-three sentences, then zero times again when
-told joining was the expected move. See the grouping block below.
-
-Anything it returns that breaks that is not repaired and not retried: the ids
-involved keep their ORIGINAL sentence. So the worst case of a bad generation is
-the transcript as spoken on those frames, which is a caption that is merely
-plain rather than one that is wrong. There is no failure mode in here that
-produces a confident line under the wrong picture.
-
-## It is written for a grid of a known size
-
-How many captions the account comes out in is not the transcript's decision,
-it is the run's: the rewrite is told how many stills are about to be fetched
-and writes that many lines (see `_group`). Forty stills of a twenty-minute
-video is a caption per fifteen seconds of speech; two hundred of the same
-video is one per three, out of the same words.
-
-Which makes the frame-count slider a control over the WRITING as much as over
-the pictures, and that is worth saying out loud because nothing in the
-interface says it. Left to the transcript, a long video makes far more
-thoughts than a short run has frames, and the ones that miss out are not
-reported anywhere - they simply never reach a still, and the story on the grid
-has holes in it that the output cannot show.
+Order is the only thing kept now, and it is enough. The frames come in the
+order they occur in the video and so does the transcript, so line ten of forty
+lands on still ten of forty and both are about a quarter of the way through.
+What is given up is the claim that a caption sits over the instant its words
+were spoken - which a REPORT of what was said was never really making.
 
 ## Never fatal, for the reason transcriber.py is never fatal
 
 A frame fetch that produced forty good stills has done its job. A missing
 model, a machine that has never downloaded the weights, a generation that
 comes back as prose instead of the format asked for - each of those returns
-the sentences it was given, unchanged, and the run carries on as the channel
-that does not ask for a rewrite does.
+None, and the run captions its frames the way a channel that does not ask for
+a rewrite does: with the transcript as spoken.
+
+Short of that, a line the model got wrong costs its own item and not the run.
+An item with no usable answer keeps its words as spoken, cut to the frames it
+was planned for; a line that only repeats the one before it is dropped, and
+the frames it would have had go to its neighbours. There is no failure mode in
+here that puts a line on the wrong frame or out of order.
 
 ## The language is still the video's
 
@@ -109,17 +116,18 @@ label the user reads around the caption, is English.
 import logging
 import re
 import threading
+from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 
 import reference
-from transcriber import (CAPTION_CHARS, CAPTION_CHARS_MAX, DANGLING, MAX_CHARS,
-                         MIN_WORDS, TERMINAL, Sentence, split_caption)
+from transcriber import CAPTION_CHARS, CAPTION_CHARS_MAX, MAX_CHARS, TERMINAL
 
-# ── Grouping ──────────────────────────────────────────────────────────────
+# ── Planning ──────────────────────────────────────────────────────────────
 #
-# What the model is handed is not one transcript sentence per caption. It is
-# one THOUGHT per caption, and the difference is the whole reason a caption
-# can read as information.
+# What the model is handed is not one transcript sentence per line. It is one
+# THOUGHT per line, and the difference is the whole reason a line can read as
+# information.
 #
 # The case this exists for, from a real transcript:
 #
@@ -127,7 +135,7 @@ from transcriber import (CAPTION_CHARS, CAPTION_CHARS_MAX, DANGLING, MAX_CHARS,
 #     "and I'm representing the Parton and Owen's family today"
 #     "announcing the passing of my Aunt Dolly, Rebecca Parton Dean."
 #
-# Three captions, none of which is news. One caption, and it is the story.
+# Three lines, none of which is news. One line, and it is the story.
 #
 # Asking the model to make that join does not work. It is offered the syntax
 # and, measured on this transcript, used it zero times in sixty-three
@@ -137,79 +145,42 @@ from transcriber import (CAPTION_CHARS, CAPTION_CHARS_MAX, DANGLING, MAX_CHARS,
 #
 # The rule is not new. It is transcriber._merge_continuations, run a second
 # time with the brake off. That pass already wanted to join the first two
-# lines above — the pause between them is 0.2s — and refused because the
-# result was 21 words against a MAX_WORDS of 18. The brake is right there and
-# wrong here: what has to fit in four lines of Arial Black is the model's
-# ANSWER, not the material it reads. Grouping is what condensing needs.
+# lines above and refused because the result was 21 words against a MAX_WORDS
+# of 18. The brake is right there and wrong here: what has to fit on the
+# frames is the model's ANSWER, not the material it reads.
 
-# How far apart two sentences may be and still be one thought.
-#
-# Larger than transcriber.PAUSE_HARD_S (1.1s), which separates a hesitation
-# inside a sentence from a boundary between two. This is a boundary between
-# two by assumption, so the question is different: is the speaker still on the
-# same thought. Past two seconds the video has almost certainly cut, and one
-# caption stretched across a cut sits over pictures from both sides of it.
-GROUP_MAX_GAP_S = 2.0
-
-# ...and how much may end up in one group.
+# How much one thought may gather.
 #
 # Four sentences, because five is a paragraph and no single line can honestly
-# report a paragraph. The character cap is three times a caption's own budget:
-# the output condenses, so the input is allowed to be longer than it, but a
-# group the model would have to compress five-to-one comes back having dropped
-# whatever it decided mattered least, and that decision is not one this can
-# check.
+# report a paragraph. The character cap is three times a spoken sentence's own
+# ceiling: the output condenses, so the input is allowed to be longer than it,
+# but a thought the model would have to compress five-to-one comes back having
+# dropped whatever it decided mattered least, and that decision is not one
+# this can check.
+#
+# Both are about MEANING. How many items the account is written in is decided
+# separately, by the frame count - see _plan, which goes on joining thoughts
+# past these caps when the grid has fewer frames than the transcript has
+# thoughts, because then the compression is what the run asked for.
 GROUP_MAX_SENTENCES = 4
 GROUP_MAX_CHARS = MAX_CHARS * 3
 
-# ...and how much may end up in one group when the GRID is what decides how
-# many groups there are (see the second pass in _group).
+# What one turn of the model is shown at most, in characters of transcript -
+# and therefore also the most one ITEM may gather.
 #
-# Both caps above are quality guards: they say how much material one caption
-# may honestly report. This is not one. When a run asks for forty stills of a
-# twenty-minute video it has asked for forty captions, and forty captions of
-# twenty minutes IS five-to-one compression — the decision was made at the
-# frame-count slider, and refusing it here would not undo it, it would leave
-# the story with holes in it instead. The extra sentences would simply never
-# reach a frame.
+# The caps above are quality guards. This is not one. When a run asks for
+# forty stills of a twenty-minute video it has asked for an account of forty
+# lines, and forty lines of twenty minutes IS five-to-one compression - the
+# decision was made at the frame-count slider, and refusing it here would not
+# undo it. So this bounds the PROMPT rather than the reporting: roughly six
+# thousand tokens of transcript in one generation, which a CPU gets through
+# in a minute or two.
 #
-# So this bounds the PROMPT rather than the reporting: twelve captions' worth
-# of speech is far past the point where condensing to one line is useful, and
-# it is there to stop a pathological target (one frame of a feature film)
-# building a single item nothing can generate from. A run that cannot reach
-# its target inside it says so in the log and comes back with more captions
-# than frames, which costs the last of them their place on the grid.
-GROUP_TARGET_MAX_CHARS = CAPTION_CHARS * 12
-
-# ...and the least a piece of a divided sentence may be, in words and in
-# characters, for the division to be worth making.
-#
-# Well above transcriber.MIN_WORDS, which is the floor for a run to be a
-# SENTENCE. This is a higher bar because it answers a harder question: not
-# "can this stand as a line" but "is there a second thought in here worth its
-# own photograph". Measured at MIN_WORDS it was not: "My name is Brian
-# Siever, son of Cassie Parton" divided into two halves of five words, and the
-# model, handed half a self-introduction with nothing in it to report, echoed
-# it back — putting a first-person fragment on a still, which is the one thing
-# this module exists to prevent.
-#
-# At eight words and forty characters a half is a clause with a fact in it,
-# which is something a model can report. Both numbers were measured against
-# the two cases that matter: "My name is Brian Siever, son of Cassie Parton"
-# stays whole (neither half reaches forty characters), and "...songs in her
-# lifetime, won eleven Grammy awards, and sold over one hundred million
-# records" divides at its first comma into two halves that each say something.
-#
-# The cost is that fewer sentences divide, so a short video leaves more of a
-# long grid blank — and a blank still the user types into is a better outcome
-# than a caption in the wrong voice.
-SPLIT_MIN_WORDS = 8
-SPLIT_MIN_CHARS = 40
-
-# Where a spoken sentence may be divided: the speaker's own internal marks.
-# The terminal ones are not here, because a run that still contains one was
-# never a single sentence to begin with.
-SPLIT_BREAK = re.compile(r"[,;:\u2014\u2013](?=\s)")
+# A run that cannot reach its frame count inside it - one frame of an
+# hour-long video - plans more items than it has frames, says so in the log,
+# and is squeezed onto the grid by _deal.
+CHUNK_MAX_CHARS = 20000
+ITEM_MAX_CHARS = CHUNK_MAX_CHARS
 
 # What to call the language in the prompt, given the ISO code Whisper answers.
 #
@@ -245,46 +216,66 @@ ENGLISH_MARKERS = frozenset("""
 # How many DISTINCT markers make a line English rather than a line with an
 # English name in it.
 #
-# Two, and the asymmetry is deliberate. A false positive costs that frame the
-# spoken sentence instead of the rewritten one — the wrong language is the one
+# Two, and the asymmetry is deliberate. A false positive costs that item its
+# rewrite - it keeps the words as spoken instead. The wrong language is the one
 # failure this guard exists to prevent, and it cannot be the price of avoiding
 # it. A false negative is an English caption on a Portuguese video, which is
 # the thing itself. So the guard leans towards rejecting.
 ENGLISH_MARKERS_MIN = 2
 
-# How much of a caption's wording may already have been in the caption before
-# it before the two are saying the same thing.
+# How much of a line's wording may already have been in the line before it
+# before the two are saying the same thing.
 #
 # Three quarters, measured against the shorter of the pair — see _repeats. Set
-# lower, two captions about the same person doing different things start
+# lower, two lines about the same person doing different things start
 # colliding on the name alone; set higher, a line that only swapped its last
 # three words for three others gets through, and that is exactly the padding
 # this is here to stop.
 REPEAT_MAX_OVERLAP = 0.75
 
-# ...and the length below which two captions are not compared at all.
+# ...and the length below which two lines are not compared at all.
 #
 # At four distinct words "The funeral is today" and "The funeral is tomorrow"
 # are three-quarters alike and say opposite things, so the overlap measure
 # stops meaning anything before it stops being computable. Five is where a
-# caption has enough words for the ones it shares to be evidence.
+# line has enough words for the ones it shares to be evidence.
 REPEAT_MIN_WORDS = 5
 
-# Splits a caption into lowercase words, apostrophes kept inside them so
+# Splits a line into lowercase words, apostrophes kept inside them so
 # "l'accident" does not become a bare "l" and an "accident".
 WORDS = re.compile(r"[^\W\d_]+(?:'[^\W\d_]+)*", re.UNICODE)
 
-# Where a caption may be cut short — see _fit.
+# ── Where the account may be broken between two stills ───────────────────
 #
-# The trailing lookahead is the whole of it, and it was put there by a failing
-# test rather than by foresight. Without it, the last punctuation mark inside
-# the budget of "...more than 3,000 songs written" is the thousands separator,
-# and the caption comes out ending "...more than 3". A clause boundary is a
-# mark with a SPACE after it; a comma inside a number, a decimal point and the
-# full stop in "9 to 5." are not places a sentence comes apart.
-CLAUSE_END = re.compile(r"[,;:.!?—–](?=\s|$)")
+# Every space in the account is a place it COULD be broken, and they are not
+# equal. After a full stop the reader has finished something; after a comma
+# they are in the middle of it but at a place the writer chose; anywhere else
+# they are mid-phrase. So each break is ranked by the mark in front of it, and
+# every cut in this file - the CAPTION_CHARS_MAX rule, the split of a line
+# over its two stills, the spreading of a short account over a long grid -
+# takes the best-ranked break it can before the nearest one.
+#
+# A mark only counts with a SPACE after it, which is what keeps "3,000", "9.5"
+# and "l'accident" from ever being taken for places a sentence comes apart.
+SENTENCE_MARKS = ".!?…"
+CLAUSE_MARKS = ",;:—–"
+# ...and what may stand between a mark and the space without hiding it, so
+# that '..."' and '...)' end a sentence as firmly as '...' does.
+CLOSERS = "\"'”’)]"
+
+# The fewest words a still may be left holding when a short account is spread
+# over a long grid (see _deal).
+#
+# Three, so that spreading never puts "Yes," on a frame of its own while there
+# is still a longer line it could have divided instead. It is relaxed to one
+# word only when nothing at all can be divided under it, which is the run whose
+# transcript barely has a word per frame - and there, a word on every frame is
+# what "every frame gets text" honestly comes to.
+SPREAD_MIN_WORDS = 3
 
 log = logging.getLogger("uvicorn.error")  # see the note in face_restorer.py
+
+# ── The model ─────────────────────────────────────────────────────────────
 
 # The model, by the name huggingface_hub resolves, already converted to the
 # CTranslate2 format and quantised to int8.
@@ -325,49 +316,26 @@ MODEL_DIR = Path(__file__).resolve().parent / "models" / "narrator"
 DEVICE = "cpu"
 COMPUTE_TYPE = "int8"
 
-# How many sentences are rewritten in one generation.
+# How many items are written in one generation - with CHUNK_MAX_CHARS, which
+# bounds the same turn by how much transcript it shows.
 #
 # Not a context-window limit - Llama 3.2 has far more than this needs. It is a
 # limit on how long one CPU generation runs before anything at all comes back,
 # and on how much the model is holding in its head when it answers. Forty
-# sentences is roughly four minutes of speech, which is long enough for a
-# narrative to be consistent across it.
-CHUNK_SENTENCES = 40
+# items is long enough for a narrative to be consistent across it, and it is
+# the whole of the default run.
+CHUNK_ITEMS = 40
 
-# ...and how many already-rewritten sentences are shown ahead of a chunk as
-# read-only context.
+# ...and how many lines of the account already written are shown ahead of a
+# chunk as read-only context.
 #
-# Without this, sentence 41 has no idea who has been speaking, and the chunk
-# boundary is visible in the output as the exact point where a name turns back
-# into a pronoun. They are shown as context and are NOT reproduced in the
-# answer - see the prompt, and the parser, which ignores an id outside the
-# chunk it asked about.
-CONTEXT_SENTENCES = 8
-
-# What a rewritten line may weigh before it stops being settable.
-#
-# transcriber.CAPTION_CHARS_MAX, and the number is not this module's to pick:
-# it is a fact about the GRID. A caption inside CAPTION_CHARS is set on one
-# still and a longer one is split across two consecutive stills, so the
-# ceiling here is exactly "two frames' worth" and a line past it is a line
-# nothing downstream has anywhere to put (see transcriber.captions_for).
-#
-# The model is told CAPTION_CHARS — the length to write TO — rather than this
-# one. Told the ceiling, it writes to the ceiling: every line came back near
-# 160 and every one of them then took two frames, which turns the two-frame
-# case from the exception it is meant to be into what the run does. Told 80,
-# it writes 80 and the long ones are the thoughts that genuinely need it.
-#
-# The parser enforces the ceiling, and a line over it is CUT rather than
-# dropped (see _fit). A line that cannot be cut keeps the original, which was
-# inside transcriber.MAX_CHARS by construction.
-MAX_CHARS_REWRITTEN = CAPTION_CHARS_MAX
-
-# Tokens one generation may produce. A chunk of 40 sentences answers in
-# roughly 40 short lines, and a line is around 30 tokens with its id - so this
-# is about twice what a well-behaved answer needs, which is the room a model
-# needs to finish a sentence rather than the room to write an essay.
-MAX_GENERATION_TOKENS = 2048
+# Without this, the first line of the second chunk has no idea who has been
+# speaking, and the account reads as two texts stapled together: the chunk
+# boundary is visible as the exact point where a name turns back into a
+# pronoun, or a person is introduced a second time. They are shown as context
+# and are NOT reproduced in the answer - see the prompt, and the parser, which
+# ignores an id outside the chunk it asked about.
+CONTEXT_LINES = 8
 
 # Greedy, stated rather than inherited.
 #
@@ -386,19 +354,27 @@ BEAM_SIZE = 1
 SAMPLING_TOPK = 1
 
 # One line of the model's answer: an id, or a run of consecutive ids, then the
-# rewritten sentence. "7> ..." and "7-9> ..." are the only two shapes accepted.
+# rewritten line. "7> ..." and "7-9> ..." are the two shapes accepted, and the
+# item's size may be echoed between them ("7 [80]> ..."), since that is how
+# the item was printed in the question.
 #
 # A bare number and an angle bracket rather than JSON, and that is a decision
 # about failure rather than about taste. A model that loses its way inside
 # JSON produces a document that will not parse at all, and the whole chunk is
 # lost with it. A model that loses its way here produces some lines that match
 # this and some that do not, and every line that matches is still usable - the
-# ones that do not simply keep their original sentence.
-ANSWER_LINE = re.compile(r"^\s*(\d+)\s*(?:-\s*(\d+))?\s*>\s*(.+?)\s*$")
+# ones that do not simply cost their own item.
+ANSWER_LINE = re.compile(r"^\s*(\d+)\s*(?:-\s*(\d+))?\s*(?:\[\s*\d+\s*\])?\s*>\s*(.+?)\s*$")
 
 # Leading list furniture a model adds when it is being helpful. Stripped
 # rather than rejected, because the sentence after it is usually right.
 BULLET = re.compile("^[-*•]\\s+")
+
+# ...and an item's size copied into the line itself ("7> [80] The family..."),
+# which a model echoing the question's format does as readily as it echoes it
+# before the bracket. Stripped for the same reason: what follows it is the
+# line, and a "[80]" set on a frame is not.
+SIZE_TAG = re.compile(r"^\[\s*\d+\s*\]\s*")
 
 # The chat format Llama 3.1 and 3.2 are trained on, written out here rather
 # than applied by transformers.
@@ -418,7 +394,7 @@ PROMPT = (
 )
 
 # Where the model is told to stop. Llama 3.2 ends a turn with this; without it
-# the generator runs to MAX_GENERATION_TOKENS every time and the answer has a
+# the generator runs to its token ceiling every time and the answer has a
 # second, imagined conversation stapled to the end of it.
 END_TOKEN = "<|eot_id|>"
 
@@ -434,32 +410,52 @@ END_TOKEN = "<|eot_id|>"
 # have been written and measured here, and none moved its number:
 #
 #   * joining lines that belong together - offered the syntax, used it 0 times
-#     in 63 sentences; promoted to rule 3 with a worked example, 0 again. Now
-#     done in _group before the model sees anything.
-#   * not repeating itself - still produced three consecutive captions that
-#     were one sentence with its last three words swapped. Now caught by
-#     _repeats in _apply.
-#   * not opening every line with the same name - rule 5 below, which is the
-#     second wording tried and the first in capitals. Still 7 of 17 captions
-#     opening with "Dolly Parton", six of them consecutive.
+#     in 63 sentences; promoted to a rule with a worked example, 0 again. Now
+#     done in _plan before the model sees anything.
+#   * not repeating itself - still produced three consecutive lines that were
+#     one sentence with its last three words swapped. Now caught by _repeats
+#     as the account is assembled.
+#   * not opening every line with the same name - asked twice, the second time
+#     in capitals, and still 7 of 17 lines opening with "Dolly Parton", six of
+#     them consecutive. Now done by reference.vary.
+#
+# That last one was measured while every line was ALSO told it had to stand
+# alone over its own photograph - and the safest way to make a line stand
+# alone is to name its subject in full. The account is now one text, which
+# takes that pressure away and is why rule 7 below asks for the variation
+# outright; reference.vary stays as the machinery that holds it whether or
+# not the model does.
 #
 # So a rule here is worth writing when it is a fact the model needs (the
-# language, the budget, the answer format) and worth being sceptical of when
-# it asks for restraint across many lines. That kind wants machinery, or a
-# bigger model. Rule 5 is kept because it costs nothing and is the honest
-# statement of the intent; it is not what enforces anything.
+# language, the size of the line it is writing, the answer format) and worth
+# being sceptical of when it asks for restraint across many lines. That kind
+# wants machinery, or a bigger model.
+#
+# Which is why the budget is printed BESIDE EACH ITEM ("7 [80]> ...") rather
+# than stated once. "This line goes on one photograph, 80 characters" is a
+# fact about the line the model is writing at that moment; "3,200 characters
+# in all" is a discipline across forty lines, and is in the prompt only so the
+# sizes make sense. Nothing downstream relies on the model hitting either:
+# _bounded, the condensing pass and _deal hold the budget whatever comes back.
 SYSTEM = (
-    "You rewrite the transcript of a news video into caption text.\n"
+    "You rewrite the transcript of a news video as the text of a photo story.\n"
     "\n"
     "The transcript mixes a narrator with interviews. The interviews are in "
     "the first person: people talking about themselves. Your job is to turn "
     "all of it into third-person reporting, so that every line reads as "
-    "information about what happened rather than as somebody speaking.\n"
+    "information about what happened rather than as somebody speaking. Direct "
+    "speech becomes described speech: \"I grew up on that farm\" becomes "
+    "\"Her brother said he grew up on the farm\".\n"
+    "\n"
+    "The story is shown over {frames} photographs, a piece of it on each, in "
+    "order, and it is read from the first photograph to the last as ONE text - "
+    "a single short article, not a list of separate captions. It has room for "
+    "{budget} characters in all: {size} per photograph.\n"
     "\n"
     "Rules, in order of importance:\n"
     "1. WRITE IN {language}. The transcript is in {language} and every line "
-    "you write must be in {language} too. These captions are laid back over "
-    "the video the words were spoken in, so a caption in another language is "
+    "you write must be in {language} too. These lines are laid back over the "
+    "video the words were spoken in, so a line in another language is "
     "captioning something nobody said - it is wrong no matter how well it "
     "reads. You are not translating. These instructions are in English; your "
     "answer is not.\n"
@@ -470,82 +466,57 @@ SYSTEM = (
     "3. Use the whole transcript to work out who is speaking. A person who "
     "introduces themselves early is still that person later, and a line that "
     "says 'I' should name them if the transcript ever named them.\n"
-    "4. Each numbered item may be several sentences of speech that belong "
-    "together. Answer it with ONE sentence reporting what the whole item "
-    "says. One line out per item in, in the same order.\n"
-    "4b. THE ITEMS ARE CONSECUTIVE MOMENTS OF ONE VIDEO, in the order they "
-    "happen, and your lines are read in that order - one per photograph, "
-    "down a grid. So write them as ONE ACCOUNT: line by line the story moves "
+    "4. One line out per numbered item in, in the same order. Each item shows "
+    "its size in brackets. [{size}] means its line goes on one photograph and "
+    "must fit in {size} characters. [{ceiling}] means its line goes on two "
+    "photographs and may use up to {ceiling} characters - best written as two "
+    "sentences of up to {size} each. Never go over an item's size. Shorter is "
+    "fine; an unfinished thought is not.\n"
+    "5. NO SENTENCE LONGER THAN {ceiling} CHARACTERS. A thought that needs "
+    "more ends its sentence there and carries on in the next one.\n"
+    "6. THE ITEMS ARE CONSECUTIVE MOMENTS OF ONE VIDEO, in the order they "
+    "happen, so write them as ONE ACCOUNT: line by line the story moves "
     "forward, nothing in the middle is missing, and nothing is said twice. "
     "Before writing a line, read the item AFTER it - what this line has to do "
-    "is get the reader from where they are to what comes next.\n"
-    "4c. AND EVERY LINE MUST STILL NAME WHO IT IS ABOUT. The reader sees one "
-    "photograph and one line at a time and cannot look back at the line "
-    "before, so never open with 'he', 'she', 'they', 'this' or 'that' "
-    "unless the same line has already said who it means, and name the person "
-    "the first time each line mentions them.\n"
-    "4d. Those two are not in conflict, and the difference is the kind of "
-    "word you open with. A word that carries the story FORWARD is what you "
-    "want - 'Within hours', 'By 1992', 'The response was', 'The family "
-    "then' - because it moves the reader on and still says what it is about. "
-    "A word that points BACKWARD is what you must not use, because it asks "
-    "the reader for a line they cannot see. Reach for the first kind often: "
-    "it is what makes twelve separate lines read as one story rather than as "
-    "twelve facts in a row.\n"
-    "5. NEVER BEGIN A LINE WITH A NAME THAT ALREADY OPENED THE LINE BEFORE "
-    "IT. The context above these items shows what you have already written; "
-    "anyone named there is known, and naming them again in full is repetition "
-    "a reader sees immediately. Use the surname, or what the person is (the "
-    "singer, her son), or start the sentence somewhere else entirely - with "
-    "the year, the place, the thing that happened. Vary how lines open.\n"
-    "6. Never write two lines that say the same thing. If an item adds "
-    "nothing the line before it did not already say, report the part that IS "
-    "new, and keep it short.\n"
-    "7. WRITE IN BLOCKS OF {budget} CHARACTERS. A line is not a sentence you "
-    "then measure - it is one screen of caption, and {budget} characters is "
-    "what a screen holds. So choose how much of the item goes on this line by "
-    "what will FIT on it, and finish the thought inside that. Shorter is "
-    "better; an unfinished thought is not.\n"
-    "7b. A thought that genuinely will not go into {budget} may run to "
-    "{ceiling} and no further - and when it does, WRITE IT AS TWO COMPLETE "
-    "SENTENCES, each one under {budget} characters and each ending in a full "
-    "stop. A line that long is shown across two screens, split at the full "
-    "stop between them, and the second screen is seen on its own: it must "
-    "name who it is about rather than starting with 'and', 'who' or 'he'. "
-    "One long sentence with a comma in the middle is the thing to avoid - "
-    "cut in half it leaves a fragment on one still and a verb with no "
-    "subject on the next.\n"
+    "is get the reader from where they are to what comes next. Words that "
+    "carry the story forward - 'Within hours', 'By 1992', 'The family then' - "
+    "are what make the lines read as one story rather than as facts in a "
+    "row.\n"
+    "7. VARY HOW PEOPLE ARE NAMED. Name each person in full the first time. "
+    "After that, refer to them in different ways: a pronoun, the surname, the "
+    "first name, or what the transcript says they are - the singer, the "
+    "musician. Never open two lines in a row with the same name.\n"
     "8. Report plainly. No commentary, no drama, and no hedging words unless "
     "the transcript hedged first.\n"
     "\n"
     "Answer format. One line per item, and nothing else - no preamble, no "
     "numbering of your own, no blank lines:\n"
-    "  7> The rewritten sentence.\n"
+    "  7> The rewritten line.\n"
     "Answer for every id you are given, once each, in order.\n"
     "\n"
     "Write every line in {language}."
 )
 
-# What the model is asked when a finished caption came back too long.
+# What the model is asked when the account came back longer than the frames
+# can hold.
 #
 # A second pass, and it exists because the first one cannot be made to obey a
-# length. Rule 7 states the budget plainly, in capitals, with the reason
-# attached, and measured on a real video 22 of 37 captions still came back
-# over it - several at half as long again. That is the same shape of failure
-# as the three rules the note above SYSTEM describes: the model follows a
-# concrete instruction about THIS line and ignores a discipline held across a
-# list. So the discipline is taken away from it and asked as a concrete
-# instruction instead - here is one line, it is too long, say it shorter -
-# which is a question it answers well.
+# length. A budget stated plainly, in capitals, with the reason attached, was
+# measured on a real video: 22 of 37 lines still came back over it - several
+# at half as long again. That is the same shape of failure as the three rules
+# the note above SYSTEM describes: the model follows a concrete instruction
+# about THIS line and ignores a discipline held across a list. So the
+# discipline is taken away from it and asked as a concrete instruction
+# instead - here is one line, it is too long, say it shorter - which is a
+# question it answers well.
 #
 # Shortening is also a genuinely easier job than reporting. The first pass has
 # to decide what a piece of speech MEANS and who it is about; this one is
 # handed a finished sentence and asked only to say it with fewer words, so a
 # 3B model does it reliably where it drifts on the harder question.
 #
-# What it must not do is trim a sentence into a fragment - that is the failure
-# `_fit` used to produce by cutting at a clause boundary, and it is worse than
-# a long line, so it is rule 4 here and is checked on the way back out.
+# What it must not do is trim a sentence into a fragment - that is worse than a
+# long line, so it is rule 4 here and is checked on the way back out.
 CONDENSE_SYSTEM = (
     "You shorten caption lines that came out too long to fit on screen.\n"
     "\n"
@@ -560,10 +531,9 @@ CONDENSE_SYSTEM = (
     "sentence still says without them. Never add a fact that is not already "
     "in the line you were given.\n"
     "4. ANSWER WITH A COMPLETE SENTENCE. A line cut off in the middle of a "
-    "thought is worse than a line that is too long, because it is shown on "
-    "its own over a photograph and there is nothing after it. If you cannot "
-    "say it in {budget} characters and still finish it, get as close as you "
-    "can and finish it.\n"
+    "thought is worse than a line that is too long. If you cannot say it in "
+    "{budget} characters and still finish it, get as close as you can and "
+    "finish it.\n"
     "5. Report plainly, in the third person, as the line already does. No "
     "commentary and no drama.\n"
     "\n"
@@ -683,28 +653,29 @@ def is_available() -> bool:
 
 def loaded() -> bool:
     """
-    Whether the model is in memory RIGHT NOW — which, after a rewrite has been
-    attempted, is the same question as "was anything actually rewritten".
+    Whether the model is in memory RIGHT NOW.
 
     `is_available` is the optimistic form and is the right one to ask before a
     run: it answers True while the weights have yet to be tried, because they
-    usually work. This is the pessimistic form and is the right one to ask
-    after, when a caller wants to report what happened rather than what was
-    hoped for.
-
-    The distinction earned its place. Every way this module declines to work -
-    no weights on the machine, a load that threw, a generation that came back
-    as prose - returns the sentences it was given, unchanged and in order,
-    which is indistinguishable at the call site from a rewrite that ran and
-    found nothing to change. A run that quietly captioned every frame with
-    the transcript as spoken therefore looked exactly like a run that worked,
-    and the only trace was one warning in a log nobody reads while a video is
-    processing.
+    usually work. This is the pessimistic form, and the right one to ask after
+    a rewrite came back None, when a caller wants to say WHY: a model that was
+    never there is a machine to fix, and a model that ran and produced nothing
+    usable is a video to look at.
     """
     return _generator is not None
 
 
-def _continues(previous: Sentence, following: Sentence) -> bool:
+# ── Planning the items ────────────────────────────────────────────────────
+
+
+@dataclass
+class _Item:
+    """A run of consecutive transcript sentences, and the stills its one line is written for."""
+    source: str
+    stills: int
+
+
+def _continues(previous: str, following: str) -> bool:
     """
     Whether `following` carries on the thought `previous` started.
 
@@ -726,198 +697,139 @@ def _continues(previous: Sentence, following: Sentence) -> bool:
     test simply never fires, and grouping falls back to the punctuation signal
     alone. That is a weaker pass, not a broken one.
     """
-    if not TERMINAL.search(previous.text):
+    if not TERMINAL.search(previous):
         return True
-    head = following.text.lstrip()[:1]
+    head = following.lstrip()[:1]
     return bool(head) and head.islower()
 
 
-def _group(sentences: list[Sentence], target: int | None = None) -> list[list[Sentence]]:
+def _thoughts(sentences: list[str]) -> list[list[str]]:
     """
-    The sentences gathered into the thoughts they belong to, in order — as
-    many of them as the grid has room for.
+    The sentences gathered into the thoughts they belong to, in order.
 
-    Every sentence appears exactly once and none moves, so the groups tile the
-    timeline the transcript already had. A sentence that continues nothing and
-    is continued by nothing comes back as a group of one, which is what most
-    narration is.
-
-    `target` is how many captions the run can actually show: one per still it
-    is about to fetch. It is not a nicety. The captions are matched to frames
-    by TIME (see transcriber.captions_for), so a transcript that makes ninety
-    thoughts on a run of forty stills does not produce ninety captions and
-    forty frames — it produces forty frames carrying whichever forty thoughts
-    happened to fall under them, and fifty that are never seen. The story on
-    the grid then has holes in it that nothing in the output shows. Written to
-    the grid instead, the same account comes out in forty lines that tile it.
-
-    Which means the frame-count slider is a decision about the WRITING and not
-    only about the pictures, and that is worth knowing before moving it: forty
-    stills of a long video is a caption per fifteen seconds of speech, and two
-    hundred is one per three.
-
-    Two passes, and they answer different questions.
-
-      * The first is about MEANING, and runs whatever the target is: a
-        sentence that finishes the one before it belongs with it (see
-        `_continues`). This is the pass that turns three lines of somebody
-        introducing themselves into one piece of news.
-      * The second is about the GRID, and runs only while there are still more
-        groups than frames to put them on. It joins whichever neighbouring
-        pair has the least silence between them, over and over, because the
-        longest silences are where the video most likely cut and a caption
-        stretched across a cut sits over pictures from both sides of it. The
-        caps the first pass respects do not apply — see
-        GROUP_TARGET_MAX_CHARS for why, and for the one bound that does.
-
-    A target LARGER than the number of sentences runs a third pass, which is
-    the second one in reverse: the transcript is coarser than the grid, so the
-    longest sentences are DIVIDED at their own internal punctuation until
-    there is a thought per still. That is still only the video's own words cut
-    finer — nothing is invented — and it stops as soon as no sentence can be
-    divided without leaving a fragment (see SPLIT_MIN_WORDS). A video with
-    less to say than the run has frames for still comes back with blank stills
-    at the end, and that is the honest answer: eight thoughts do not become
-    forty captions.
+    Every sentence appears exactly once and none moves. A sentence that
+    continues nothing and is continued by nothing comes back as a thought of
+    one, which is what most narration is.
     """
-    if target is not None and target >= len(sentences):
-        return _divide([[sentence] for sentence in sentences], target)
-
-    groups: list[list[Sentence]] = []
+    groups: list[list[str]] = []
     for sentence in sentences:
         current = groups[-1] if groups else None
         if (current
                 and len(current) < GROUP_MAX_SENTENCES
-                and sentence.start - current[-1].end < GROUP_MAX_GAP_S
-                and len(" ".join(s.text for s in current)) + len(sentence.text) + 1 <= GROUP_MAX_CHARS
+                and len(" ".join(current)) + 1 + len(sentence) <= GROUP_MAX_CHARS
                 and _continues(current[-1], sentence)):
             current.append(sentence)
         else:
             groups.append([sentence])
+    return groups
 
-    if target is None or len(groups) <= target:
-        return groups
 
-    # The silence between each neighbouring pair, and the pair with the least
-    # of it joined first. Recomputed rather than kept in a heap: this runs
-    # once per video, over a few hundred groups at most, and a heap of stale
-    # gaps around a list that is being mutated is the kind of code that is
-    # wrong for a year before anybody notices.
-    def joinable():
-        best, least = None, float("inf")
+def _plan(sentences: list[str], frames: int) -> list[_Item]:
+    """
+    The transcript as the items the account is written in, each with the
+    number of stills its line is for - one or two, adding up to `frames`.
+
+    Two questions, answered in this order.
+
+    HOW MANY ITEMS. The transcript's own thoughts first (see _thoughts), and
+    then the grid. A transcript with more thoughts than the run has frames is
+    joined down until there is one item per frame, the neighbouring pair that
+    is shortest together first - so the items come out even, and no line is
+    asked to report a minute of speech while the next reports a sentence. The joins ignore the caps that formed the thoughts, because past
+    this point the compression is what the run asked for (see
+    CHUNK_MAX_CHARS for the one bound that does still hold).
+
+    HOW MANY STILLS EACH. One, unless the transcript has fewer thoughts than
+    the run has frames. Then the spare frames go to the LONGEST items, one
+    each, as items written for two stills - up to CAPTION_CHARS_MAX
+    characters, set across a pair of consecutive frames. That is the
+    allowance for a thought that needs more than one frame holds, spent where
+    there is the most to say.
+
+    The longest rather than an even spread, and rather than cutting the
+    transcript's sentences finer to make more items: an item is a whole
+    thought, and a half of one handed to the model on its own came back as an
+    echo of half a self-introduction - a first-person fragment, the one thing
+    this module exists to prevent.
+
+    A transcript with fewer thoughts than HALF the frames cannot fill the grid
+    this way - every item is already written for two. What it can say is all
+    there is, and _deal spreads it thinner over the frames that are left.
+    """
+    groups = [" ".join(g) for g in _thoughts(sentences)]
+
+    while len(groups) > frames:
+        best, least = None, None
         for i in range(len(groups) - 1):
-            if (len(" ".join(s.text for s in groups[i]))
-                    + len(" ".join(s.text for s in groups[i + 1])) + 1) > GROUP_TARGET_MAX_CHARS:
+            size = len(groups[i]) + 1 + len(groups[i + 1])
+            if size > ITEM_MAX_CHARS:
                 continue
-            gap = groups[i + 1][0].start - groups[i][-1].end
-            if gap < least:
-                best, least = i, gap
-        return best
-
-    while len(groups) > target:
-        at = joinable()
-        if at is None:
-            log.info("narration: %d thoughts will not condense to %d frames — "
-                     "the last of them have no still to appear on", len(groups), target)
+            if least is None or size < least:
+                best, least = i, size
+        if best is None:
+            log.info("narration: %d items will not join down to %d frames inside one "
+                     "turn of the model - the account will be squeezed to fit",
+                     len(groups), frames)
             break
-        groups[at] = groups[at] + groups[at + 1]
-        del groups[at + 1]
+        groups[best:best + 2] = [groups[best] + " " + groups[best + 1]]
 
-    return groups
+    stills = [1] * len(groups)
+    spare = frames - len(groups)
+    if spare > 0:
+        longest = sorted(range(len(groups)), key=lambda i: len(groups[i]), reverse=True)
+        for i in longest[:spare]:
+            stills[i] = 2
+
+    return [_Item(source=g, stills=s) for g, s in zip(groups, stills)]
 
 
-def _halve(sentence: Sentence) -> list[Sentence] | None:
+def _chunks(items: list[_Item]):
     """
-    One spoken sentence cut in two at its own punctuation, or None when it has
-    nowhere to come apart.
+    The items as consecutive (first, last) runs, one generation each.
 
-    The cut goes at the internal mark nearest the middle - a comma, a
-    semicolon, a dash - because that is where the speaker themselves paused,
-    and both halves have to be at least SPLIT_MIN_WORDS long or the cut is
-    refused. A sentence with no internal mark is not divided at all: guessing
-    a break inside a clause is how a caption ends up opening with "and".
-
-    The span is divided in proportion to the characters on each side. That is
-    an estimate and it is allowed to be: what it decides is which still a
-    caption lands NEAR, and both halves stay inside the seconds the whole
-    sentence covered, so neither can drift onto a picture the sentence never
-    described.
+    At most CHUNK_ITEMS of them and CHUNK_MAX_CHARS of transcript, and never
+    fewer than one item, so an item larger than the cap still gets a turn of
+    its own rather than none.
     """
-    text = sentence.text
-    middle = len(text) / 2
-    for cut in sorted((m.end() for m in SPLIT_BREAK.finditer(text)),
-                      key=lambda c: abs(c - middle)):
-        head, tail = text[:cut].strip(), text[cut:].strip()
-        if any(len(half) < SPLIT_MIN_CHARS
-               or len(re.findall(r"\S+", half)) < SPLIT_MIN_WORDS
-               for half in (head, tail)):
-            continue
-        span = sentence.end - sentence.start
-        at = sentence.start + span * (len(head) / max(1, len(text)))
-        return [Sentence(text=DANGLING.sub("", head), start=sentence.start, end=at),
-                Sentence(text=tail, start=at, end=sentence.end)]
-    return None
+    first = 0
+    while first < len(items):
+        last, size = first + 1, len(items[first].source)
+        while (last < len(items) and last - first < CHUNK_ITEMS
+               and size + len(items[last].source) <= CHUNK_MAX_CHARS):
+            size += len(items[last].source)
+            last += 1
+        yield first, last
+        first = last
 
 
-def _divide(groups: list[list[Sentence]], target: int) -> list[list[Sentence]]:
+# ── Writing ───────────────────────────────────────────────────────────────
+
+
+def _listing(items: list[_Item], first: int, last: int) -> str:
+    """The items from `first` to `last` as the numbered lines the model reads, each with its size."""
+    return "\n".join(f"{i} [{items[i].stills * CAPTION_CHARS}]> {items[i].source}"
+                     for i in range(first, last))
+
+
+def _answer_tokens(stills: list[int]) -> int:
     """
-    Groups cut finer until there is one per still, for a video whose
-    transcript made fewer thoughts than the run has frames.
+    How many tokens one generation may produce, for lines written to `stills`.
 
-    The longest group goes first, every time, because the longest is both the
-    one most likely to be holding two thoughts and the one whose halves are
-    most likely to stand on their own. A group that will not divide is set
-    aside rather than retried, so the loop ends when every remaining group has
-    refused - which is what leaves a short video's grid with blank stills at
-    the end rather than with forty fragments.
-
-    Only ever divides a group of ONE. A group of several was assembled by the
-    meaning pass, which had a reason for every sentence it joined, and taking
-    that apart here to reach a number would be this function arguing with that
-    one. It never comes up in practice either: a target above the sentence
-    count means nothing was ever joined.
+    About twice what a well-behaved answer needs: each line its size in
+    characters at three and a half characters a token, plus a few for its id.
+    That is the room a model needs to finish a sentence rather than the room to
+    write an essay - and it has to scale with what was asked, because an item
+    written for two stills answers twice as long as one written for one, and a
+    fixed ceiling sized for the first cuts a chunk of the second off halfway.
     """
-    refused: set[int] = set()
-    while len(groups) < target:
-        widest, at = 0, None
-        for i, group in enumerate(groups):
-            if len(group) != 1 or id(group[0]) in refused:
-                continue
-            if len(group[0].text) > widest:
-                widest, at = len(group[0].text), i
-        if at is None:
-            break
-        halves = _halve(groups[at][0])
-        if halves is None:
-            refused.add(id(groups[at][0]))
-            continue
-        groups[at:at + 1] = [[halves[0]], [halves[1]]]
-    return groups
+    chars = sum(stills) * CAPTION_CHARS
+    return int(2 * (chars / 3.5 + 4 * len(stills)))
 
 
-def _block(group: list[Sentence]) -> Sentence:
-    """
-    A group written out as the single unit the model is asked about.
-
-    A Sentence again, and that is what keeps everything downstream unchanged:
-    the chunking, the prompt, the parser and the span arithmetic all go on
-    working on a list of Sentence and none of them has to learn what a group
-    is. The span is the group's own — from where the first started to where
-    the last ended.
-    """
-    return Sentence(text=" ".join(s.text for s in group),
-                    start=group[0].start, end=group[-1].end)
-
-
-def _listing(sentences: list[Sentence], first: int, last: int) -> str:
-    """The sentences from `first` to `last` as the numbered lines the model reads."""
-    return "\n".join(f"{i}> {sentences[i].text}" for i in range(first, last))
-
-
-def _generate(system: str, user: str) -> str:
+def _generate(system: str, user: str, max_tokens: int) -> str:
     """
     One turn, as text. Empty for anything that did not work - the caller reads
-    that as "keep the originals".
+    that as "this turn produced nothing usable".
 
     CTranslate2 speaks in token STRINGS rather than ids, which is why the
     round trip goes through the tokenizer twice: encode to strings on the way
@@ -928,7 +840,7 @@ def _generate(system: str, user: str) -> str:
     try:
         result = _generator.generate_batch(
             [tokens],
-            max_length=MAX_GENERATION_TOKENS,
+            max_length=max_tokens,
             beam_size=BEAM_SIZE,
             sampling_topk=SAMPLING_TOPK,
             include_prompt_in_result=False,
@@ -967,92 +879,11 @@ def _drifted_to_english(text: str) -> bool:
     return len(words & ENGLISH_MARKERS) >= ENGLISH_MARKERS_MIN
 
 
-def _fit(text: str) -> str:
-    """
-    A line brought inside the caption budget, or "" if it cannot be.
-
-    Two budgets, because a caption may take two screens (CAPTION_CHARS_MAX)
-    but only if it actually comes apart into two. A line over one screen is
-    put through the same splitter the grid will use, and kept at that length
-    only when it survives it — see transcriber.split_caption for what "comes
-    apart" means and for the two frames of nonsense that taught it. A line
-    that does not survive is treated exactly as an over-long one: cut back at
-    the last clause boundary that fits ONE screen, since the second screen was
-    never going to be usable.
-
-    Rejecting an over-long answer outright was the first behaviour and it was
-    measured to be the wrong one: every rejection in a real run was a length
-    rejection, and the lines being thrown away were good. One of them was
-    136 characters against a budget of 132 — a finished, accurate caption
-    discarded over four characters, and the frame fell back to the first
-    person sentence this whole module exists to get rid of.
-
-    So an over-long line is CUT rather than dropped, at the last clause
-    boundary that fits. That is transcriber._split_overlong's rule, and for
-    its reason: the speaker's own punctuation is the only marked-up place a
-    sentence comes apart without a reader noticing the seam. Cutting at a
-    character count instead would end a caption in the middle of a name.
-
-    What is lost is the tail, and that is the right thing to lose. A caption
-    is a headline, not a summary: "...earning 11 Grammys and selling over 100
-    million records" is the line, and the clause about song-writing that
-    followed it is what a 540-pixel frame did not have room for.
-
-    Only a line past CAPTION_CHARS_MAX with nowhere to cut comes back empty,
-    and its group then falls back to the sentences as spoken. That last resort
-    is deliberately hard to reach, and it was once far too easy: for a while
-    any line over one screen that would not divide cleanly was rejected
-    outright, which handed the frame back to the first-person speech this
-    whole module exists to get rid of. A caption ten characters too long is a
-    caption. "My name is Brian Siever, son of Cassie Parton" is not one, and
-    no length rule is worth paying that for.
-    """
-    if len(text) <= CAPTION_CHARS:
-        return text
-
-    # Over one screen, and welcome to stay that way if the grid can actually
-    # show it: two pieces out of the splitter means two stills.
-    if len(text) <= CAPTION_CHARS_MAX and len(split_caption(text, CAPTION_CHARS)) == 2:
-        return text
-
-    # Between one screen and two, it is KEPT. It will either be split across
-    # two stills or wrap on one, and both are better than what used to happen
-    # here: the line was cut back at the last clause boundary under
-    # CAPTION_CHARS, which sounds careful and in practice decapitates the
-    # sentence. A clause boundary is not the end of a thought, it is the
-    # middle of one, so what came back was
-    #
-    #     "Brian Siever, son of Cassie Parton and representing the Parton
-    #      and Owen's"
-    #     "The response to Dolly Parton's passing fell short of properly"
-    #
-    # — two captions with the predicate cut off, on two photographs, with no
-    # way for a reader to finish either. Truncation earned its place when the
-    # budget was a whole paragraph and a line reached it once in a while; at
-    # eighty characters it fires on most lines the model writes, and the thing
-    # it removes is the half that says what happened.
-    if len(text) <= CAPTION_CHARS_MAX:
-        return text
-
-    # Past two screens it cannot be shown whole however forgiving the setting,
-    # so the tail goes after all — at the last clause boundary that fits, and
-    # only if enough of the sentence survives to still say something.
-    #
-    # DANGLING is transcriber's: a comma says "this goes on", which is true of
-    # the sentence and false of the caption, since nothing follows it on that
-    # frame. A full stop is left alone — that one ends it properly.
-    cut = max((m.start() for m in CLAUSE_END.finditer(text)
-               if m.start() < CAPTION_CHARS_MAX), default=-1)
-    if cut < CAPTION_CHARS:
-        return ""
-    return DANGLING.sub("", text[:cut + 1]).strip()
-
-
 def _repeats(text: str, previous: str) -> bool:
     """
     Whether a line says what the line before it already said.
 
-    The failure it catches, from a real run, three consecutive captions:
+    The failure it catches, from a real run, three consecutive lines:
 
         "...version of I Will Always Love You was one of the best-selling
          singles of all time."
@@ -1067,7 +898,7 @@ def _repeats(text: str, previous: str) -> bool:
 
     Measured against the SHORTER of the two, not against the pair. A short
     line whose every word appears in a long one adds nothing to it — that is
-    the third caption above — while comparing both ways would score that pair
+    the third line above — while comparing both ways would score that pair
     as only half alike and let it through.
 
     Very short lines are left alone entirely — see REPEAT_MIN_WORDS. "The
@@ -1091,16 +922,26 @@ def _parse(answer: str, first: int, last: int,
 
     Everything in here is a reason to discard a line rather than to repair
     one. A line that does not match the format, names an id outside the chunk,
-    runs backwards, overlaps something already claimed, or comes out longer
-    than a caption can be, is dropped; its ids then find no entry in this map
-    and keep the sentence they already had. That is the design stated in the
-    header: a bad line costs the plain original, never the wrong moment.
+    runs backwards, overlaps something already claimed, is empty, or drifted
+    into English on a video that was not, is dropped; its ids then find no
+    entry in this map, and _write gives those items their own words instead.
+
+    Length is NOT a reason, and that is a decision. A line over its size is a
+    finished, accurate sentence that came out long, and throwing it away for
+    that hands its frame back to the first-person speech this module exists to
+    get rid of. Holding the account to the budget is _bounded's job and the
+    condensing pass's, which shorten rather than discard.
 
     `claimed` is what makes the no-overlap rule hold across the whole answer
     rather than line by line. A model that answers "7-9>" and then "8>" has
-    contradicted itself about what sentence 8 is, and the second statement is
+    contradicted itself about what item 8 says, and the second statement is
     not more true than the first - the first is kept because it came first,
     and the second is dropped.
+
+    A run ("7-9>") is accepted rather than refused. Nothing here ties a line
+    to a moment any more, so a model that reports three items in one line has
+    simply written a shorter account, and the frames those items were planned
+    for go to the lines around it.
     """
     runs: dict[int, tuple[int, str]] = {}
     claimed: set[int] = set()
@@ -1112,18 +953,12 @@ def _parse(answer: str, first: int, last: int,
 
         start = int(match.group(1))
         end = int(match.group(2)) if match.group(2) else start
-        text = match.group(3).strip()
+        text = SIZE_TAG.sub("", match.group(3)).strip()
 
-        # In range, the right way round, and not something an earlier line has
-        # already spoken for.
         if not (first <= start <= end < last) or any(i in claimed for i in range(start, end + 1)):
             continue
-        text = _fit(text)
         if not text:
             continue
-        # ...and the line that reads well and says the wrong thing. Dropped
-        # like any other rejection, so those ids keep the sentence as spoken —
-        # which is, at minimum, in the right language.
         if guard_english and _drifted_to_english(text):
             continue
 
@@ -1133,84 +968,247 @@ def _parse(answer: str, first: int, last: int,
     return runs
 
 
-def _apply(groups: list[list[Sentence]], blocks: list[Sentence],
-           runs: dict[int, tuple[int, str]], first: int, last: int,
-           previous: str = "") -> list[Sentence]:
+def _fallback(item: _Item) -> str:
     """
-    The chunk rebuilt from whatever the model got right, walked in id order so
-    the output is in the video's order whatever order the answer arrived in.
+    An item's own words, as spoken, cut to the stills it was planned for.
 
-    The span arithmetic is the whole reason the timestamps survive: a run's
-    Sentence starts when its FIRST block started and ends when its LAST one
-    ended, both read off the originals. Nothing in here reads a number the
-    model produced.
-
-    What a REJECTED group falls back to is the one thing grouping changed
-    here, and it matters. Not the joined block — that was assembled to be read
-    by a model and can be three sentences long, which is not a caption
-    anybody can set. It falls back to the group's own sentences, put back
-    individually, exactly as they came from the transcript. So a group whose
-    rewrite is thrown away costs those frames the transcript as spoken, one
-    caption per sentence and each inside the length budget by construction. The promise the module header makes survives grouping.
-
-    The repetition check lives here rather than in _parse, and it has to. The
-    question is whether a caption says what the caption BEFORE IT ON SCREEN
-    said, and only this function knows what that was: _parse sees the model's
-    answer, not the sentences a rejected group falls back to, so a rewritten
-    line that echoed the fallback ahead of it went straight through. It did,
-    on a real run — two neighbouring captions with identical wording. Here,
-    `last_text` is whatever was actually emitted, rewritten or fallen back.
+    What an item gets when the model gave it nothing usable - no line for its
+    id, or a line in the wrong language. Plainer, not wrong: the words are the
+    video's and they are in the video's language, and the cut keeps the line
+    to its share of the budget so one failed item cannot crowd its neighbours
+    off the grid. What is lost is the rest of what that item's speech said,
+    which a model that answered would have condensed rather than cut.
     """
-    out: list[Sentence] = []
-    last_text = previous
-    i = first
-    while i < last:
-        run = runs.get(i)
-        if run is not None:
-            end, text = run
-            if not (last_text and _repeats(text, last_text)):
-                out.append(Sentence(text=text, start=blocks[i].start, end=blocks[end].end))
-                last_text = text
+    head, _ = _cut(item.source, item.stills * CAPTION_CHARS)
+    return head
+
+
+def _write(items: list[_Item], system: str, reminder: str,
+           guard_english: bool) -> tuple[list[str], dict[str, int]]:
+    """
+    The account: one line per item the model answered, in order, with the
+    context that keeps it one text.
+
+    Chunked, and each chunk is shown the tail of the account written so far.
+    That is what carries a name across a boundary: a model reading "her son
+    Brian" in the lines above it goes on writing "Brian", where a model
+    reading the first-person original would reintroduce him. The context lines
+    are labelled as context and their ids are not in the range the parser
+    accepts, so a model that rewrites them anyway is ignored rather than
+    allowed to overwrite work already done.
+
+    The repetition check runs here, against whatever line was actually kept
+    before this one - rewritten or kept as spoken - because that is what the
+    reader will have just read. A line that repeats it is DROPPED rather than
+    replaced: the thought is already on the frame before, and the frames this
+    line was planned for are dealt to its neighbours.
+
+    Also returns what happened, for the log: lines `written` by the model,
+    lines kept as `spoken`, and `repeats` dropped.
+    """
+    lines: list[str] = []
+    stats = {"written": 0, "spoken": 0, "repeats": 0}
+
+    for first, last in _chunks(items):
+        context = ""
+        if lines:
+            context = ("Context - the account so far ends with these lines, "
+                       "already written. Do not answer for them:\n"
+                       + "\n".join(lines[-CONTEXT_LINES:]) + "\n\n")
+
+        user = (context
+                + reminder
+                + "Rewrite these. Answer for every id from "
+                + f"{first} to {last - 1}:\n"
+                + _listing(items, first, last))
+
+        answer = _generate(system, user, _answer_tokens([it.stills for it in items[first:last]]))
+        runs = _parse(answer, first, last, guard_english)
+
+        i = first
+        while i < last:
+            run = runs.get(i)
+            if run is not None:
+                end, text = run
+                kind = "written"
                 i = end + 1
+            else:
+                text = _fallback(items[i])
+                kind = "spoken"
+                i += 1
+            if lines and _repeats(text, lines[-1]):
+                stats["repeats"] += 1
                 continue
-        # Rejected by the parser, or a repeat of the line before it: the
-        # group's own sentences, as spoken.
-        out.extend(groups[i])
-        last_text = groups[i][-1].text
-        i += 1
+            lines.append(text)
+            stats[kind] += 1
+
+    return lines, stats
+
+
+# ── Holding the account to the budget ─────────────────────────────────────
+
+
+def _breaks(text: str) -> list[tuple[int, int, int]]:
+    """
+    Every place `text` may be broken, as (end of the head, start of the tail,
+    rank): rank 0 after a sentence, 1 after a clause, 2 anywhere else. See the
+    block above SENTENCE_MARKS.
+    """
+    out = []
+    for gap in re.finditer(r"\s+", text):
+        if gap.start() == 0 or gap.end() == len(text):
+            continue
+        mark = text[:gap.start()].rstrip(CLOSERS)[-1:]
+        rank = 0 if mark and mark in SENTENCE_MARKS else 1 if mark and mark in CLAUSE_MARKS else 2
+        out.append((gap.start(), gap.end(), rank))
     return out
 
 
-def _needs_condensing(text: str) -> bool:
+def _cut(text: str, limit: int, keep=None) -> tuple[str, str]:
     """
-    Whether a finished caption is too long for the grid to show.
+    `text` cut so its head is at most `limit` characters, as (head, rest).
 
-    Over one screen is not automatically too long: a caption up to
-    CAPTION_CHARS_MAX is allowed to take TWO stills, and one that divides
-    cleanly into two readable halves is the sanctioned exception rather than a
-    fault (see transcriber.split_caption). What this catches is the line that
-    is over a screen and will not divide - the one that lands whole on a
-    single card and wraps to eight lines of type inside a box built for four.
+    The cut goes at the best-ranked break in the back half of the limit, the
+    latest of those: the end of a sentence if there is one there, a clause if
+    not, a word if neither. The back half, because a cut at the first full
+    stop of a long line would satisfy the rule and leave the head a fraction
+    of what it may hold. `keep`, when given, is a further test the head has to
+    pass. Only a text with no acceptable break at all - a single word longer
+    than a frame, which is a URL, not a sentence - is returned whole, with
+    nothing left over.
     """
-    return (len(text) > CAPTION_CHARS
-            and len(split_caption(text, CAPTION_CHARS)) == 1)
+    if len(text) <= limit and (keep is None or keep(text)):
+        return text, ""
+    options = [b for b in _breaks(text)
+               if b[0] <= limit and (keep is None or keep(text[:b[0]]))]
+    if not options:
+        return text, ""
+    late = [b for b in options if b[0] >= limit // 2] or options
+    at = min(late, key=lambda b: (b[2], -b[0]))
+    return text[:at[0]], text[at[1]:]
+
+
+# Remembered, because the budget is checked over and over against an account
+# that changes a line at a time (see _shorten), and every check re-divides the
+# same few hundred lines: on a synthetic transcript of 1,500 sentences dealt
+# onto 200 frames, that was four seconds of the run spent working out answers
+# it already had, and with these it is half of one. Both are pure functions of
+# a string, and bounded, so a server that runs all day does not keep every
+# line it ever set.
+@lru_cache(maxsize=16384)
+def _settable(text: str) -> bool:
+    """
+    Whether a piece of the account can be set as it is: on one still, or
+    divided over two with neither holding more than CAPTION_CHARS.
+
+    The second half of that is not the same thing as "at most
+    CAPTION_CHARS_MAX". A piece of a hundred and fifty-nine characters fits
+    two frames only if it has a space within a character or two of its middle;
+    without one, the most even division it has is eighty-one and seventy-eight,
+    and that eighty-first character is a fifth line of type on a card built
+    for four. So the rule is held as what it means - two frames' worth, each
+    within its frame - rather than as the number it is usually written as.
+    """
+    if len(text) <= CAPTION_CHARS:
+        return True
+    if len(text) > CAPTION_CHARS_MAX:
+        return False
+    return any(s <= CAPTION_CHARS and len(text) - e <= CAPTION_CHARS
+               for s, e, _ in _breaks(text))
+
+
+@lru_cache(maxsize=4096)
+def _bounded(line: str) -> tuple[str, ...]:
+    """
+    A line of the account as the pieces it is set in: each settable on one
+    frame or on two (see _settable), which is at most CAPTION_CHARS_MAX.
+
+    Almost every line comes back as itself. One that does not fit two frames
+    is cut there and CONTINUED, not shortened and not thrown away: the head
+    takes its frames, and what was cut off carries on as the next piece - and
+    is cut again, if it too runs past the limit. That is the rule as stated: a
+    sentence may run to CAPTION_CHARS_MAX and no further, and a thought that
+    needs more goes on in the next one.
+
+    Cut at a sentence end where there is one (see _cut), which is what makes
+    "the next one" usually a sentence of its own. Where there is not, the
+    continuation begins mid-sentence - and in an account read as one text
+    that reads as what it is, the same sentence going on over the next frame.
+    """
+    pieces, rest = [], line.strip()
+    while not _settable(rest):
+        head, tail = _cut(rest, CAPTION_CHARS_MAX, _settable)
+        if not tail:
+            break
+        pieces.append(head)
+        rest = tail
+    if rest:
+        pieces.append(rest)
+    return tuple(pieces)
+
+
+def _set(lines: list[str]) -> list[str]:
+    """The lines of the account as the pieces they are set in, in order."""
+    return [piece for line in lines for piece in _bounded(line)]
+
+
+def _stills(text: str) -> int:
+    """How many stills a piece of the account takes on its own: one if it fits one, two if not."""
+    return 1 if len(text) <= CAPTION_CHARS or len(text.split()) < 2 else 2
+
+
+def _joined(pieces: list[str], frames: int) -> tuple[list[list], int]:
+    """
+    The pieces as blocks of [text, stills], neighbours joined while that
+    saves a frame and loses nothing - and how many stills the blocks need.
+
+    Only runs while the account needs more stills than `frames`. A join is
+    taken only where the two pieces fit, together, inside the stills the
+    joined block will have: two short pieces on one frame, or a long piece
+    and a short one on two (see _settable). Nothing is shortened and nothing
+    overflows, so this always goes first, before anything that costs words.
+
+    The smallest pair first, so what ends up sharing a frame is the shortest
+    lines - "She was 79." beside the line before it - rather than whichever
+    two happened to come first.
+    """
+    blocks = [[piece, _stills(piece)] for piece in pieces]
+    total = sum(stills for _, stills in blocks)
+    while total > frames:
+        best = None
+        for i in range(len(blocks) - 1):
+            (a, sa), (b, sb) = blocks[i], blocks[i + 1]
+            stills = sa + sb - 1
+            size = len(a) + 1 + len(b)
+            if stills > 2 or size > stills * CAPTION_CHARS:
+                continue
+            if stills == 2 and not _settable(a + " " + b):
+                continue
+            if best is None or size < best[1]:
+                best = (i, size, stills)
+        if best is None:
+            break
+        i, _, stills = best
+        blocks[i:i + 2] = [[blocks[i][0] + " " + blocks[i + 1][0], stills]]
+        total -= 1
+    return blocks, total
 
 
 def _condense(texts: dict[int, str], language: str | None) -> dict[int, str]:
     """
-    Over-long captions said again, shorter, keyed by the index they came from.
+    Over-long lines said again, shorter, keyed by the index they came from.
 
     Asked in one turn per chunk rather than one per line, for the reason the
     first pass is chunked: a generation costs about the same whether it
     answers one item or forty, and forty separate turns is forty times the
     wait for the same words.
 
-    An answer is taken only if it is SHORTER than what it replaces and still
-    inside the budget, and only if it did not drift into English on a video
-    that was not (the same guard the first pass uses). Anything else leaves
-    the long line alone: too long is a caption that overflows its card, and
-    every way this could go wrong instead - a fragment, a translation, an
-    invented fact - is a caption that is wrong.
+    An answer is taken only if it is SHORTER than what it replaces and fits
+    one frame, and only if it did not drift into English on a video that was
+    not (the same guard the first pass uses). Anything else leaves the long
+    line alone: too long is a line that takes another frame, and every way
+    this could go wrong instead - a fragment, a translation, an invented fact -
+    is a caption that is wrong.
     """
     if not texts:
         return {}
@@ -1224,16 +1222,16 @@ def _condense(texts: dict[int, str], language: str | None) -> dict[int, str]:
 
     order = sorted(texts)
     shorter: dict[int, str] = {}
-    for at in range(0, len(order), CHUNK_SENTENCES):
-        batch = order[at:at + CHUNK_SENTENCES]
+    for at in range(0, len(order), CHUNK_ITEMS):
+        batch = order[at:at + CHUNK_ITEMS]
         user = (reminder
                 + "Shorten these. Answer for every id:\n"
                 + "\n".join("%d> %s" % (i, texts[i]) for i in batch))
-        for line in _generate(system, user).splitlines():
+        for line in _generate(system, user, _answer_tokens([1] * len(batch))).splitlines():
             match = ANSWER_LINE.match(BULLET.sub("", line.strip()))
             if not match:
                 continue
-            i, text = int(match.group(1)), match.group(3).strip()
+            i, text = int(match.group(1)), SIZE_TAG.sub("", match.group(3)).strip()
             if i not in texts or not text:
                 continue
             if len(text) >= len(texts[i]) or len(text) > CAPTION_CHARS:
@@ -1244,21 +1242,219 @@ def _condense(texts: dict[int, str], language: str | None) -> dict[int, str]:
     return shorter
 
 
-def rewrite(sentences: list[Sentence], language: str | None = None,
-            frames: int | None = None) -> list[Sentence]:
+def _shorten(lines: list[str], frames: int, language: str | None) -> tuple[list[str], int]:
     """
-    The transcript as third-person report, on the same timeline, in the same
-    language, and in as many captions as the run has stills to put them on.
+    The account brought inside `frames` by saying its long lines shorter -
+    and how many were.
 
-    `frames` is how many stills this run is about to deliver, and it decides
-    how much of the transcript goes into one caption: forty of them is an
-    account in forty lines, two hundred is the same account in two hundred.
-    See `_group`, which is where it is spent, for why the frame-count slider
-    is a decision about the writing and not only about the pictures.
+    Only reached when joining neighbours was not enough. The lines that take
+    more than one frame are the candidates, because a line shortened under
+    CAPTION_CHARS gives the rest back; the SHORTEST of them first, because
+    those lose the least by it - a line of eighty-five characters says nearly
+    everything in eighty, and a line of a hundred and fifty does not.
 
-    None means "as many captions as the transcript makes", which is what this
-    did before the grid was known here and is still the right answer for a
-    caller that is not building one.
+    Whole LINES, as the model wrote them, and never the pieces _bounded cut
+    them into: the piece after a cut is half a sentence, and a model asked to
+    shorten it hands back a whole one that no longer follows from the piece
+    it came after.
+
+    Twice as many are asked as the excess, and a few more, since not every
+    answer comes back usable; they are taken in that same order, and only
+    until the account fits. A shortened line is only taken if it does not
+    collide with the one before it. Two lines can say different things at
+    full length and the same thing once both are cut down, and the same
+    caption twice is worse than a caption that runs onto a second frame.
+    """
+    excess = _joined(_set(lines), frames)[1] - frames
+    if excess <= 0:
+        return lines, 0
+
+    candidates = sorted((i for i, line in enumerate(lines) if len(line) > CAPTION_CHARS),
+                        key=lambda i: len(lines[i]))
+    asked = candidates[:2 * excess + 4]
+    shorter = _condense({i: lines[i] for i in asked}, language)
+
+    lines = list(lines)
+    taken = 0
+    for i in asked:
+        if i not in shorter:
+            continue
+        if i and _repeats(shorter[i], lines[i - 1]):
+            continue
+        lines[i] = shorter[i]
+        taken += 1
+        if _joined(_set(lines), frames)[1] <= frames:
+            break
+    return lines, taken
+
+
+def _vary(lines: list[str], language: str | None) -> tuple[list[str], int]:
+    """
+    The account with repeated openings varied by reference.vary - and how
+    many were.
+
+    Whole lines again, for the reason _shorten gives: every line the model
+    wrote starts a sentence, and the pieces _bounded cut out of them do not.
+    One of those can begin with a name halfway through a sentence - "...the
+    library, which" / "Dolly Parton founded in 1995." - and swapping that name
+    for "She" would put a capital letter in the middle of a sentence that was
+    never this module's to restructure.
+
+    A varied opening that would make its line take more frames keeps the
+    original wording instead: "The singer" is a few characters longer than
+    "Parton", and the budget is not something a stylistic pass gets to spend.
+    """
+    varied = reference.vary(lines, language)
+    out = []
+    for old, new in zip(lines, varied):
+        cost = sum(_stills(p) for p in _bounded(old))
+        out.append(new if sum(_stills(p) for p in _bounded(new)) <= cost else old)
+    return out, sum(1 for old, new in zip(lines, out) if old != new)
+
+
+# ── Dealing the account out over the frames ──────────────────────────────
+
+
+def _pieces(text: str, count: int) -> list[str]:
+    """
+    One block of the account divided into `count` consecutive pieces, one per
+    still - its words in order, none dropped and none repeated.
+
+    Divided in two halves at a time, each cut aimed at where an even division
+    would fall. Near that point the best-ranked break wins - a sentence end,
+    then a clause, then any word (see _breaks) - and a break too far from it
+    is only taken when nothing nearer exists. For the common case, a line on
+    two stills, there is one more condition and it comes first: both halves
+    should fit a frame, so a line of a hundred and fifty characters becomes
+    two of about seventy-five rather than one of a hundred and one of fifty.
+    A block that cannot fit two frames whichever way it is cut - one squeezed
+    onto them by _deal - is cut as evenly as it can be instead, since then the
+    rank of the break matters less than not leaving one frame twice as full as
+    the other.
+
+    The pieces are the account's own text, punctuation included. A frame that
+    ends on a comma is not left looking unfinished by mistake: the account is
+    read as one text, the next frame carries it on, and the comma is telling
+    the reader exactly that.
+
+    Every piece keeps at least one word for every still still to be cut from
+    it, so a caller that checked the block has `count` words always gets
+    `count` pieces back.
+    """
+    if count <= 1:
+        return [text]
+
+    left = count // 2
+    target = len(text) * left / count
+    reach = len(text) / (2 * count)
+
+    options = [b for b in _breaks(text)
+               if len(text[:b[0]].split()) >= left and len(text[b[1]:].split()) >= count - left]
+    if not options:
+        return [text] + [""] * (count - 1)
+
+    if count == 2:
+        fitting = [b for b in options
+                   if b[0] <= CAPTION_CHARS and len(text) - b[1] <= CAPTION_CHARS]
+        if not fitting:
+            at = min(options, key=lambda b: (abs(b[0] - target), b[2]))
+            return [text[:at[0]], text[at[1]:]]
+        options = fitting
+
+    at = min(options, key=lambda b: (b[2] if abs(b[0] - target) <= reach else 3,
+                                     abs(b[0] - target)))
+    return _pieces(text[:at[0]], left) + _pieces(text[at[1]:], count - left)
+
+
+def _deal(pieces: list[str], frames: int) -> list[str]:
+    """
+    The account as exactly `frames` captions, in order: the first piece of it
+    on the first still, the next on the next.
+
+    Three stages, and which of the last two runs depends on which way the
+    account missed its size - usually by a frame or two, since the items were
+    planned to the frame count and the pieces mostly come back near the sizes
+    they were asked for.
+
+      * JOIN. Neighbours that fit together are put on one frame (see _joined).
+        Loses nothing, so it always goes first.
+
+      * SQUEEZE, when the account still needs more stills than there are. The
+        last resort, and the one place the budget gives: a block is set on
+        fewer frames than it needs, so a frame carries more than
+        CAPTION_CHARS. Whichever move leaves the least on one frame is taken,
+        one at a time - a two-frame line set on one, or two neighbours set on
+        one frame fewer than they need between them. Nothing is cut: a long
+        caption wraps onto more lines of type, and the user can trim it, where
+        a cut one is gone. The condensing pass has already been asked to make
+        this unnecessary.
+
+      * SPREAD, when the account is shorter than the grid - a short video on a
+        long run, or a model that wrote briefer than it was allowed. Blocks
+        are given more stills until every frame has text: first a second one
+        to the longest of the blocks that have one, so that lines take two
+        frames before any takes three, and then a further one to whichever
+        holds the most text per frame. No still is left fewer than
+        SPREAD_MIN_WORDS words while a longer line could take the cut
+        instead.
+
+    A frame comes back "" only when the whole account has fewer words than
+    there are frames - when there is not a word left to put on it. That is
+    the one case "every frame gets text" cannot honestly meet.
+    """
+    if frames < 1:
+        return []
+
+    blocks, total = _joined(pieces, frames)
+
+    while total > frames:
+        # Each option is (characters on the fullest frame it leaves, where,
+        # what): 0 sets block `where` on one still, 1 joins it with the next.
+        options = [(len(text), i, 0) for i, (text, stills) in enumerate(blocks) if stills == 2]
+        options += [((len(blocks[i][0]) + 1 + len(blocks[i + 1][0]))
+                     / (blocks[i][1] + blocks[i + 1][1] - 1), i, 1)
+                    for i in range(len(blocks) - 1)
+                    if blocks[i][1] + blocks[i + 1][1] - 1 <= 2]
+        if not options:
+            break
+        _, i, move = min(options)
+        if move == 0:
+            blocks[i][1] = 1
+        else:
+            blocks[i:i + 2] = [[blocks[i][0] + " " + blocks[i + 1][0],
+                                blocks[i][1] + blocks[i + 1][1] - 1]]
+        total -= 1
+
+    for least, pairs_first in ((SPREAD_MIN_WORDS, True), (1, False)):
+        while total < frames:
+            options = [i for i, (text, stills) in enumerate(blocks)
+                       if len(text.split()) >= (stills + 1) * least]
+            if not options:
+                break
+            i = max(options, key=lambda i: (pairs_first and blocks[i][1] == 1,
+                                            len(blocks[i][0]) / blocks[i][1]))
+            blocks[i][1] += 1
+            total += 1
+
+    captions = [piece for text, stills in blocks for piece in _pieces(text, stills)]
+    return (captions + [""] * frames)[:frames]
+
+
+def rewrite(sentences: list[str], language: str | None = None,
+            frames: int = 0) -> list[str] | None:
+    """
+    The transcript as one third-person account, dealt out as exactly `frames`
+    captions in the order the frames come - or None if no part of it could be
+    rewritten.
+
+    `sentences` are the transcript's sentences as TEXT, in the order they were
+    spoken. Their timestamps are not wanted here (see the module header).
+
+    `frames` is how many stills the run is delivering, confirmed after they
+    were prepared, and it is the whole of the budget: CAPTION_CHARS each, so
+    forty frames is an account of at most 3,200 characters. Every one of them
+    comes back with text, unless the transcript has fewer words than there are
+    frames (see _deal).
 
     `language` is the ISO code Whisper detected while transcribing this same
     audio (transcriber.detected_language). It is not optional in spirit: with
@@ -1269,106 +1465,54 @@ def rewrite(sentences: list[Sentence], language: str | None = None,
     English guard off, since guarding against English is meaningless when the
     video might be English.
 
-    Returns the sentences it was given, unchanged, for anything that did not
-    work - no model, no weights on this machine, a generation that came back
-    as prose. See the module header: a frame fetch that produced good stills
-    is not allowed to fail over the words on them, and neither is a rewrite.
-
-    Chunked, and each chunk is shown the tail of the PREVIOUS chunk's own
-    output as context. That is what carries a name across a boundary: a model
-    reading "her son Brian" in the lines above it goes on writing "Brian",
-    where a model reading the first-person original would reintroduce him. The
-    context lines are labelled as context and their ids are outside the range
-    the parser accepts, so a model that rewrites them anyway is ignored rather
-    than allowed to overwrite work already done.
+    None means the caller should caption the frames the way a channel that
+    asks for no rewrite does: no model, no weights on this machine, or a
+    model that did not produce one usable line for the whole video. See the
+    module header: a frame fetch that produced good stills is not allowed to
+    fail over the words on them, and neither is a rewrite.
     """
-    if not sentences:
-        return sentences
+    sentences = [s.strip() for s in sentences if s and s.strip()]
+    if not sentences or frames < 1:
+        return None
     if not _ensure_loaded():
-        return sentences
+        return None
 
     # The name if it is one this file knows, the bare code if not, and the
     # vaguest possible wording if the caller had nothing at all.
     named = LANGUAGE_NAMES.get(language, language) if language else None
-    system = SYSTEM.format(budget=CAPTION_CHARS, ceiling=CAPTION_CHARS_MAX,
+    budget = frames * CAPTION_CHARS
+    system = SYSTEM.format(frames=frames, budget=budget, size=CAPTION_CHARS,
+                           ceiling=CAPTION_CHARS_MAX,
                            language=named or "the same language as the transcript")
     reminder = LANGUAGE_REMINDER.format(language=named) if named else ""
     guard_english = bool(language) and language != "en"
 
-    # The sentences gathered into thoughts before the model sees any of them,
-    # so that what it is asked for is one caption per thought and it is never
-    # asked to decide where a caption should begin. See the grouping block at
-    # the top of this file for why that decision was taken away from it.
-    groups = _group(sentences, frames)
-    blocks = [_block(g) for g in groups]
+    items = _plan(sentences, frames)
+    lines, stats = _write(items, system, reminder, guard_english)
+    if not stats["written"]:
+        log.warning("narration: not one line of the rewrite could be used - "
+                    "the frames keep the transcript as spoken")
+        return None
 
-    done: list[Sentence] = []
-    rewritten = 0
+    # Shortened before the names are varied, not after, so that what
+    # reference.vary looks at is the wording that will actually be set - an
+    # opening it varied on a line about to be replaced would be work thrown
+    # away, and the variation it would have made on the replacement is one it
+    # would never see.
+    lines, shortened = _shorten(lines, frames, language)
+    lines, varied = _vary(lines, language)
 
-    for first in range(0, len(blocks), CHUNK_SENTENCES):
-        last = min(first + CHUNK_SENTENCES, len(blocks))
+    # ...and only then cut into the pieces it is set in, each inside two
+    # frames, and dealt out.
+    captions = _deal(_set(lines), frames)
 
-        context = ""
-        if done:
-            tail = done[-CONTEXT_SENTENCES:]
-            context = ("Context - the lines just before these, already "
-                       "rewritten. Do not answer for them:\n"
-                       + "\n".join(s.text for s in tail) + "\n\n")
-
-        user = (context
-                + reminder
-                + "Rewrite these. Answer for every id from "
-                + f"{first} to {last - 1}:\n"
-                + _listing(blocks, first, last))
-
-        runs = _parse(_generate(system, user), first, last, guard_english)
-        rewritten += sum(1 + end - start for start, (end, _) in runs.items())
-        done.extend(_apply(groups, blocks, runs, first, last,
-                           previous=done[-1].text if done else ""))
-
-    # The lines that came back too long to show, asked again and shorter (see
-    # CONDENSE_SYSTEM). Between the two passes rather than after the naming
-    # one, so that what reference.vary looks at is the wording that will
-    # actually be set — an opening it varied on a line that is about to be
-    # replaced is work thrown away, and worse, a variation it would have made
-    # on the replacement is one it never sees.
-    long_lines = {i: s.text for i, s in enumerate(done) if _needs_condensing(s.text)}
-    shortened = _condense(long_lines, language)
-
-    # ...and a shortened line is only taken if it does not collide with the one
-    # before it. Two captions can say different things at full length and the
-    # same thing once both are cut to a sentence each: measured on a real
-    # video, "The idea was simple: every child from birth to age five would
-    # receive one free book every month, no application, no means test" and
-    # the line after it came back as "Every child received a free book every
-    # month through the Imagination Library" and "Children received a free
-    # book every month through the Imagination Library" — one thought, twice,
-    # on two consecutive stills.
-    #
-    # _repeats already guards against that, but it runs inside _apply, which
-    # is over by the time this pass writes anything. So it is asked again
-    # here, against whatever is actually going to be set, and a collision
-    # keeps the LONG line: a caption that overflows its card is a caption, and
-    # the same caption twice is not.
-    taken = 0
-    for i in sorted(shortened):
-        previous = done[i - 1].text if i else ""
-        if previous and _repeats(shortened[i], previous):
-            continue
-        done[i] = Sentence(text=shortened[i], start=done[i].start, end=done[i].end)
-        taken += 1
-
-    # ...and last, the one thing the prompt could not be made to do: stop
-    # opening line after line with the same full name. Rule 5 above asks for
-    # it and was measured twice not getting it; reference.py takes the
-    # decision away in the same spirit _group did. It touches the wording of
-    # a caption's opening and nothing else — never the timeline.
-    varied = reference.vary(done, language)
-
-    log.info("narration: %s, %d sentences grouped into %d, %d rewritten, "
-             "%d captions on the timeline, %d shortened of %d over budget, "
-             "%d openings varied",
-             named or "language unknown", len(sentences), len(blocks), rewritten,
-             len(varied), taken, len(long_lines),
-             sum(1 for a, b in zip(done, varied) if a.text != b.text))
-    return varied
+    log.info("narration: %s, %d frames (up to %d characters): %d sentences "
+             "planned as %d items, %d lines written, %d kept as spoken, %d "
+             "repeats dropped, %d shortened, %d openings varied; %d characters "
+             "set, %d frames over %d characters, %d left blank",
+             named or "language unknown", frames, budget, len(sentences), len(items),
+             stats["written"], stats["spoken"], stats["repeats"], shortened, varied,
+             sum(len(c) for c in captions),
+             sum(1 for c in captions if len(c) > CAPTION_CHARS), CAPTION_CHARS,
+             sum(1 for c in captions if not c))
+    return captions

@@ -693,12 +693,14 @@ def _capture_frames_sync(video_path: str, count: int, captions: bool = False,
     seconds they were spoken at — see transcriber.py, which produces exactly
     that and answers captions_for the whole grid at once.
 
-    `rewrite` is a fifth thing, and it happens entirely between those two: the
-    sentences are handed to a language model and come back as third-person
-    report before any frame is asked what was being said over it. It changes
-    the words and not the timeline — every sentence keeps the seconds it
-    already covered — so captions_for below cannot tell the difference, and
-    neither can anything downstream of it. See narrator.py.
+    `rewrite` is a fifth thing, and it replaces the fourth's way of placing
+    words rather than adding to it. The transcript's TEXT is handed to a
+    language model once the frames are prepared, with the number of frames
+    the run actually delivered, and comes back as one third-person account of
+    at most that many times CAPTION_CHARS characters, already dealt out: one
+    piece per frame, in the order the frames come, every frame with text. No
+    timestamp is involved — the account is not matched to moments, it is
+    read from the first frame to the last. See narrator.py.
     """
     _set_progress("Extracting frames...", 20)
     try:
@@ -744,43 +746,27 @@ def _capture_frames_sync(video_path: str, count: int, captions: bool = False,
         _set_progress("Transcribing the voice track...", 55)
         sentences = transcriber.transcribe(video_path)
 
-        # ...and, for a channel that asks for it, the same sentences written
-        # as report rather than as speech. Inside the `captions` branch and
-        # not beside it: this rewrites a transcript, so without one there is
-        # nothing here to do.
-        #
-        # It answers with what it was given whenever it cannot do better —
-        # no weights on this machine, a generation that came back malformed —
-        # so there is no failure to test for here. The frames get the spoken
-        # transcript instead, which is what the channel next door produces.
-        #
-        # The detected language travels with them. Whisper worked it out from
-        # this same audio, and it is what keeps the rewrite from coming back
-        # as a translation — see the language rule in narrator.SYSTEM, and
-        # transcriber.detected_language for why nothing else in the app knows
-        # what language a video is in.
-        if rewrite and sentences:
-            _set_progress("Rewriting the transcript...", 60)
-            # Told how many stills it is writing for, and it is `grabs` rather
-            # than `count`: the request is what the user asked for and this is
-            # what the video actually yielded, after the blurred and blank
-            # frames were rejected. Writing forty captions for a run that
-            # produced thirty-one leaves nine of them with no frame to appear
-            # on. See narrator._group.
-            sentences = narrator.rewrite(sentences, transcriber.detected_language(),
-                                         frames=len(grabs))
+    # Whether the words on these frames are going to be the rewrite rather than
+    # the transcript as spoken. Only with a transcript: this rewrites one, so
+    # without one there is nothing to do — and a channel that asks for a
+    # rewrite without asking for captions has asked for nothing (see
+    # CaptureRequest.rewrite).
+    rewriting = bool(captions and rewrite and sentences)
 
-    # Every slot's caption, worked out for the grid rather than per frame, so
-    # that a sentence several frames landed on is split between them instead
-    # of repeated on all of them (see transcriber.captions_for). Which is why
-    # it cannot live inside the loop below: the answer for one frame depends
-    # on which other frames claimed the same sentence.
+    # Every slot's caption as SPOKEN, worked out for the grid rather than per
+    # frame, so that a sentence several frames landed on is split between them
+    # instead of repeated on all of them (see transcriber.captions_for). Which
+    # is why it cannot live inside the loop below: the answer for one frame
+    # depends on which other frames claimed the same sentence.
     #
     # Indexed by the GRAB and not by the finished slot. A grab that fails to
     # decode or to crop below is dropped from `results`, and its piece of a
     # split caption goes with it — one gap in a sentence spread over three
     # stills, rather than every later frame in the run captioned with the
     # words of the one before it.
+    #
+    # Worked out on a rewriting run too, where it is what the frames keep if
+    # the rewrite cannot be had — see below, after the loop.
     frame_captions = transcriber.captions_for(sentences, [g.timestamp for g in grabs])
 
     _set_progress("Preparing frames...", 65)
@@ -845,11 +831,18 @@ def _capture_frames_sync(video_path: str, count: int, captions: bool = False,
             # transcriber.captions_for). The frontend fills the frame's title
             # with it, so "" is simply an empty text box the user can type
             # into rather than a state anything has to test for.
+            #
+            # On a rewriting run this is only the stand-in: the account
+            # replaces it below, once the loop has said how many frames there
+            # are to write for.
             "caption":   frame_captions[slot],
         })
+        # The loop leaves room at the end of the bar for the rewrite, which
+        # is a CPU generation measured in minutes rather than seconds and
+        # should not sit at 95% for all of them.
         _set_progress("Cleaning and preparing frames..." if session.subtitle_bands
                       else "Preparing frames...",
-                      65 + int(30 * len(results) / max(1, len(grabs))))
+                      65 + int((20 if rewriting else 30) * len(results) / max(1, len(grabs))))
 
     if not results:
         raise HTTPException(422, "No usable frames found — none of them could be reframed")
@@ -857,9 +850,51 @@ def _capture_frames_sync(video_path: str, count: int, captions: bool = False,
     log.info("capture: %s", ", ".join(
         f"frame {n + 1} at {r['timecode']}" for n, r in enumerate(results)))
 
+    # The rewrite, and it is here — after the loop, not beside the
+    # transcription — because this is the first point in the run where the
+    # number of frames is CONFIRMED rather than hoped for. `count` is what the
+    # user asked for; `grabs` is what the video yielded once the blurred and
+    # blank frames were rejected; `results` is what survived decoding and
+    # cropping as well. The account is written for the last of the three,
+    # because its size is the budget — CAPTION_CHARS a frame — and every frame
+    # gets a piece of it in order: written for forty and set on thirty-one,
+    # the last nine pieces of the story would have nowhere to appear.
+    #
+    # Only the TEXT of the transcript goes in. The seconds each sentence was
+    # spoken at stay here, with the spoken captions above; the account is
+    # dealt out in order, first piece on the first frame, and no part of it
+    # is matched to a moment. See narrator.py.
+    #
+    # The detected language travels with it. Whisper worked it out from this
+    # same audio, and it is what keeps the rewrite from coming back as a
+    # translation — see the language rule in narrator.SYSTEM, and
+    # transcriber.detected_language for why nothing else in the app knows what
+    # language a video is in.
+    #
+    # None back means it could not be had — no weights on this machine, or a
+    # model that produced nothing usable — and the frames keep the transcript
+    # as spoken, which is what the channel next door produces.
+    rewritten = False
+    if rewriting:
+        frames = len(results)
+        log.info("capture: rewriting the transcript for %d frames (%d asked for, "
+                 "%d delivered), up to %d characters",
+                 frames, count, frames, frames * transcriber.CAPTION_CHARS)
+        # Said on screen as well as in the log: the count and the budget are
+        # the two numbers the account is about to be written to, and this is
+        # where the user can see they are the ones expected.
+        _set_progress(f"Rewriting the transcript for {frames} frames, up to "
+                      f"{frames * transcriber.CAPTION_CHARS:,} characters...", 88)
+        account = narrator.rewrite([s.text for s in sentences],
+                                   transcriber.detected_language(), frames=frames)
+        if account is not None:
+            for result, caption in zip(results, account):
+                result["caption"] = caption
+            rewritten = True
+
     # What the frames actually came back carrying, said once and plainly.
     #
-    # `rewrite` is what the CHANNEL asked for and `narrator.loaded()` is what
+    # `rewrite` is what the CHANNEL asked for and `rewritten` is what
     # happened, and the two coming apart is the one failure in this run that
     # looks like success: every frame is captioned, every caption reads, and
     # every one of them is the speech the video contains rather than the
@@ -867,27 +902,32 @@ def _capture_frames_sync(video_path: str, count: int, captions: bool = False,
     # looking at the packs for a fault that was never in them, so it is a
     # warning at the top of the log and a flag in the payload rather than a
     # line buried in a debug message.
-    rewritten = bool(rewrite and narrator.loaded())
     if captions:
         log.info("capture: %d of %d frames captioned, %s",
                  sum(1 for r in results if r["caption"]), len(results),
-                 "rewritten as report" if rewritten
+                 "rewritten as one account" if rewritten
+                 else "nothing was said to caption" if not sentences
                  else "the transcript as spoken" if not rewrite
-                 else "NOT REWRITTEN - the narration model did not load")
-    if rewrite and not rewritten:
-        log.warning("capture: this channel asks for rewritten captions and the "
-                    "narration model is not available on this machine, so the "
-                    "frames carry the transcript as spoken. See the "
-                    "'narration:' line printed when the server started.")
+                 else "NOT REWRITTEN - the transcript as spoken")
+    if rewriting and not rewritten:
+        log.warning("capture: this channel asks for rewritten captions and %s, so "
+                    "the frames carry the transcript as spoken. See the "
+                    "'narration:' lines in this log.",
+                    "the narration model produced no usable line for this video"
+                    if narrator.loaded()
+                    else "the narration model is not available on this machine")
 
     vram.release(force=True)
     _set_progress("Done", 100)
     # `rewritten` travels with the frames so the browser can say what the user
     # is looking at (see main.runPipeline). A channel that asked for a
     # rewrite and did not get one is the only case worth a word on screen, and
-    # it is the case the user cannot otherwise tell from a working run.
+    # it is the case the user cannot otherwise tell from a working run. None
+    # when there was nothing to rewrite at all — a channel that asks for no
+    # rewrite, or a video with no speech — so a silent video is not reported
+    # as a rewrite that failed.
     return {"frames": results, "count": len(results), "capture": True,
-            "rewritten": rewritten}
+            "rewritten": rewritten if rewriting else None}
 
 
 def _process_video_sync(source: VideoSource, capture: CaptureRequest | None = None,

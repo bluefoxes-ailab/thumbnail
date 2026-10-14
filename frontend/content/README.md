@@ -462,20 +462,17 @@ the whole of it by writing one line.
 A channel that ever wants the transcript as spoken says so in its own pack, by
 overriding the key. Nothing does today.
 
-A rewritten caption is written to stand on its own over one still: the model is
-asked for a self-contained sentence inside 80 characters, and one that genuinely
-needs more may run to 160 — which is then split across two consecutive frames
-rather than repeated on both.
+A rewritten run is one account of the video, read from the first frame to the
+last. Its size is decided by `frames`, not by the transcript: 80 characters a
+frame, so forty frames is an account of at most 3,200 characters and two
+hundred of at most 16,000 — and the count used is the number of frames the run
+actually delivered, confirmed once they are prepared. A sentence takes one
+frame, or two when it needs up to 160 characters; every frame gets a piece of
+the text, in order. The count slider above the link box is therefore a control
+over the writing as much as over the pictures.
 
-How many captions there are is decided by `frames`, not by the transcript. The
-rewrite is told how many stills the run is about to deliver and writes that many
-lines, so forty frames of a long video is an account in forty captions and two
-hundred is the same account in two hundred. The count slider above the link box
-is therefore a control over the writing as much as over the pictures.
-
-Nothing repeats a caption; a frame with nothing left to say comes back with an
-empty text box (`backend/transcriber.py`, `captions_for`). The long explanation
-of what the rewrite does and what it refuses to do lives in the preset itself.
+How it does that, and what it refuses to do, is under `capture.rewrite` below
+and in the preset itself.
 
 `output` is the one number both halves of the app have to agree on, and
 neither holds a second copy of it: the backend is told it in the framing this
@@ -611,20 +608,40 @@ happens and becomes something the app enforces.
 these videos that is narration, and wrong for the half that is interview: an
 interview is somebody talking about themselves to a reporter who is not on
 screen, and a still captioned "I am Brian, Dolly's son" is a caption of
-nobody. The viewer has no previous card to learn who Brian is from, because
-each frame is looked at alone — the same reason transcriber.py assembles
-whole sentences in the first place.
+nobody.
 
-With `"rewrite": true` the transcript goes through a language model before any
-frame is captioned from it, and comes back as third-person report. The two
-lines above become one that stands on its own: "The world learned of her death
-through a message from her son Brian." See `backend/narrator.py`.
+With `"rewrite": true` the transcript goes through a language model once the
+frames are prepared, and comes back as ONE third-person account of the video,
+already dealt out over the frames. Direct speech becomes described speech: "I
+am Dolly Parton's grandson" becomes "Brian said he was Dolly Parton's
+grandson". See `backend/narrator.py`.
 
-**One caption per thought, not per sentence.** The transcript is gathered
-into thoughts before the model is shown any of it. A speaker introducing
+It runs in this order:
+
+1. **The transcript, as text.** Only the words go in. The seconds they were
+   spoken at are not used: nothing is matched to a moment of the video.
+2. **The frame count, confirmed.** The account is written for the frames the
+   run actually delivered — after blurred, blank and undecodable ones are
+   dropped — not for the number on the slider. Forty asked for and thirty-one
+   delivered is an account for thirty-one, and the log says both.
+3. **The budget: 80 characters a frame.** Forty frames is an account of at
+   most 3,200 characters; two hundred, of at most 16,000. The count slider is
+   therefore a control over the writing as much as over the pictures.
+4. **One text.** The account is read from the first frame to the last, like a
+   short article — not as forty captions that each have to stand alone.
+5. **80 a frame, 160 a sentence.** A sentence of up to 80 characters takes one
+   frame. One that needs more may run to 160 and is divided across two
+   consecutive frames, neither holding more than 80. A thought that needs more
+   than that is cut there and carried on in the next sentence.
+6. **In order, on every frame.** The first piece of the account goes on the
+   first frame, the next on the next. Every frame gets text, and no text is
+   left without a frame.
+
+**One line per thought, not per sentence.** The transcript is gathered into
+thoughts before the model is shown any of it. A speaker introducing
 themselves, then saying what they came to say, is three transcript sentences
 and one piece of news — so those three arrive as one item and come back as one
-caption. The grouping is arithmetic, not judgement: a sentence that never
+line. The grouping is arithmetic, not judgement: a sentence that never
 finished, or one whose neighbour starts in lower case, is a sentence still in
 the middle of a thought. That is `transcriber`'s own continuation rule run a
 second time with its length brake off — the brake is there so a CAPTION fits
@@ -636,39 +653,50 @@ joining lines itself, the model used it zero times across sixty-three
 sentences; told in a rewritten prompt that joining was the normal move, with a
 worked example, it used it zero times again.
 
+**It is written to the size of the grid.** Every item the model is handed
+carries its own size — one frame or two — and the sizes add up to the frame
+count. A transcript with more to say than the grid holds is gathered into
+fewer, larger items, and the model condenses each into its line. One with less
+gives two frames to its longest thoughts, and if even that cannot fill the
+grid, the account is spread thinner: shorter pieces, but a piece on every
+frame. The budget is a ceiling, not a quota — eight sentences of speech do not
+become forty sentences of account, because nothing may be added to make up
+the difference.
+
+**When a line comes back too long.** The model is told each line's size and
+does not always keep to it. Lines short enough to share a frame are set
+together; lines that still do not fit are put to a second pass that is asked
+only to say them shorter; and only if that fails too is a frame set with more
+than 80 characters. Never cut short instead — a caption that runs long is
+there for the user to trim, and a cut one is gone.
+
 **It does not repeat itself.** A model with a numbered list to fill and
 nothing new to say will paraphrase rather than leave a line out, which on a
 real run produced three consecutive captions that were the same sentence with
 its last three words swapped. Grouping is most of the cure, since there are
-fewer lines to pad; a check drops any caption that reuses three quarters of
-the wording of the one before it, and those frames keep the sentences as
-spoken instead.
+fewer lines to pad; a check drops any line that reuses three quarters of the
+wording of the one before it, and the frames it would have had go to the lines
+around it.
 
-**It does not name the same person over and over.** Left alone, the rewrite
-opens caption after caption with the same full name — "Dolly Parton was born",
-"Dolly Parton's family", "Dolly Parton picked up a guitar" — because each
-caption is shown alone and naming the subject in full is the safest way to
-make a line stand by itself. Asking the model to vary it was measured twice,
-the second time with the rule in capitals, and did not move: seven of
-seventeen captions still opened with the full name, six of them consecutive.
-
-So the second and later captions of a run are rewritten by
-`backend/reference.py`, which cycles through the surname, the given name, a
-pronoun and the person's role. Two of those are conditional and neither is
-guessed: the pronoun appears only where the captions themselves said "her
-mother" or "his aunt", and the role only where the text contained an
+**It does not name the same person over and over.** "Dolly Parton was born",
+"Dolly Parton's family", "Dolly Parton picked up a guitar" — five lines in a
+row like that read as a list, not a story. The model is asked to name each
+person in full the first time and then vary it: a pronoun, the surname, the
+first name, what the transcript says they are ("the singer", "the musician").
+Asking alone was measured not to be enough — seven of seventeen lines still
+opened with the full name, six of them consecutive, back when every caption
+also had to stand alone — so the variation is held by `backend/reference.py`
+as well, whatever the model does. After the full name it cycles through a
+pronoun, the person's role, the surname and the given name — "Dolly Parton",
+"She", "The singer", "Parton", "Dolly". Two of those are conditional and
+neither is guessed: the pronoun appears only where the account itself said
+"her mother" or "his aunt", and the role only where the text contained an
 appositive to lift it from ("Dolly Parton, the singer" gives "The singer").
-The swap fires only while the same person opened the caption before, which is
-exactly the condition that makes a pronoun unambiguous — a second person named
-in between puts the full name back.
-
-**It does not move the timeline.** The model is never asked when anything
-happened. It is handed the sentences numbered, and asked for text keyed to
-those numbers; the seconds each caption covers are the ones the transcript
-already carried, and a merged line takes the first sentence's start and the
-last one's end. So a rewrite can come back worse than the transcript, but it
-cannot come back describing a different moment of the video — which is the
-failure that would matter, because it is invisible in review.
+The swap fires only while the same person opened the line before, and the
+pronoun only when that line named nobody else, which is exactly the condition
+that makes it unambiguous — a second person opening a line in between puts
+the full name back. A surname or first name two people share is never used
+on its own: in a story about Dolly and Stella Parton, "Parton" says neither.
 
 It rewrites; it does not research. Every name and fact in a caption has to be
 somewhere in the transcript already. Nothing enforces that but the prompt,
@@ -687,17 +715,19 @@ and it is handed to the rewrite, which then says "write in Portuguese" rather
 than something a model can read as a suggestion. With that, the same two
 transcripts came back entirely in their own language. A second, mechanical
 check drops any line that still reads as English on a video that was not, so
-the failure costs that frame the sentence as spoken rather than a caption in
-the wrong language.
+the failure costs that line its rewrite — it keeps the words as spoken —
+rather than putting a caption in the wrong language on the frame.
 
 `rewrite` needs `captions`, since a rewrite of a transcription nobody asked
 for is nothing; set without it, the backend ignores it. Like `captions` and
 the frame count, it is read once as the run starts.
 
 And like everything else in this app that loads a model, it is never fatal. A
-machine that has not fetched the weights, a generation that comes back
-malformed, a line that comes back too long to set — each leaves that frame
-with the transcript as spoken. Plainer, not wrong.
+machine that has not fetched the weights, or a model that produces nothing
+usable for the whole video, leaves the frames with the transcript as spoken,
+and the status line under the grid says so. Short of that, a line the model
+got wrong costs only its own part of the account, which keeps its words as
+spoken. Plainer, not wrong.
 
 The weights are about 3 GB and are fetched once into `backend/models/`, by the
 server's own warm-up rather than by the installer — the same arrangement

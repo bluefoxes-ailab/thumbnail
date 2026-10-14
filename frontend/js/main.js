@@ -165,7 +165,7 @@ async function runPipeline(prepare) {
         status(isCapture()
             ? `${data.count} frames, in the order they happen in the video`
               + (spoken ? " — captions are the transcript as spoken: the narration "
-                        + "model did not load, so they were not rewritten as report" : "")
+                        + "model produced no rewrite, so they were not rewritten as report" : "")
             : `${data.count} frames — select one and give it a title`);
         setSelectedIndex(0);
         el("resultSection").classList.remove("hidden");
