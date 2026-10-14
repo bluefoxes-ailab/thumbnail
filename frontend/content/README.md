@@ -722,6 +722,15 @@ rather than putting a caption in the wrong language on the frame.
 for is nothing; set without it, the backend ignores it. Like `captions` and
 the frame count, it is read once as the run starts.
 
+To see what a video would get without a whole run — no frames, no GPU, no
+browser — `preview_captions.py` at the root of the repo runs the transcription
+and the rewrite on their own and prints every frame's caption with its length:
+
+```bash
+python preview_captions.py "<video link or file>" --frames 40
+python preview_captions.py transcript.txt --frames 40 --language pt
+```
+
 And like everything else in this app that loads a model, it is never fatal. A
 machine that has not fetched the weights, or a model that produces nothing
 usable for the whole video, leaves the frames with the transcript as spoken,
