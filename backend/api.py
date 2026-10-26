@@ -1112,7 +1112,7 @@ async def process_video(req: ProcessRequest):
                                  rewrite=bool(req.capture.rewrite))
 
     if not _process_lock.acquire(blocking=False):
-        raise HTTPException(409, "A video is already being processed — wait for it to finish.")
+        raise HTTPException(409, "Your video is being processed — wait for it to finish.")
 
     # Before the thread starts, not inside it: everything the run touches —
     # the scoring pass, the initial crops, and every later /vary-frame and

@@ -163,6 +163,12 @@ def _download_youtube(url: str) -> str:
         "ffmpeg_location": imageio_ffmpeg.get_ffmpeg_exe(),
         "noplaylist": True,
         "quiet": False,
+        "extractor_args": {
+            "youtube": {
+                "player_client": ["default", "web_embedded", "android"]
+            }
+        },
+        "cookiefile": os.path.join(os.path.dirname(__file__), "cookies.txt") if os.path.exists(os.path.join(os.path.dirname(__file__), "cookies.txt")) else None,
     }
 
     # Checked before the first attempt, not after three: a missing runtime is

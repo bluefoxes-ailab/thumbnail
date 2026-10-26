@@ -1727,14 +1727,15 @@ export function addTextOverlay(canvas, lines, hlIdx, mirror, opts = {}) {
      * to one side of a frame whose whole look is centred (see `fontSize` in
      * channels.js, and the packs that state one).
      */
+    const effectiveAlign = mirror ? (align === "right" ? "left" : (align === "left" ? "right" : align)) : align;
     const columnLeft = (fixedSize && align === "center")
         ? LEFT + Math.max(0, TARGET_W - blockWidth) / 2
         : (mirror ? CW - LEFT - blockWidth : LEFT);
 
     const aligned = (span) => {
         const slack = blockWidth - span.visualW;
-        if (align === "right") return columnLeft + slack;
-        if (align === "left") return columnLeft;
+        if (effectiveAlign === "right") return columnLeft + slack;
+        if (effectiveAlign === "left") return columnLeft;
         return columnLeft + slack / 2;
     };
 

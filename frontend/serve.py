@@ -1,59 +1,43 @@
-import datetime
-import sys, os, urllib.request, urllib.error, json
-import uuid
+import sys, os, urllib.request, urllib.error, json, uuid, time, datetime
 from http import cookies
-import urllib.request
-import urllib.error
 from urllib.parse import urlparse
-from http.server import SimpleHTTPRequestHandler, HTTPServer
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
 BACKENDS = [
     "http://127.0.0.1:8000",
     "http://127.0.0.1:8001",
     "http://127.0.0.1:8002",
-    "http://127.0.0.1:8003"
+    "http://127.0.0.1:8003",
+    "http://127.0.0.1:8004",
+    "http://127.0.0.1:8005"
 ]
 
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 3000
 
 PROXY_PREFIXES = (
     "/process-video", "/upload", "/upload-video", "/upload_video",
-    "/frame", "/vary-frame", "/enhance-frame", "/reframe-frame",
-    "/cleanup", "/selection", "/api")
-LOG_DIR = "/home/bluefoxesfreelancer/thumbnail/logs"
-os.makedirs(LOG_DIR, exist_ok=True)
+    "/compose-frame", "/reframe-frame", "/enhance-frame", "/vary-frame",
+    "/cutout", "/cutout-status", "/warm-cutouts", "/cleanup", "/export-pack",
+    "/frame-wide"
+)
 
-def record_adoption(tool_name, payload, client_ip):
-    # Separate log files per tool
-    clean_tool = "static_studio" if "static" in tool_name.lower() else "thumbnail_maker"
-    log_file = os.path.join(LOG_DIR, f"adoption_{clean_tool}.jsonl")
-
-    entry = {
-        "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
-        "client_ip": client_ip,
-        "channel": payload.get("channel", "unknown"),
-        "user": payload.get("user", client_ip),
-        "action": payload.get("action", "activity"),
-        "details": payload.get("details", {})
-    }
-
-    with open(log_file, "a", encoding="utf-8") as f:
-        f.write(json.dumps(entry) + "\n")
-def get_idle_backend():
-    for b in BACKENDS:
-        try:
-            req = urllib.request.Request(f"{b}/process-video/progress", headers={"User-Agent": "proxy"})
-            with urllib.request.urlopen(req, timeout=1.0) as resp:
-                data = json.loads(resp.read().decode())
-                if data.get("status") in ("idle", "done", "error"):
-                    return b
-        except Exception:
-            continue
-    return BACKENDS[0]
+SESSION_TIMEOUT_SECONDS = 45 * 60
+LOGS_DIR = "/home/bluefoxesfreelancer/thumbnail/logs"
+os.makedirs(LOGS_DIR, exist_ok=True)
 
 class MultiUserProxyHandler(SimpleHTTPRequestHandler):
     user_backends = {}
+    last_activity = {}
+
+    @classmethod
+    def cleanup_stale_sessions(cls):
+        now = time.time()
+        stale = [sid for sid, t in cls.last_activity.items() if now - t > SESSION_TIMEOUT_SECONDS]
+        for sid in stale:
+            backend = cls.user_backends.pop(sid, None)
+            cls.last_activity.pop(sid, None)
+            if backend:
+                print(f"[PROXY] Cleaned up inactive session {sid}, freed {backend}")
 
     def get_session_id(self):
         cookie_hdr = self.headers.get("Cookie", "")
@@ -65,42 +49,66 @@ class MultiUserProxyHandler(SimpleHTTPRequestHandler):
                     return c["user_session"].value
             except Exception:
                 pass
+        return self.client_address[0]
+
+    def allocate_worker(self, session_id):
+        MultiUserProxyHandler.cleanup_stale_sessions()
+
+        if session_id in MultiUserProxyHandler.user_backends:
+            MultiUserProxyHandler.last_activity[session_id] = time.time()
+            return MultiUserProxyHandler.user_backends[session_id]
+
+        used = set(MultiUserProxyHandler.user_backends.values())
+        for b in BACKENDS:
+            if b not in used:
+                MultiUserProxyHandler.user_backends[session_id] = b
+                MultiUserProxyHandler.last_activity[session_id] = time.time()
+                print(f"[PROXY] Assigned user {session_id} -> {b}")
+                return b
+
         return None
 
     def get_backend_url(self):
         session_id = self.get_session_id()
-        
-        # When initiating a new run or upload, always route to an idle worker
-        if self.path.startswith(("/process-video", "/upload", "/upload-video", "/upload_video")) and not self.path.startswith(("/process-video/progress", "/process-video/result")):
-            chosen = get_idle_backend()
-            if session_id:
-                MultiUserProxyHandler.user_backends[session_id] = chosen
-            return chosen
+        return self.allocate_worker(session_id)
 
-        # Otherwise stick to the assigned backend for polling, frames, and edits
-        if session_id and session_id in MultiUserProxyHandler.user_backends:
-            return MultiUserProxyHandler.user_backends[session_id]
-
-        chosen = get_idle_backend()
-        if session_id:
-            MultiUserProxyHandler.user_backends[session_id] = chosen
-        return chosen
+    def log_adoption_event(self, tool_name, payload):
+        log_file = os.path.join(LOGS_DIR, f"adoption_{tool_name}.jsonl")
+        client_ip = self.headers.get("X-Forwarded-For", self.client_address[0]).split(",")[0].strip()
+        entry = {
+            "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
+            "client_ip": client_ip,
+            "channel": payload.get("channel", "unknown"),
+            "user": payload.get("user", client_ip),
+            "action": payload.get("action", "activity"),
+            "details": payload.get("details", {})
+        }
+        with open(log_file, "a", encoding="utf-8") as f:
+            f.write(json.dumps(entry) + "\n")
+            f.flush()
 
     def forward(self, method):
-        # Extract pure relative path in case full URL was passed in self.path
         parsed = urlparse(self.path)
         path = parsed.path
         if parsed.query:
             path += "?" + parsed.query
-        backend = self.get_backend_url()
-        target_url = backend + path
 
+        backend = self.get_backend_url()
+        if not backend:
+            msg = json.dumps({
+                "detail": "All thumbnail slots are currently busy. Please wait until another user finishes to avoid conflicting frames."
+            }).encode("utf-8")
+            self.send_response(503)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(msg)))
+            self.end_headers()
+            self.wfile.write(msg)
+            return
+
+        target_url = backend + path
         session_id = self.get_session_id()
-        new_session = False
-        if not session_id:
-            session_id = str(uuid.uuid4())
-            new_session = True
-            MultiUserProxyHandler.user_backends[session_id] = backend
+        cookie_hdr = self.headers.get("Cookie", "")
+        needs_cookie = "user_session" not in cookie_hdr
 
         headers = {k: v for k, v in self.headers.items() if k.lower() != "host"}
         body = None
@@ -111,7 +119,7 @@ class MultiUserProxyHandler(SimpleHTTPRequestHandler):
         try:
             with urllib.request.urlopen(req, timeout=600) as resp:
                 self.send_response(resp.status)
-                if new_session:
+                if needs_cookie:
                     self.send_header("Set-Cookie", f"user_session={session_id}; Path=/; SameSite=Lax")
                 for k, v in resp.getheaders():
                     if k.lower() not in ("transfer-encoding", "content-encoding", "content-length"):
@@ -122,7 +130,7 @@ class MultiUserProxyHandler(SimpleHTTPRequestHandler):
                 self.wfile.write(data)
         except urllib.error.HTTPError as e:
             self.send_response(e.code)
-            if new_session:
+            if needs_cookie:
                 self.send_header("Set-Cookie", f"user_session={session_id}; Path=/; SameSite=Lax")
             for k, v in e.headers.items():
                 if k.lower() not in ("transfer-encoding", "content-encoding", "content-length"):
@@ -136,40 +144,34 @@ class MultiUserProxyHandler(SimpleHTTPRequestHandler):
 
     def do_GET(self):
         req_path = urlparse(self.path).path
-        clean_path = req_path.lstrip("/")
-
-        if clean_path == "" or os.path.exists(clean_path):
-            self.path = req_path
-            super().do_GET()
-        else:
+        if req_path.startswith(PROXY_PREFIXES) or req_path.startswith(("/frames/", "/cache/", "/frame-wide/")):
             self.forward("GET")
+        else:
+            session_id = self.get_session_id()
+            self.allocate_worker(session_id)
+            super().do_GET()
 
     def do_POST(self):
         req_path = urlparse(self.path).path
-        if req_path.startswith("/api/track"):
-            length = int(self.headers.get("Content-Length", 0))
-            body = self.rfile.read(length) if length > 0 else b"{}"
+        if req_path.startswith("/api/track/"):
+            tool_name = req_path.replace("/api/track/", "").strip("/") or "thumbnail_maker"
+            content_length = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(content_length) if content_length > 0 else b"{}"
             try:
-                data = json.loads(body.decode("utf-8"))
-                tool = data.get("tool", "thumbnail_maker")
-                log_file = f"/home/bluefoxesfreelancer/thumbnail/logs/adoption_{tool}.jsonl"
-                os.makedirs(os.path.dirname(log_file), exist_ok=True)
-                with open(log_file, "a", encoding="utf-8") as f:
-                    f.write(json.dumps(data) + "\n")
-                self.send_response(200)
-                self.send_header("Content-Type", "application/json")
-                self.end_headers()
-                self.wfile.write(b'{"status":"ok"}')
-            except Exception as e:
-                self.send_response(500)
-                self.end_headers()
-                self.wfile.write(str(e).encode("utf-8"))
-        else:
-            self.forward("POST")
+                payload = json.loads(body.decode("utf-8"))
+            except Exception:
+                payload = {}
+            self.log_adoption_event(tool_name, payload)
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(b'{"status": "ok"}')
+            return
+
+        self.forward("POST")
 
 if __name__ == "__main__":
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
     server = ThreadingHTTPServer(("0.0.0.0", PORT), MultiUserProxyHandler)
-    server.active_backend = BACKENDS[0]
-    print(f"Multi-user proxy serving on {PORT} with workers {BACKENDS}...")
+    print(f"Multi-user proxy serving on {PORT} with workers: {BACKENDS}")
     server.serve_forever()
