@@ -177,7 +177,16 @@ export async function applyCaptions() {
         // Written into the slots the markup has rather than assigned, so a
         // frame's lines stay the fixed-length array everything else expects
         // (see state.makeFrame and editor.updateLines).
-        frame.lines = frame.lines.map((_, i) => lines[i] || "");
+        //
+        // ...and past them, when the caption needs more. A channel that states
+        // its size wraps to as many lines as the words take (see captionLines),
+        // and a freeform one draws every line it is given (state.linesFor), so
+        // cutting at the fourth slot dropped the end of any caption longer than
+        // four lines — rare for a transcript written to CAPTION_CHARS, routine
+        // for the user's own text (see mytext.js). A channel with fixed slots
+        // still draws only its own, as it always did.
+        frame.lines = frame.lines.map((_, i) => lines[i] || "")
+            .concat(lines.slice(frame.lines.length));
     }
 }
 

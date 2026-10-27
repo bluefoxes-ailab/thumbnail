@@ -422,12 +422,14 @@ input[type="text"]::-moz-selection { background: #fffa00; color: #1b2fea; }
    typed, in the same group, answering the same moment. Its own
    column so the label, the box and the hint stack the way the
    channel picker's three do. */
-/* Frames with text / Frames only (Static Studio). Ordinary .btn
-   buttons in a .btn-row; the one thing they need beyond that is to
-   share the row's width equally, so the pair reads as one two-way
-   switch the width of the link box under it rather than as two
-   buttons of different lengths that happen to sit together. */
-.output-mode-toggle .btn { flex: 1; }
+/* Frames with text / Frames only / Frames + my text (Static Studio).
+   Ordinary .btn buttons in a .btn-row; the one thing they need beyond
+   that is to share the row's width equally, so the three read as one
+   switch the width of the link box under it rather than as buttons of
+   different lengths that happen to sit together. The padding is
+   eased so all three labels fit on one row at the column's width. */
+.output-mode-toggle .btn { flex: 1; padding-left: 10px; padding-right: 10px; }
+#myTextHint { text-align: center; margin-top: -4px; }
 #frameCountRow { display: flex; flex-direction: column; gap: 10px; }
 #frameCountRow.hidden { display: none; }
 /* Slider and its readout on one row, the readout wide enough for
@@ -803,8 +805,6 @@ body.mask-open { overflow: hidden; }
     border: 2px solid #026dff;
 }
 .mask-canvas.dragging { cursor: grabbing; }
-.mask-zoom { display: flex; align-items: center; gap: 12px; }
-/* The canvas zoom bar's caps are divs; these are real buttons, so the
 /* The stage with the blur control standing to its left. min-width: 0 on
    the canvas lets it give up width on a narrow window instead of pushing
    the slider out of the card. */
@@ -836,10 +836,43 @@ body.mask-open { overflow: hidden; }
                                         #1b2fea calc(var(--count-fill) * 100%));
 }
 .mask-blur .count-slider::-webkit-slider-thumb { margin-top: 0; margin-left: -7px; }
+.mask-zoom { display: flex; align-items: center; gap: 12px; }
+/* The canvas zoom bar's caps are divs; these are real buttons, so the
    browser's own border and padding have to be taken off them first. */
 .mask-zoom .zoom-cap { border: none; padding: 0; font-family: inherit; }
 .mask-actions { margin-top: 6px; }
 .mask-actions .btn { flex: 1; }
+
+/* ── The "Frames + my text" step (js/mytext.js) ────────────────────────
+   The mask step's backdrop and card, with the title block's own field
+   in it: the text typed here ends up as titles, and the box it is
+   typed into looks like the one it will later be edited in.
+
+   Unlike that field it does not grow to fit — a pasted script can run
+   to pages — so it scrolls, and the user can drag it taller. */
+.text-step-input {
+    min-height: 140px; max-height: 40vh;
+    overflow-y: auto; resize: vertical;
+}
+.text-step-count { text-align: center; margin-top: -6px; }
+/* The breaks, previewed. The page's yellow numbers on the panel's blue
+   edge, so each piece reads as one card of the grid it is headed for. */
+.text-step-pieces {
+    margin: 0; padding: 0; list-style: none; counter-reset: piece;
+    display: flex; flex-direction: column; gap: 6px;
+    max-height: 30vh; overflow-y: auto;
+}
+.text-step-pieces.hidden { display: none; }
+.text-step-pieces li {
+    counter-increment: piece;
+    display: flex; gap: 10px; align-items: baseline;
+    border-left: 2px solid #026dff; padding: 4px 10px;
+    font-size: 13px; line-height: 1.4;
+}
+.text-step-pieces li::before {
+    content: counter(piece);
+    color: #fffa00; font-weight: 900; font-size: 12px; min-width: 18px;
+}
 
 
 /* ── Frame-fetch mode ─────────────────────────────────────────────
