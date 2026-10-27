@@ -72,7 +72,7 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms));
  * completion arrive through the same poll: the payload carries `status`
  * alongside the stage/percent that drive the bar.
  */
-async function waitForResult() {
+async function waitForResult(runId) {
     let failures = 0;
     for (;;) {
         await sleep(POLL_MS);
@@ -85,15 +85,26 @@ async function waitForResult() {
         failures = 0;
         showProgress(progress.stage, progress.percent);
 
-        if (progress.status === "error") throw new Error(progress.detail || "Processing failed");
+        // Each of the three endings below leaves nothing for a reload to pick
+        // up, so the browser stops remembering the run. Losing contact is not
+        // one of them: the run may well still be going, and a reload once the
+        // connection is back is exactly what should find it.
+        if (progress.status === "error") {
+            forgetRun(runId);
+            throw new Error(progress.detail || "Processing failed");
+        }
         // "idle" can only mean the backend forgot the run it had just told us
         // it started — i.e. it restarted. Without this the poll would spin
         // forever on a run that no longer exists, which is the exact hang
         // moving off the long-lived request was meant to eliminate.
-        if (progress.status === "idle") throw new Error("The run was lost — the server restarted");
+        if (progress.status === "idle") {
+            forgetRun(runId);
+            throw new Error("The run was lost — the server restarted");
+        }
         if (progress.status === "done") {
             const result = await getJson("/process-video/result");
             if (!result) throw new Error("Finished, but the frames could not be collected");
+            forgetRun(runId);
             // A backend older than this file has no /result and answers the
             // mount's index.html instead, so what arrives is not a frame
             // payload at all. Saying so beats the TypeError the caller would
@@ -122,9 +133,43 @@ function setSourceBusy(busy) {
     el("uploadVideoBtn").disabled = busy;
 }
 
+// The run this browser started and has not collected yet, by the id it was
+// sent with. Kept in localStorage because the whole point is to survive the
+// page: a reload, a second tab, a browser restarted mid-run.
+//
+// It is what makes picking a run up safe. A backend holds whatever run it was
+// last given, and the page cannot tell from that alone whose it is — a slot
+// handed on to someone new after its owner went quiet still holds the old
+// owner's frames. Without the id, the newcomer's page would open on them.
+//
+// Every access is guarded: storage can be switched off or full, and the cost
+// of that should be losing the pick-up, not the page.
+const RUN_KEY = "thumbnailMaker.runId";
+
+function storedRunId() {
+    try { return localStorage.getItem(RUN_KEY); } catch { return null; }
+}
+
+function rememberRun(id) {
+    try { localStorage.setItem(RUN_KEY, id); } catch { /* see RUN_KEY */ }
+}
+
+// Only if it is still the one stored: another tab may have started a newer run
+// since, and that one is not this caller's to forget.
+function forgetRun(id) {
+    try { if (id && localStorage.getItem(RUN_KEY) === id) localStorage.removeItem(RUN_KEY); }
+    catch { /* see RUN_KEY */ }
+}
+
+// getRandomValues rather than randomUUID: the latter exists only on https and
+// localhost, and the app is also reached over plain http by address.
+function newRunId() {
+    return Array.from(crypto.getRandomValues(new Uint8Array(16)),
+                      b => b.toString(16).padStart(2, "0")).join("");
+}
+
 /**
- * A run on the backend that this page did not start and should finish, or
- * null.
+ * A run on the backend that this browser started and should finish, or null.
  *
  * The page that starts a run is not always the page that sees it through: a
  * reload, a second tab or a dropped connection puts a fresh page in front of
@@ -143,14 +188,30 @@ function setSourceBusy(busy) {
  * it ends.
  */
 async function runInProgress(finished) {
+    // No run of this browser's outstanding, so nothing to ask about — which
+    // also keeps a page that is only being opened from sending the backend
+    // anything at all.
+    const mine = storedRunId();
+    if (!mine) return null;
+
     const progress = await getJson("/process-video/progress").catch(() => null);
     if (!progress) return null;
-    const waiting = progress.status === "running"
-                 || (finished && progress.status === "done" && progress.collected === false);
-    if (!waiting) return null;
-    showProgress(progress.stage, progress.percent);
     const client = progress.run || null;
-    return { capture: client ? captureFor(client.channel) : null, client, resumed: true };
+
+    // Whatever the backend holds, if it is not this browser's run then this
+    // browser's run is gone — the backend keeps one at a time — and there is
+    // nothing more to wait for.
+    const ours = !!client && client.id === mine;
+    const pending = ours && (progress.status === "running"
+                             || (progress.status === "done" && progress.collected === false));
+    if (!pending) {
+        forgetRun(mine);
+        return null;
+    }
+    if (progress.status === "done" && !finished) return null;
+
+    showProgress(progress.stage, progress.percent);
+    return { capture: captureFor(client.channel), client, resumed: true };
 }
 
 /**
@@ -176,21 +237,32 @@ function resumeSettings(client) {
  * describes one picked up, so the rest of runPipeline cannot tell them apart.
  */
 async function startRun(prepare) {
-    const { body, stage, capture, client } = await prepare();
+    const prepared = await prepare();
+    const { body, stage, capture } = prepared;
+    const client = { ...prepared.client, id: newRunId() };
     showProgress(stage, 0);
     try {
         await postJson("/process-video", { ...body, client });
     } catch (e) {
+        if (e.status !== 409) throw e;
         // runPipeline asked this question before preparing anything, but an
         // upload takes long enough for another tab to have started a run in
         // the meantime. The uploaded file is then wasted; the run that won is
-        // still the user's, and following it beats an error.
-        // Finished runs included: the one that refused this may have ended
-        // between the 409 and this question, and it is still the one to show.
-        const run = e.status === 409 ? await runInProgress(true) : null;
-        if (!run) throw e;
-        return run;
+        // still the user's, and following it beats an error. Finished runs
+        // included: it may have ended between the 409 and this question, and
+        // it is still the one to show.
+        const run = await runInProgress(true);
+        if (run) return run;
+        // Not this browser's: the backend is busy with someone else's video.
+        // The proxy gives every session a backend of its own, so this takes a
+        // slot handed on while its last run was still going — rare, and worth
+        // saying plainly rather than "your video", which it is not.
+        throw new Error("Another video is being processed on this server — try again when it finishes.");
     }
+    // After the backend accepted it, not before: remembered first, a refusal
+    // would leave this browser waiting on a run that never existed — and
+    // would forget the run it really had going in another tab.
+    rememberRun(client.id);
     return { capture, client, resumed: false };
 }
 
@@ -205,11 +277,14 @@ async function startRun(prepare) {
  * grid, the font check, the first enhance — is shared, because from the
  * backend's side there is no longer any difference to act on.
  *
- * A run already going on the backend is followed rather than refused: it can
- * only be one this same user started (the proxy gives every session a
- * backend of its own), and it is the one the backend will finish first.
+ * A run of this browser's already going on the backend is followed rather
+ * than refused: it is the one the backend will finish first, and a second
+ * could not start until it had.
  */
 async function runPipeline(prepare) {
+    // The load-time check, with nothing to check: returns before touching
+    // the buttons, so an ordinary page load does not flicker them.
+    if (!prepare && !storedRunId()) return;
     setSourceBusy(true);
     status("");
     try {
@@ -219,7 +294,7 @@ async function runPipeline(prepare) {
             resumeSettings(run.client);
             status("Picking up the video that was already processing...");
         }
-        const data = await waitForResult();
+        const data = await waitForResult(run.client && run.client.id);
 
         // frame_ids are reused per video (0, 1, 2...), so anything keyed by
         // them from the previous video has to go before the new frames land.
@@ -820,7 +895,7 @@ window.addEventListener("resize", () => {
 
 initModeToggle();
 
-// A run this backend is still working on, or has finished without anyone
-// collecting it, belongs on this page — the usual way to get here with one
-// going is to have reloaded mid-run. See runInProgress.
+// A run this browser started that the backend is still working on, or has
+// finished without anyone collecting it, belongs on this page — the usual way
+// to get here with one going is to have reloaded mid-run. See runInProgress.
 runPipeline(null);

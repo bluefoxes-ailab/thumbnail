@@ -199,8 +199,10 @@ async def get_progress():
 
     `run` is the page's own account of the run, sent with it and handed back
     untouched (see ProcessRequest.client): which channel, which tab, whether
-    captions were wanted. Without it the frames would land in a page set up
-    for some other run. `collected` is whether /result has handed the frames
+    captions were wanted, and an id the page keeps so that it only ever picks
+    up a run of its own — a slot handed on to a new user still holds the last
+    one's. Without it the frames would land in a page set up for some other
+    run. `collected` is whether /result has handed the frames
     over yet — the difference between a finished run nobody has seen, which a
     fresh page should pick up, and yesterday's, which it should not.
     """

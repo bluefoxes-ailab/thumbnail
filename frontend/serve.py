@@ -1,4 +1,4 @@
-import sys, os, urllib.request, urllib.error, json, uuid, time, datetime
+import sys, os, re, threading, urllib.request, urllib.error, json, uuid, time, datetime
 from http import cookies
 from urllib.parse import urlparse
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -25,9 +25,20 @@ SESSION_TIMEOUT_SECONDS = 45 * 60
 LOGS_DIR = "/home/bluefoxesfreelancer/thumbnail/logs"
 os.makedirs(LOGS_DIR, exist_ok=True)
 
+# What a session id this proxy issued looks like: uuid4().hex.
+SESSION_ID = re.compile(r"[0-9a-f]{32}")
+
+ALLOCATION_LOCK = threading.Lock()
+
+# Pages, as opposed to the scripts, styles and images they pull in. Only these
+# hand out a session id - see do_GET.
+PAGE_PATHS = ("/", "/index.html", "/maintenance.html", "/maintenance-game.html")
+
 class MultiUserProxyHandler(SimpleHTTPRequestHandler):
     user_backends = {}
     last_activity = {}
+    # The id to send with this response, when it is the first a browser gets.
+    issue_session = None
 
     @classmethod
     def cleanup_stale_sessions(cls):
@@ -39,34 +50,69 @@ class MultiUserProxyHandler(SimpleHTTPRequestHandler):
             if backend:
                 print(f"[PROXY] Cleaned up inactive session {sid}, freed {backend}")
 
-    def get_session_id(self):
+    def cookie_session(self):
+        """
+        The session id this browser was issued, or None.
+
+        Only an id this proxy could have issued counts. The cookie used to hold
+        the visitor's IP address, so everyone behind one router - an office, a
+        house, a phone network's shared address - was one "user" to this
+        proxy: one backend, one run, one set of frames, each of them answering
+        409 to the others and overwriting their work. A browser still carrying
+        one of those old values is treated as having none and given a real id
+        with the next page it loads.
+        """
         cookie_hdr = self.headers.get("Cookie", "")
         if cookie_hdr:
             c = cookies.SimpleCookie()
             try:
                 c.load(cookie_hdr)
                 if "user_session" in c:
-                    return c["user_session"].value
+                    value = c["user_session"].value
+                    if SESSION_ID.fullmatch(value):
+                        return value
             except Exception:
                 pass
-        return self.client_address[0]
+        return None
+
+    def get_session_id(self):
+        # The IP only for a request that arrives with no id at all, which a
+        # browser that loaded the page never does (see do_GET). Something has
+        # to stand in: an id invented per request would take a new backend per
+        # request and fill every slot in a few clicks.
+        return self.cookie_session() or f"ip:{self.client_address[0]}"
 
     def allocate_worker(self, session_id):
-        MultiUserProxyHandler.cleanup_stale_sessions()
+        # Under a lock because the server answers each request on its own
+        # thread: two sessions arriving together could otherwise both see the
+        # same backend free and both be given it - two users on one backend,
+        # which is the one thing this class exists to prevent.
+        with ALLOCATION_LOCK:
+            MultiUserProxyHandler.cleanup_stale_sessions()
 
-        if session_id in MultiUserProxyHandler.user_backends:
-            MultiUserProxyHandler.last_activity[session_id] = time.time()
-            return MultiUserProxyHandler.user_backends[session_id]
-
-        used = set(MultiUserProxyHandler.user_backends.values())
-        for b in BACKENDS:
-            if b not in used:
-                MultiUserProxyHandler.user_backends[session_id] = b
+            if session_id in MultiUserProxyHandler.user_backends:
                 MultiUserProxyHandler.last_activity[session_id] = time.time()
-                print(f"[PROXY] Assigned user {session_id} -> {b}")
-                return b
+                return MultiUserProxyHandler.user_backends[session_id]
 
-        return None
+            used = set(MultiUserProxyHandler.user_backends.values())
+            for b in BACKENDS:
+                if b not in used:
+                    MultiUserProxyHandler.user_backends[session_id] = b
+                    MultiUserProxyHandler.last_activity[session_id] = time.time()
+                    print(f"[PROXY] Assigned user {session_id} -> {b}")
+                    return b
+
+            return None
+
+    def end_headers(self):
+        # Where a page response picks up the id do_GET decided to issue - the
+        # static file handler builds its own headers, so this is the one point
+        # every response passes through.
+        if self.issue_session:
+            self.send_header("Set-Cookie", f"user_session={self.issue_session}; "
+                                           "Path=/; SameSite=Lax; HttpOnly")
+            self.issue_session = None
+        super().end_headers()
 
     def get_backend_url(self):
         session_id = self.get_session_id()
@@ -106,9 +152,6 @@ class MultiUserProxyHandler(SimpleHTTPRequestHandler):
             return
 
         target_url = backend + path
-        session_id = self.get_session_id()
-        cookie_hdr = self.headers.get("Cookie", "")
-        needs_cookie = "user_session" not in cookie_hdr
 
         headers = {k: v for k, v in self.headers.items() if k.lower() != "host"}
         body = None
@@ -119,8 +162,6 @@ class MultiUserProxyHandler(SimpleHTTPRequestHandler):
         try:
             with urllib.request.urlopen(req, timeout=600) as resp:
                 self.send_response(resp.status)
-                if needs_cookie:
-                    self.send_header("Set-Cookie", f"user_session={session_id}; Path=/; SameSite=Lax")
                 for k, v in resp.getheaders():
                     if k.lower() not in ("transfer-encoding", "content-encoding", "content-length"):
                         self.send_header(k, v)
@@ -130,8 +171,6 @@ class MultiUserProxyHandler(SimpleHTTPRequestHandler):
                 self.wfile.write(data)
         except urllib.error.HTTPError as e:
             self.send_response(e.code)
-            if needs_cookie:
-                self.send_header("Set-Cookie", f"user_session={session_id}; Path=/; SameSite=Lax")
             for k, v in e.headers.items():
                 if k.lower() not in ("transfer-encoding", "content-encoding", "content-length"):
                     self.send_header(k, v)
@@ -147,8 +186,21 @@ class MultiUserProxyHandler(SimpleHTTPRequestHandler):
         if req_path.startswith(PROXY_PREFIXES) or req_path.startswith(("/frames/", "/cache/", "/frame-wide/")):
             self.forward("GET")
         else:
-            session_id = self.get_session_id()
-            self.allocate_worker(session_id)
+            # The page is where a browser gets its session id, and the only
+            # place: everything it then asks for carries the cookie. Handing
+            # one out on any request without it would mint several for a single
+            # visitor - the scripts, styles and icon of a first visit are all
+            # requested before the first answer lands - and each id takes a
+            # backend of its own.
+            #
+            # A seat is still taken on opening the page, as it always was;
+            # what changed is only whose name it is in.
+            self.issue_session = None
+            session_id = self.cookie_session()
+            if session_id is None and req_path in PAGE_PATHS:
+                session_id = self.issue_session = uuid.uuid4().hex
+            if session_id is not None:
+                self.allocate_worker(session_id)
             super().do_GET()
 
     def do_POST(self):
