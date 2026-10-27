@@ -21,6 +21,7 @@ import {
 import { invalidate as invalidateWide, prefetchWide } from "./wide.js";
 import { syncZoomSliderFor } from "./reframe.js";
 import { captureMode } from "./capture.js";
+import { openMaskStep } from "./mask.js";
 function trackEvent(action, details = {}) {
     // 1. Identify which tool this page represents
     const toolName = window.location.pathname.includes("static") ? "static_studio" : "thumbnail_maker";
@@ -2039,14 +2040,22 @@ export async function handleLogoFile(file) {
         reader.onerror = () => reject(new Error("could not read file"));
         reader.readAsDataURL(file);
     });
-    const img = await loadImage(dataUrl);
+    const picked = await loadImage(dataUrl);
+    // The mask step sits between the file dialog and the canvas (see
+    // mask.js). It answers with the picture to place — the masked crop, or
+    // the upload itself when the user keeps it whole — or null for cancel,
+    // which adds nothing. Asked before the frame is touched, so a cancel
+    // leaves it exactly as it was, `edited` flag included.
+    const src = await openMaskStep(picked, dataUrl);
+    if (!src || current() !== f) return;   // cancelled, or the user moved to another frame meanwhile
+    const img = src === dataUrl ? picked : await loadImage(src);
     const targetW = CW * 0.28;                        // default on-canvas width
     const scale = Math.min(1, targetW / img.width);   // never upscale past the upload's own resolution
     f.edited = true;
     // Appended, not assigned: a frame carries as many overlays as the user
     // adds, and the newest goes on top of the stack.
     f.logos.push({
-        src: dataUrl, _img: img,
+        src, _img: img,
         natW: img.width, natH: img.height,
         x: CW / 2, y: CH / 2,   // centered, per spec
         scale,

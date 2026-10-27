@@ -745,6 +745,71 @@ input[type="text"]::-moz-selection { background: #fffa00; color: #1b2fea; }
 }
 .logo-chip-del:hover { background: #fffa00; color: #FF070C; }
 
+/* ── The mask step (js/mask.js) ───────────────────────────────────────
+   Built out of parts the page already has, on purpose: the .btn pair
+   with .btn-active held on the chosen shape, exactly as the edit
+   presets and the output mode show theirs; the frame-count slider for
+   zoom, with the canvas zoom bar's round caps either side of it; the
+   side panel's blue-edged card for the box everything sits in. A step
+   that looked designed for some other app would read as one.
+
+   The backdrop is the page's own navy, translucent and blurred, so the
+   frame the overlay is going onto stays faintly visible behind — the
+   step is a moment in that frame's editing, not a separate place. */
+.mask-step {
+    position: fixed; inset: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: center;
+    padding: 16px;
+    background: rgba(6, 6, 16, 0.78);
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+}
+.mask-step.hidden { display: none; }
+/* Nothing behind the step scrolls while it is up; the wheel over the
+   stage zooms, and a page sliding underneath at the same time would
+   be two things answering one gesture. */
+body.mask-open { overflow: hidden; }
+/* Opaque where the side panel is translucent: the panel sits on the
+   page's own field, this sits on a photo, and a blue tint over a busy
+   picture is a card nobody can read. The tint is kept as a gradient
+   over the navy so it is still recognisably the panel's colour. */
+.mask-card {
+    width: 440px; max-width: 100%; max-height: 100%; overflow-y: auto;
+    display: flex; flex-direction: column; gap: 14px;
+    background: linear-gradient(rgba(27, 47, 234, 0.18), rgba(27, 47, 234, 0.18)), #080b1e;
+    border: 1px solid rgba(2, 109, 255, 0.5); border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 250, 0, 0.04);
+}
+.mask-card h2 { margin: 0; }
+.mask-hint { text-align: center; opacity: 0.75; margin-top: -6px; }
+.mask-shape-row .btn { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+/* The shape, drawn on its own button, so the choice is legible before
+   the word is read. currentColor, so it turns blue with the label when
+   the button turns yellow. */
+.mask-glyph { width: 12px; height: 12px; border: 2px solid currentColor; display: inline-block; flex: 0 0 auto; }
+.mask-glyph-square { border-radius: 2px; }
+.mask-glyph-round { border-radius: 50%; }
+/* The stage is sized in mask.js (its drawing buffer follows the
+   screen's density). The checkerboard behind it is the usual sign for
+   "transparent": past fill, or outside the circle, that is what the
+   exported picture will have there. The canvas paints over it
+   everywhere the image is. */
+.mask-canvas {
+    display: block; margin: 0 auto; max-width: 100%; height: auto !important;
+    aspect-ratio: 1 / 1;
+    border-radius: 8px; cursor: grab; touch-action: none;
+    background:
+        repeating-conic-gradient(#141833 0% 25%, #0d1026 0% 50%) 50% / 20px 20px;
+    border: 2px solid #026dff;
+}
+.mask-canvas.dragging { cursor: grabbing; }
+.mask-zoom { display: flex; align-items: center; gap: 12px; }
+/* The canvas zoom bar's caps are divs; these are real buttons, so the
+   browser's own border and padding have to be taken off them first. */
+.mask-zoom .zoom-cap { border: none; padding: 0; font-family: inherit; }
+.mask-actions { margin-top: 6px; }
+.mask-actions .btn { flex: 1; }
+
 
 /* ── Frame-fetch mode ─────────────────────────────────────────────
 
