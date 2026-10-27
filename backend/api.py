@@ -764,11 +764,16 @@ def _capture_frames_sync(video_path: str, count: int, captions: bool = False,
     # so the answer is in place by the time the first slot is rendered — and
     # on the uncropped frames, which is both what these slots are made of and
     # where a subtitle low in the picture actually survives.
+    #
+    # Before the selection for a second reason: the selection uses it. A slot
+    # whose caption lies across a face is moved to a moment where it does not
+    # (see frame_grab.clear_faces), because painting the words out of a face
+    # paints the face out with them.
     _set_progress("Checking for subtitles...", 35)
     session.subtitle_bands = subtitle_remover.detect_bands(sources)
 
     _set_progress("Checking frame quality...", 40)
-    grabs = frame_grab.select(sources, interval, count, video_path)
+    grabs = frame_grab.select(sources, interval, count, video_path, session.subtitle_bands)
     if not grabs:
         raise HTTPException(422, "No usable frames found — everything sampled was out of focus, "
                                  "smeared by motion, or blank")

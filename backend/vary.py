@@ -663,6 +663,10 @@ def pick_capture_variation(frame_id: int) -> dict | None:
          requirement: a shot where the subject is turned away has no
          open-eyed frame in it at all, and the click must still work
 
+    On a video with burned-in captions, a second preference runs through the
+    same tiers: a moment where the caption is not across a face. It is tried
+    together with the eyes first, then each alone, and dropped last.
+
     Within a tier the candidates are ordered by how UNLIKE the photo being
     replaced they are, so a click visibly moves and a second click moves
     again, rather than returning something a frame away from where it started.
@@ -731,10 +735,32 @@ def pick_capture_variation(frame_id: int) -> dict | None:
     scored = [c for c in scored if c["moved"] >= best_move * CAPTURE_MOVE_ENOUGH_FRAC] or scored
     random.shuffle(scored)
 
-    def first_with_eyes(candidates):
+    # The second preference beside the eyes: a moment whose burned-in caption
+    # is not lying across a face. Removing it from one paints the face out
+    # with it (see frame_grab.clear_faces), and Variation is the button a
+    # user presses on exactly that frame. Only asked of a video that has
+    # captions at all.
+    wants_clear = bool(session.subtitle_bands)
+
+    # Both answers per path, each taken at most once: the same candidate turns
+    # up in several tiers and under several preferences below, and each
+    # answer costs a detection pass.
+    verdicts: dict[str, tuple[bool, bool]] = {}
+
+    def verdict(candidate):
+        path = candidate["path"]
+        if path not in verdicts:
+            image = imread(path)
+            verdicts[path] = (False, False) if image is None else (
+                not wants_eyes or frame_grab.eye_state(image) == frame_grab.EYES_OPEN,
+                not wants_clear or not frame_grab.face_under_caption(image, session.subtitle_bands),
+            )
+        return verdicts[path]
+
+    def first_suiting(candidates, eyes, clear):
         for candidate in candidates[:CAPTURE_EYE_TRIES]:
-            image = imread(candidate["path"])
-            if image is not None and frame_grab.eye_state(image) == frame_grab.EYES_OPEN:
+            eyes_ok, clear_ok = verdict(candidate)
+            if (eyes_ok or not eyes) and (clear_ok or not clear):
                 return candidate
         return None
 
@@ -743,9 +769,17 @@ def pick_capture_variation(frame_id: int) -> dict | None:
         lambda c: not c["used"],
         lambda c: True,
     ]
-    if wants_eyes:
+    # Both preferences, then either one alone, then neither — each run through
+    # every tier before the next is given up. When only one can be had the
+    # eyes come first, which is simply what this button already did: a shot
+    # whose caption never leaves the face gets the Variation it always got.
+    preferences = []
+    for need in ((wants_eyes, wants_clear), (wants_eyes, False), (False, wants_clear)):
+        if any(need) and need not in preferences:
+            preferences.append(need)
+    for eyes, clear in preferences:
         for tier in tiers:
-            found = first_with_eyes([c for c in scored if tier(c)])
+            found = first_suiting([c for c in scored if tier(c)], eyes, clear)
             if found is not None:
                 return found
     return next((c for tier in tiers for c in scored if tier(c)), None)
