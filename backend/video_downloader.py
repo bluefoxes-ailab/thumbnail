@@ -29,6 +29,11 @@ TEMP_DIR = os.path.join(os.path.dirname(__file__), "temp")
 
 YOUTUBE_PATTERN = re.compile(r"(youtube\.com/watch\?v=|youtube\.com/shorts/|youtu\.be/)")
 DROPBOX_PATTERN = re.compile(r"dropbox\.com")
+# Any Instagram link at all, not just the shapes that name a video — so that a
+# profile or a story link gets a sentence about Instagram rather than falling
+# through to the Google Drive path and failing there as "Could not extract
+# file ID", which would send the user looking in the wrong place entirely.
+INSTAGRAM_PATTERN = re.compile(r"(?:^|[/.])(?:instagram\.com|instagr\.am)/", re.IGNORECASE)
 
 YOUTUBE_MAX_RETRIES = 3   # yt-dlp's signed format URLs intermittently 403 without a JS runtime
                           # (deno) to solve YouTube's signature challenge — a fresh extraction
@@ -114,6 +119,21 @@ YOUTUBE_ID_PATTERN = re.compile(
 )
 
 
+# The shortcode of an Instagram post or reel — the part of the link that names
+# the media itself. The optional segment before the type is the account name,
+# which Instagram now puts in links shared from a profile
+# (instagram.com/<user>/reel/<code>/) as well as the bare form.
+INSTAGRAM_SHORTCODE_PATTERN = re.compile(
+    r"(?:instagram\.com|instagr\.am)/(?:[A-Za-z0-9_.]+/)?(?:p|reels?|tv)/([A-Za-z0-9_-]+)",
+    re.IGNORECASE,
+)
+
+
+def _instagram_shortcode(url: str) -> str | None:
+    match = INSTAGRAM_SHORTCODE_PATTERN.search(url)
+    return match.group(1) if match else None
+
+
 def expected_stem(url: str) -> str | None:
     """
     The filename (without extension) `download_video` will write for this URL,
@@ -129,6 +149,9 @@ def expected_stem(url: str) -> str | None:
     if YOUTUBE_PATTERN.search(url):
         match = YOUTUBE_ID_PATTERN.search(url)
         return match.group(1) if match else None
+    if INSTAGRAM_PATTERN.search(url):
+        shortcode = _instagram_shortcode(url)
+        return f"instagram_{shortcode}" if shortcode else None
     if DROPBOX_PATTERN.search(url):
         return f"dropbox_{_dropbox_file_id(url)}"
     try:
@@ -201,6 +224,97 @@ def _download_youtube(url: str) -> str:
     raise last_error
 
 
+# ── Instagram ─────────────────────────────────────────────────────────────
+#
+# Through yt-dlp, like YouTube, but with none of YouTube's machinery: Instagram
+# does not sign its media URLs with JavaScript, so no runtime is needed, and
+# the failures it does have are not the intermittent kind a retry fixes.
+#
+# What it has instead is a login wall. Public reels usually download
+# anonymously, but Instagram decides per request — a private account always
+# refuses, and a busy IP gets refused for a while even on public posts. A
+# retry from the same machine a second later gets the same answer, so there
+# is one attempt and, when it is refused, a message that says what would help.
+#
+# The help is the same cookies.txt the YouTube path already reads. A Netscape
+# cookie file holds cookies for any number of sites and yt-dlp only sends each
+# site its own, so instagram.com cookies exported into that file sit beside the
+# YouTube ones without either path needing to know about the other.
+
+COOKIE_FILE = os.path.join(os.path.dirname(__file__), "cookies.txt")
+
+# Phrases yt-dlp's Instagram extractor uses when the refusal is about being
+# signed in rather than about the link. Matched loosely and in lowercase, since
+# the exact wording moves between yt-dlp releases — "--cookies" is the most
+# stable of them, because every raise_login_required ends with yt-dlp's own
+# hint to pass one.
+INSTAGRAM_LOGIN_HINTS = ("login", "log in", "rate-limit", "registered users", "--cookies")
+
+
+def _instagram_login_message(error: Exception) -> str:
+    return (
+        "Instagram refused to hand over this video without a signed-in "
+        "session. Either the account is private, or Instagram is limiting "
+        "anonymous requests from this machine. Sign in to instagram.com in a "
+        "browser, export its cookies in Netscape format, and add them to "
+        f"{COOKIE_FILE}, then try the link again. (Instagram said: {error})"
+    )
+
+
+def _download_instagram(url: str) -> str:
+    shortcode = _instagram_shortcode(url)
+    if not shortcode:
+        raise ValueError(
+            "That Instagram link does not point at a post or a reel. Open the "
+            "video itself and copy its link (it contains /reel/ or /p/)."
+        )
+
+    os.makedirs(TEMP_DIR, exist_ok=True)
+    ydl_opts = {
+        # Same reasoning as the YouTube path: only frames are extracted, so
+        # the best video stream on its own beats a lower-resolution file that
+        # happens to have audio muxed in.
+        "format": "bestvideo/best",
+        # Named from the shortcode in the URL rather than from yt-dlp's own
+        # id, so the stem is known before anything is fetched — that is what
+        # expected_stem relies on. yt-dlp's id for a reel is the same
+        # shortcode today, but a carousel's entries carry numeric media ids,
+        # and nothing here should depend on which one it chooses.
+        "outtmpl": os.path.join(TEMP_DIR, f"instagram_{shortcode}.%(ext)s"),
+        "ffmpeg_location": imageio_ffmpeg.get_ffmpeg_exe(),
+        # A carousel post is a playlist of its slides, and a photo slide
+        # comes back with no formats at all — which yt-dlp would otherwise
+        # treat as the whole post failing. Tolerated here so the slides can
+        # be looked at and the video among them picked out below.
+        "ignore_no_formats_error": True,
+        "quiet": False,
+        "cookiefile": COOKIE_FILE if os.path.exists(COOKIE_FILE) else None,
+    }
+
+    try:
+        with YoutubeDL(ydl_opts) as ydl:
+            # Looked at first and fetched second, because what to fetch
+            # depends on what the post turns out to be. Of a carousel, only
+            # the first slide that is a video: every slide would be written
+            # to the same name, one over the other, and the run reads one
+            # video anyway.
+            info = ydl.extract_info(url, download=False)
+            if info and info.get("_type") == "playlist":
+                info = next((e for e in info.get("entries") or [] if e and e.get("formats")), None)
+            if not info or not info.get("formats"):
+                raise RuntimeError("That Instagram post has no video in it, only photos")
+            info = ydl.process_ie_result(info, download=True)
+            output_path = ydl.prepare_filename(info)
+    except DownloadError as e:
+        if any(hint in str(e).lower() for hint in INSTAGRAM_LOGIN_HINTS):
+            raise RuntimeError(_instagram_login_message(e)) from e
+        raise
+
+    if not os.path.exists(output_path):
+        raise RuntimeError("Download failed")
+    return output_path
+
+
 def _dropbox_file_id(url: str) -> str:
     m = re.search(r"/(?:s|scl/fi)/([a-zA-Z0-9]+)", urlparse(url).path)
     return m.group(1) if m else str(abs(hash(url)))
@@ -242,6 +356,8 @@ def _download_dropbox(url: str) -> str:
 def download_video(url: str) -> str:
     if YOUTUBE_PATTERN.search(url):
         return _download_youtube(url)
+    if INSTAGRAM_PATTERN.search(url):
+        return _download_instagram(url)
     if DROPBOX_PATTERN.search(url):
         return _download_dropbox(url)
 
