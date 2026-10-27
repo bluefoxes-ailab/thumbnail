@@ -118,6 +118,130 @@ def _no_js_runtime_message():
     )
 
 
+# ── Logging in to YouTube ─────────────────────────────────────────────────
+#
+# YouTube answers a download from a datacenter address — a cloud VM, which is
+# where the shared server runs — with:
+#
+#     Sign in to confirm you're not a bot. Use --cookies-from-browser or
+#     --cookies for the authentication.
+#
+# It is a judgement about the ADDRESS, not about the video or about yt-dlp: the
+# same link downloads fine from a home connection and fails every time from the
+# VM. The one remedy that does not involve moving the server is to download as
+# a logged-in user, which yt-dlp does from a cookies file in Netscape format
+# exported from a browser where somebody is signed in to YouTube.
+#
+# Where the file is looked for, first match wins:
+#
+#   THUMBNAIL_MAKER_YT_COOKIES   a full path, for a server that keeps its
+#                                secrets somewhere of its own. Set and wrong is
+#                                an error rather than a silent fallback — a
+#                                typo in it would otherwise look exactly like
+#                                YouTube refusing the cookies.
+#   backend/secrets/youtube-cookies.txt
+#                                the default. backend/secrets/ is in .gitignore,
+#                                and has to stay there: this file IS the login.
+#
+# With neither, downloads run anonymously exactly as they always did, which is
+# still what a machine on a home connection wants.
+#
+# Use a Google account made for this, not anybody's own. YouTube can flag an
+# account whose cookies are used from a server, and the export goes stale on
+# its own schedule — the error below says so when it does.
+
+YOUTUBE_COOKIES_ENV = "THUMBNAIL_MAKER_YT_COOKIES"
+YOUTUBE_COOKIES_DEFAULT = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "secrets", "youtube-cookies.txt")
+
+# How yt-dlp words the refusal. Matched loosely because the apostrophe in
+# "you're" arrives as a typographic one, and the sentence around it has been
+# reworded before.
+YOUTUBE_BOT_CHECK = re.compile(r"not a bot|sign in to confirm", re.IGNORECASE)
+
+
+def _youtube_cookies():
+    """The cookies file to download with, or None to download anonymously."""
+    configured = (os.environ.get(YOUTUBE_COOKIES_ENV) or "").strip()
+    if configured:
+        if not os.path.isfile(configured):
+            raise RuntimeError(
+                f"{YOUTUBE_COOKIES_ENV} is set to {configured}, but there is no "
+                "file there. Fix the path, or unset it to use "
+                f"{YOUTUBE_COOKIES_DEFAULT}."
+            )
+        return configured
+    return YOUTUBE_COOKIES_DEFAULT if os.path.isfile(YOUTUBE_COOKIES_DEFAULT) else None
+
+
+def _working_copy(cookies: str) -> str:
+    """
+    A private copy of the cookies file for one download to read and rewrite.
+
+    yt-dlp writes the cookie jar back to its file when it finishes, which is
+    how a session YouTube keeps refreshing stays alive — but the server runs
+    several backends side by side, and two of them rewriting one file at once
+    can leave it truncated. Each download therefore works on its own copy, in
+    the same folder so that handing the refreshed jar back is a single atomic
+    rename (see _keep_refreshed_cookies) rather than a write another process
+    can catch halfway.
+
+    A folder that cannot be written to — secrets mounted read-only — gets the
+    copy in TEMP_DIR instead. Downloads work the same; the refreshed jar just
+    cannot be handed back, which is what read-only was asking for.
+    """
+    name = f".cookies-{uuid.uuid4().hex}.txt"
+    try:
+        copy = os.path.join(os.path.dirname(cookies), name)
+        shutil.copyfile(cookies, copy)
+    except OSError:
+        copy = os.path.join(TEMP_DIR, name)
+        shutil.copyfile(cookies, copy)
+    return copy
+
+
+def _keep_refreshed_cookies(copy: str, cookies: str) -> None:
+    """
+    Puts a successful download's refreshed jar back as THE cookies file.
+
+    Only after a success: a refused download can come back with the session
+    cookies cleared, and writing that over the file would turn one bad attempt
+    into every later one. Best effort — a secrets folder mounted read-only, or
+    a copy that had to be made in TEMP_DIR on another filesystem, simply keeps
+    the file it was given.
+    """
+    try:
+        os.replace(copy, cookies)
+    except OSError:
+        _discard(copy)
+
+
+def _discard(path: str) -> None:
+    try:
+        os.remove(path)
+    except OSError:
+        pass
+
+
+def _bot_check_message(cookies: str | None) -> str:
+    if cookies:
+        return (
+            "YouTube refused the login in " + cookies + " and asked this server "
+            "to prove it is not a bot. The cookies have most likely expired or "
+            "been signed out: export them again from a browser signed in to "
+            "YouTube and replace that file. Google Drive and Dropbox links, and "
+            "uploaded videos, are unaffected."
+        )
+    return (
+        "YouTube is refusing this server without a login (\"confirm you're not "
+        "a bot\"), which it does to cloud addresses. Export YouTube cookies from "
+        "a browser signed in to a Google account kept for this, in Netscape "
+        "format, and save them as " + YOUTUBE_COOKIES_DEFAULT + " (or set " +
+        YOUTUBE_COOKIES_ENV + " to their path). Until then, upload the video or "
+        "use a Google Drive or Dropbox link."
+    )
+
+
 # The video id inside a YouTube URL. yt-dlp's outtmpl below is "%(id)s.%(ext)s"
 # and this IS that id, so the downloaded file's stem is knowable from the URL
 # alone — no network round trip — which is what lets the temp cache be pruned
@@ -227,18 +351,41 @@ def _download_youtube(url: str) -> str:
         name, path = runtime
         ydl_opts["js_runtimes"] = {name: {"path": path}}
 
+    # Resolved once per download, before the first attempt, for the reason the
+    # runtime is: a path set wrong is a fixed fact and gets its own message.
+    cookies = _youtube_cookies()
+
     last_error = None
     for attempt in range(1, YOUTUBE_MAX_RETRIES + 1):
         cancel.check()
+        # A fresh copy per attempt, so an attempt that failed never hands its
+        # jar to the next one (see _keep_refreshed_cookies). Removed however
+        # the attempt ends — a success has already renamed it away, so the
+        # removal is a no-op there.
+        jar = _working_copy(cookies) if cookies else None
+        if jar:
+            ydl_opts["cookiefile"] = jar
         try:
             with YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=True)
                 output_path = ydl.prepare_filename(info)
             if os.path.exists(output_path):
+                if jar:
+                    _keep_refreshed_cookies(jar, cookies)
                 return output_path
             last_error = RuntimeError("Download failed")
         except DownloadError as e:
             last_error = e
+            # The bot check is a verdict on the server's address (or on the
+            # cookies), and asking again two seconds later gets the same
+            # verdict. Stopping here saves the user the retries' wait and
+            # replaces yt-dlp's advice about command-line flags — which nobody
+            # using this app can act on — with what to actually do.
+            if YOUTUBE_BOT_CHECK.search(str(e)):
+                raise RuntimeError(_bot_check_message(cookies)) from e
+        finally:
+            if jar:
+                _discard(jar)
         if attempt < YOUTUBE_MAX_RETRIES:
             cancel.wait(YOUTUBE_RETRY_DELAY)   # woken early by a stop, and the loop checks
 

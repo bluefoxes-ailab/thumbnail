@@ -16,3 +16,8 @@ services:
               capabilities: [gpu]
     volumes:
       - ./backend/temp:/app/backend/temp
+      # The YouTube login (secrets/youtube-cookies.txt, see video_downloader.py).
+      # Mounted rather than copied into the image, so the cookies are never
+      # baked into a layer and can be replaced without a rebuild. Writable, so
+      # the session yt-dlp refreshes on each download is kept.
+      - ./secrets:/app/secrets
