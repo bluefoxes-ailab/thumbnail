@@ -3,7 +3,7 @@ import {
     frames, current, selectedIndex, linesFor, hlFor, logosFor,
     backendPresentation, setFrameImage, clearCutout, channelFor,
     titleAlignFor, layersFor, activeLayerFor, backgroundFor, figureGlowFor, cutoutModeFor,
-    textColorFor, panelColorFor, highlightColorFor,
+    textColorFor, panelColorFor, highlightColorFor, positionOf, gridOrder,
 } from "./state.js";
 import {
     channels, activeChannelId, setActiveChannel, hasChannel, titleStyle, branding,
@@ -594,7 +594,7 @@ export function loadTextPanel() {
     // the user looking for a title they never wrote (see capture.js).
     const capture = captureMode();
     const kind = capture && capture.captions ? "Caption" : "Title";
-    el("textPanelLabel").textContent = `${kind} — Frame ${selectedIndex() + 1}`;
+    el("textPanelLabel").textContent = `${kind} — Frame ${positionOf(selectedIndex()) + 1}`;
     renderHlButtons();
     syncAlignButtons();  // ...as does the alignment
     renderColorButtons();   // ...and the two colours, which are the frame's as well
@@ -1971,13 +1971,20 @@ export async function warmCutouts() {
  * So it is reported rather than done quietly. This is minutes of work on a
  * grid of forty, and a status line counting them off is the difference between
  * a machine that is busy and one that looks broken.
+ *
+ * Worked through in the grid's order, asked afresh before each frame: the user
+ * may rearrange the grid while this runs (see reorder.js), and the frames they
+ * have just dragged to the front are the ones they want to see turn first.
  */
 export async function applyEditToAll() {
     trackEvent("batch_edit_all_frames", { total_frames: frames().length });
     const grid = frames();
-    for (let i = 0; i < grid.length; i++) {
+    const done = new Set();
+    for (let n = 0; n < grid.length; n++) {
         if (frames() !== grid) return false;
-        status(`Applying the edit — frame ${i + 1} of ${grid.length}`);
+        const i = gridOrder().find(k => !done.has(k));
+        done.add(i);
+        status(`Applying the edit — frame ${n + 1} of ${grid.length}`);
         await ensureEnhanced(i);
     }
     if (frames() !== grid) return false;

@@ -11,12 +11,49 @@ import { branding, activeChannelId, styleFor, captureFor, decorFor } from "./cha
 export const store = {
     frames: [],
     selected: 0,
+    // The order the grid SHOWS the frames in — see gridOrder.
+    order: null,
 };
 
 export const frames = () => store.frames;
 export const current = () => store.frames[store.selected];
 export const selectedIndex = () => store.selected;
 export const setSelectedIndex = (i) => { store.selected = i; };
+
+/**
+ * The frames in the order the grid shows them, as indices into store.frames.
+ *
+ * A frame fetch's grid can be rearranged by dragging (see reorder.js), and
+ * that is done HERE rather than by reordering store.frames itself. Everything
+ * that works on a frame in the background — the edit pass, a Variation, a
+ * cutout — holds on to the frame's index across its awaits and writes its
+ * answer back to that index when it lands. A drag in the middle of the edit
+ * pass is exactly what the user is allowed to do, and moving the records
+ * under those calls would hand each answer to whatever frame had slid into
+ * the old place. So a frame's index never changes for the life of a run, and
+ * the user's arrangement is a separate list laid over it.
+ *
+ * What reads it is everything where the ORDER is the point: the grid and its
+ * numbers, the arrows beside the canvas, the file names and the order of a
+ * zip, and the split of the user's own text. Starts as the order the frames
+ * arrived in, which is the order they happen in the video.
+ */
+export function gridOrder() {
+    const n = store.frames.length;
+    if (!store.order || store.order.length !== n) store.order = [...Array(n).keys()];
+    return store.order;
+}
+
+/** Where frame `i` sits in the grid, counting from 0. */
+export const positionOf = (i) => gridOrder().indexOf(i);
+
+/** Replaces the grid's order with `order`, a rearrangement of the indices. */
+export function setGridOrder(order) {
+    const n = store.frames.length;
+    const valid = order.length === n && new Set(order).size === n
+        && order.every(i => Number.isInteger(i) && i >= 0 && i < n);
+    if (valid) store.order = [...order];
+}
 
 /**
  * The lines of frame `i`'s title, as the renderer will set them.
@@ -408,6 +445,7 @@ export function releaseFrames() {
         clearCutout(f);
     }
     store.frames = [];
+    store.order = null;   // an arrangement of frames that no longer exist
 }
 
 /**
@@ -579,11 +617,18 @@ function contentSource(i) {
     // meant. The `edited` scan stays as the fallback, because the other things
     // carried over — the edit preset above all — are worth taking from a
     // worked-on neighbour even when nobody has typed anything yet.
+    //
+    // "Before" and "after" are places in the GRID, which the user may have
+    // rearranged (see gridOrder): the neighbour is the card beside this one
+    // on screen, not the one that happened to arrive next to it.
     const has = (f) => f && ((f.lines && f.lines.some(Boolean)) || (f.logos && f.logos.length));
-    for (let k = i - 1; k >= 0; k--) if (has(store.frames[k])) return store.frames[k];
-    for (let k = i + 1; k < store.frames.length; k++) if (has(store.frames[k])) return store.frames[k];
-    for (let k = i - 1; k >= 0; k--) if (store.frames[k] && store.frames[k].edited) return store.frames[k];
-    for (let k = i + 1; k < store.frames.length; k++) if (store.frames[k] && store.frames[k].edited) return store.frames[k];
+    const order = gridOrder();
+    const p = order.indexOf(i);
+    const at = (q) => store.frames[order[q]];
+    for (let q = p - 1; q >= 0; q--) if (has(at(q))) return at(q);
+    for (let q = p + 1; q < order.length; q++) if (has(at(q))) return at(q);
+    for (let q = p - 1; q >= 0; q--) if (at(q) && at(q).edited) return at(q);
+    for (let q = p + 1; q < order.length; q++) if (at(q) && at(q).edited) return at(q);
     return null;
 }
 
@@ -600,7 +645,8 @@ function contentSource(i) {
  * typed something.
  */
 function channelSource(i) {
-    return store.frames[i - 1] || contentSource(i);
+    const order = gridOrder();
+    return store.frames[order[order.indexOf(i) - 1]] || contentSource(i);
 }
 
 /**

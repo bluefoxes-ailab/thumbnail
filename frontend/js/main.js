@@ -27,7 +27,7 @@ function initModeToggle() {
 import { API, LINE_IDS, TITLE_FIELD_IDS, el } from "./config.js";
 import {
     store, frames, current, selectedIndex, setSelectedIndex,
-    makeFrame, releaseFrames, carryOverSettings,
+    makeFrame, releaseFrames, carryOverSettings, gridOrder, positionOf,
 } from "./state.js";
 import { getJson, postJson, postFile } from "./net.js";
 import { initCanvas, updatePreview, refreshThumb, refreshAllThumbs, forgetThumbSignatures } from "./compose.js";
@@ -56,6 +56,7 @@ import {
 import { downloadFrame, downloadSelected, downloadAll } from "./download.js";
 import { titleFontReady, reportMissingTitleFont } from "./fontguard.js";
 import { showMyText, lockSplit, myText, spreadOver } from "./mytext.js";
+import { initReorder } from "./reorder.js";
 
 const POLL_MS = 500;
 // Consecutive failed polls tolerated before giving up. A tunnel hiccup or a
@@ -452,6 +453,11 @@ let ownTextRun = false;
  * "Split the text": the user's text, broken at its sentences and clauses and
  * dealt out evenly over the frames that were fetched (see mytext.spreadOver).
  *
+ * In the grid's order, which is the user's if they have rearranged it (see
+ * reorder.js): the first piece goes on the card in the first place. After a
+ * split, a caption belongs to its frame and travels with it when it is
+ * dragged; splitting again deals the text out along the new order.
+ *
  * Over the frames that actually LANDED, not the slider's count — frames
  * rejected as blurred or blank make the grid shorter than what was asked for.
  * The pieces are set where a transcript's sentence would have arrived, so
@@ -467,9 +473,9 @@ async function splitMyText() {
     if (!text.trim()) return status("Add your text first, then split it over the frames");
     const grid = frames();
     const captions = spreadOver(text, grid.length);
-    grid.forEach((f, i) => {
-        f.caption = captions[i];
-        f.lines = LINE_IDS.map(() => "");   // the fixed slots makeFrame starts with
+    gridOrder().forEach((i, position) => {
+        grid[i].caption = captions[position];
+        grid[i].lines = LINE_IDS.map(() => "");   // the fixed slots makeFrame starts with
     });
     await applyCaptions();
     if (frames() !== grid) return;   // a new run landed while the face loaded
@@ -610,10 +616,15 @@ function processUploadedFile(file) {
     });
 }
 
+// Laid out in the grid's order (see state.gridOrder), and numbered by place
+// in it — the number on a card is the number its file will carry. Each card
+// still answers to its frame's own index (`card-${i}`, data-index), which is
+// what lets it be moved without anything that addresses it noticing.
 function renderGrid() {
     const g = el("framesGrid");
     g.innerHTML = "";
-    frames().forEach((f, i) => {
+    gridOrder().forEach((i, position) => {
+        const f = frames()[i];
         const d = document.createElement("div");
         // Grey and inert until the edit reaches it, on a frame fetch only —
         // there the whole grid is worked through up front and the user's
@@ -626,12 +637,18 @@ function renderGrid() {
                     + (i === selectedIndex() ? " selected" : "")
                     + (pending ? " pending" : "");
         d.id = `card-${i}`;
-        d.innerHTML = `<img id="thumb-${i}" src="${f.plainUrl}">` +
-                      `<div class="badge">${i + 1}</div>` +
+        d.dataset.index = i;
+        // Draggable on a frame fetch only, where the order is the deliverable
+        // (see reorder.js). The picture inside is not, or the browser would
+        // drag the bare image instead of the card.
+        d.draggable = isCapture();
+        if (isCapture()) d.title = "Drag to reorder";
+        d.innerHTML = `<img id="thumb-${i}" src="${f.plainUrl}" draggable="false">` +
+                      `<div class="badge">${position + 1}</div>` +
                       `<div class="pick${f.picked ? " on" : ""}" id="pick-${i}" title="Include in batch download"></div>`;
-        // The stylesheet already makes a pending card inert; this is the same
-        // answer given twice, so a stylesheet that failed to load leaves the
-        // grid honest rather than silently clickable.
+        // A pending card cannot be opened until the edit reaches it. It can
+        // still be dragged — rearranging is allowed at any point of the run —
+        // so the stylesheet leaves it the pointer, and the refusal is here.
         d.onclick = () => { if (!d.classList.contains("pending")) selectFrame(i); };
         // Ticking a frame for the batch must not also switch the preview to
         // it — the user builds the batch while working on one frame.
@@ -644,6 +661,24 @@ function renderGrid() {
     });
     syncFrameNav();
     refreshAllThumbs();
+}
+
+/**
+ * After a drop that changed the grid's order: everything that shows a frame's
+ * PLACE follows it. The cards themselves are already where the user put them
+ * (reorder.js moved them), so this renumbers them rather than drawing the grid
+ * again — a redraw would throw away every thumbnail and repaint forty of them
+ * for the sake of a few digits.
+ */
+function onGridReordered() {
+    gridOrder().forEach((i, position) => {
+        const badge = el(`card-${i}`)?.querySelector(".badge");
+        if (badge) badge.textContent = position + 1;
+    });
+    syncFrameNav();   // the frame on screen may have moved to an end
+    if (!frames().length) return;
+    el("previewLabel").textContent = `Preview — Frame ${positionOf(selectedIndex()) + 1}`;
+    loadTextPanel();  // its heading carries the frame's number too
 }
 
 /**
@@ -673,9 +708,12 @@ function selectFrame(i) {
     // editor.syncChannelToFrame). Not awaited — it renders again by itself if
     // the face has still to arrive.
     syncChannelToFrame();
-    document.querySelectorAll(".frame-card").forEach((element, j) => element.classList.toggle("selected", j === i));
+    // By the card's own index, not its place among its siblings: on a grid the
+    // user has rearranged (see reorder.js) the two are no longer the same.
+    document.querySelectorAll(".frame-card").forEach((element) =>
+        element.classList.toggle("selected", Number(element.dataset.index) === i));
     syncFrameNav();   // whether either arrow still has somewhere to go
-    el("previewLabel").textContent = `Preview — Frame ${i + 1}`;
+    el("previewLabel").textContent = `Preview — Frame ${positionOf(i) + 1}`;
     syncZoomSliderFor(frames()[i] && frames()[i].frame_id);
     syncFlipButtons();
     syncGradientButton();
@@ -953,6 +991,9 @@ el("batchBtn").addEventListener("click", downloadSelected);
 // button costs nothing, and one attached and detached with the mode would be
 // one more thing to keep in step.
 el("downloadAllBtn").addEventListener("click", downloadAll);
+// Dragging cards to rearrange a frame fetch (see reorder.js). Bound once, to
+// the grid itself, so it keeps working as renderGrid replaces the cards.
+initReorder(onGridReordered);
 // Locked until every frame of a "Frames only" run has loaded (see
 // runPipeline); a locked button takes no clicks, so nothing here has to ask.
 el("splitTextBtn").addEventListener("click", splitMyText);

@@ -1,5 +1,5 @@
 import { MAX_EXPORT_BYTES, el } from "./config.js";
-import { frames, selectedIndex } from "./state.js";
+import { frames, selectedIndex, gridOrder, positionOf } from "./state.js";
 import { buildComposite } from "./compose.js";
 import { ensureCutout, ensureEnhanced } from "./editor.js";
 import { isCapture, frameName } from "./capture.js";
@@ -42,11 +42,13 @@ function triggerDownload(blob, filename) {
  * What one frame's file is called, without its extension.
  *
  * A fetched frame is named after its place in the grid and nothing else (see
- * capture.frameName) — that correspondence is the deliverable. A thumbnail
- * keeps the name it has always had.
+ * capture.frameName) — that correspondence is the deliverable. Its place as the
+ * user has ARRANGED the grid (see state.gridOrder), so a frame dragged to the
+ * front is "frame 01" in the folder too. A thumbnail keeps the name it has
+ * always had.
  */
 function baseName(i) {
-    return isCapture() ? frameName(i, frames().length) : `thumbnail_frame${i + 1}`;
+    return isCapture() ? frameName(positionOf(i), frames().length) : `thumbnail_frame${i + 1}`;
 }
 
 /**
@@ -132,7 +134,7 @@ async function downloadMany(indices, btn, label) {
 }
 
 export function downloadSelected() {
-    const picked = frames().map((_, i) => i).filter(i => frames()[i].picked);
+    const picked = [...gridOrder()].filter(i => frames()[i].picked);
     if (!picked.length) return status("Tick some frames first (checkbox on each thumbnail)");
     return downloadMany(picked, el("batchBtn"), "frame");
 }
@@ -148,5 +150,6 @@ export function downloadSelected() {
  */
 export function downloadAll() {
     if (!frames().length) return status("Nothing to download yet");
-    return downloadMany(frames().map((_, i) => i), el("downloadAllBtn"), "frame");
+    // In the grid's order, so the zip lists them the way they are laid out.
+    return downloadMany([...gridOrder()], el("downloadAllBtn"), "frame");
 }

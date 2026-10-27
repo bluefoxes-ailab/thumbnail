@@ -970,6 +970,15 @@ body.capture-mode .frames-grid {
 }
 body.capture-mode .frame-card img { aspect-ratio: 9 / 16; }
 
+/* Rearranging the grid (js/reorder.js). The grab cursor says a card
+   can be picked up; the card being held is dimmed where it sits, so
+   the gap it will drop into reads as a gap while the pointer carries
+   the card's own picture. */
+body.capture-mode .frame-card { cursor: grab; }
+body.capture-mode .frame-card.dragging { opacity: 0.3; border-color: #fffa00; border-style: dashed; }
+.reorder-hint { text-align: center; margin-top: -8px; }
+body:not(.capture-mode) .reorder-hint { display: none; }
+
 /* A frame the edit has not reached yet. Grey and inert, turning to
    its own colours the moment its pixels are the finished ones (see
    ui.markFrameReady) — so the grid fills in visibly, left to right,
@@ -981,13 +990,15 @@ body.capture-mode .frame-card img { aspect-ratio: 9 / 16; }
    moment is "which of these can I open", and colour answers it
    across the whole grid at a glance.
 
-   pointer-events, not a JavaScript guard, for the click: the card is
-   not a control yet, and saying so once in the stylesheet beats
-   every handler on it having to remember. (main.renderGrid guards
-   as well, for the case where a stylesheet fails to load and the
-   cards would otherwise be silently clickable.) */
-body.capture-mode .frame-card.pending {
-    pointer-events: none;
+   It used to take no pointer at all (pointer-events: none), which
+   was the simplest way to say "not a control yet". It has to take
+   one now, because a card can be dragged into a new place at any
+   point of the run, grey or not (see js/reorder.js). So the click is
+   refused in main.renderGrid instead, and the card here only stops
+   looking like something to open: no highlight on hover, and the
+   grab cursor every card of a frame fetch wears. */
+body.capture-mode .frame-card.pending,
+body.capture-mode .frame-card.pending:hover {
     border-color: transparent;
 }
 body.capture-mode .frame-card.pending img {

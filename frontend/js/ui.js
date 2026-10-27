@@ -1,5 +1,5 @@
 import { el } from "./config.js";
-import { current, frames, selectedIndex } from "./state.js";
+import { current, frames, selectedIndex, gridOrder } from "./state.js";
 import { contentProblems } from "./channels.js";
 
 export function status(msg) { el("status").textContent = msg; }
@@ -150,12 +150,16 @@ export function markFrameReady(i) {
  * The DOM is asked rather than the frame record, so that this and the grid
  * cannot come to different conclusions about what is clickable - they are
  * reading the same class.
+ *
+ * "Before" and "after" are the grid's, which on a frame fetch is the user's
+ * own arrangement (see state.gridOrder): the arrow walks the frames in the
+ * order they are laid out in front of the user, not the order they arrived in.
  */
 export function nextSelectable(from, step) {
-    const total = frames().length;
-    for (let i = from + step; i >= 0 && i < total; i += step) {
-        const card = el(`card-${i}`);
-        if (!card || !card.classList.contains("pending")) return i;
+    const order = gridOrder();
+    for (let p = order.indexOf(from) + step; p >= 0 && p < order.length; p += step) {
+        const card = el(`card-${order[p]}`);
+        if (!card || !card.classList.contains("pending")) return order[p];
     }
     return -1;
 }

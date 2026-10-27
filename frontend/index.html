@@ -134,6 +134,10 @@
 
     <div class="hidden" id="resultSection">
         <h2>Select a frame</h2>
+        <!-- A frame fetch only (see js/reorder.js): its order is what the
+             files are numbered by, so the user is told it is theirs to
+             change. Hidden on a thumbnail run by the stylesheet. -->
+        <div class="panel-hint reorder-hint">Drag the frames into any order — the numbers, file names and text split follow it.</div>
         <div class="frames-grid" id="framesGrid"></div>
 
         <h2 id="previewLabel">Preview</h2>
