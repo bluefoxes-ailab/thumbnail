@@ -1418,9 +1418,16 @@ async function paintFrame(cv, i, { interactive = false, renderId } = {}) {
     // a ground of the channel's own, and every other channel IS it.
     if (background) addBackground(cv, background);
     else if (plate) addPhotoPlate(cv, plate, photo);
-    else if (photo) cv.add(new fabric.Image(photo, {
-        left: 0, top: 0, width: CW, height: CH, selectable: false, evented: false,
-    }));
+    else if (photo) {
+        cv.add(new fabric.Image(photo, {
+            left: 0,
+            top: 0,
+            width: CW,
+            height: CH,
+            selectable: false,
+            evented: false,
+        }));
+    }
 
     // Every figure, bottom first, so array order is stacking order. Never with
     // handles: see the note at the top of the cutout section.

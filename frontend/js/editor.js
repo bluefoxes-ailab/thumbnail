@@ -1240,8 +1240,13 @@ export async function ensureEnhanced(i) {
 // ── Presentation toggles ──────────────────────────────────────────────────
 
 /** The figure "Flip image" acts on: the selected one, or the front one. */
-const flippableFigure = () =>
-    activeLayerFor(selectedIndex()) || layersFor(selectedIndex()).slice(-1)[0] || null;
+const flippableFigure = () => {
+    const idx = selectedIndex();
+    const active = activeLayerFor(idx);
+    if (active) return active;
+    const layers = layersFor(idx);
+    return (layers && layers.length) ? layers[layers.length - 1] : null;
+};
 
 export function syncFlipButtons() {
     const f = current();
@@ -1351,7 +1356,7 @@ export async function toggleFlip(key) {
     f[key] = !f[key];
     f.flipsTouched = true;   // an explicit choice — brand defaults stop overwriting it
     syncFlipButtons();
-    await recompose({ previewFirst: true });   // text side flips instantly; the image follows
+    await recompose({ previewFirst: false });   // text side flips instantly; the image follows
 }
 
 export async function toggleGradient() {

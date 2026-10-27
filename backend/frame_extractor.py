@@ -167,8 +167,8 @@ def _mark_complete(frames_dir: str, interval: float | None = None) -> None:
 # as the exclusive end row), so the cropped frames every downstream threshold
 # was tuned against are byte-identical to before.
 _CROP_EXPR = (
-    f"crop=x=0:y=trunc(ih*{CROP_TOP_PCT}):w=iw:"
-    f"h=trunc(ih*{1 - CROP_BOTTOM_PCT})-trunc(ih*{CROP_TOP_PCT})"
+    f"crop=x=0:y=trunc(ih*{CROP_TOP_PCT}/2)*2:w=trunc(iw/2)*2:"
+    f"h=trunc((ih*{1.0 - CROP_BOTTOM_PCT} - ih*{CROP_TOP_PCT})/2)*2"
 )
 
 
@@ -198,8 +198,8 @@ def _extract_cmd(video_path: str, vf_head: str, out_dir: str, extra_input: list[
         *(extra_input or []),
         "-i", video_path,
         "-filter_complex", filter_complex,
-        "-map", "[fullout]", "-q:v", "2", os.path.join(out_dir, "full_%04d.jpg"),
-        "-map", "[cropout]", "-q:v", "2", os.path.join(out_dir, "frame_%04d.jpg"),
+        "-map", "[fullout]", "-strict", "-1", "-pix_fmt", "yuv420p", "-q:v", "2", os.path.join(out_dir, "full_%04d.jpg"),
+        "-map", "[cropout]", "-strict", "-1", "-pix_fmt", "yuv420p", "-q:v", "2", os.path.join(out_dir, "frame_%04d.jpg"),
     ]
 
 

@@ -209,7 +209,7 @@ async function runPipeline(prepare) {
         if (isCapture()) applyEditToAll();
         else warmCutouts();
     } catch (e) {
-        status("Error: " + e.message);
+        status(e.message);
     } finally {
         hideProgress();
         setSourceBusy(false);
@@ -442,6 +442,9 @@ const mainTitle = document.getElementById("mainTitle");
 const THUMBNAIL_GROUPS = ["QDS KARMA", "FRANCE TV", "BINGE"];
 const STATIC_GROUPS = ["SNAPCHAT"];
 
+const THUMBNAIL_URL_PLACEHOLDER = "Paste Google Drive, Dropbox, or YouTube link here";
+const STATIC_URL_PLACEHOLDER = "Paste Instagram, Google Drive, Dropbox, or YouTube link here";
+
 let currentMode = "thumbnail";
 
 function storeAndRenderDropdown(selectEl, mode) {
@@ -532,6 +535,13 @@ function setAppMode(mode) {
     // the row keeps the layout .btn-row gives it whenever it is shown.
     const modeToggle = document.getElementById("outputModeToggle");
     if (modeToggle) modeToggle.classList.toggle("hidden", !isStatic);
+
+    // The backend takes an Instagram link from either tab — it cannot tell
+    // which one a run came from — but only Static Studio names it, because
+    // reels are where its footage comes from and offering them on the
+    // thumbnail tab would only invite links nobody there works with.
+    const urlInput = el("driveUrl");
+    if (urlInput) urlInput.placeholder = isStatic ? STATIC_URL_PLACEHOLDER : THUMBNAIL_URL_PLACEHOLDER;
 
     storeAndRenderDropdown(document.getElementById("runChannelSelect"), mode);
     storeAndRenderDropdown(document.getElementById("channelSelect"), mode);
