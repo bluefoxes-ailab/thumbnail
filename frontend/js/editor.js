@@ -417,9 +417,20 @@ export async function selectChannel(id) {
  * against whatever metrics have arrived, and drawn again once the real ones
  * have.
  */
-export async function syncChannelToFrame() {
+export function syncChannelToFrame() {
     const f = current();
-    const changed = setActiveChannel((f && f.channel) || NO_CHANNEL);
+    return showChannel((f && f.channel) || NO_CHANNEL);
+}
+
+/**
+ * Points the page at a channel the user did not just pick — the body of
+ * syncChannelToFrame, and also how a run picked back up after a reload puts
+ * the page back on the channel it was started with (see main.resumeSettings).
+ * Same contract: nothing is written to any frame, and the caller need not
+ * wait for the face.
+ */
+export async function showChannel(id) {
+    const changed = setActiveChannel(id);
     syncChannelPickers();
     syncChannelFields();
     renderHlButtons();

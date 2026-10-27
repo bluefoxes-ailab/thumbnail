@@ -66,7 +66,14 @@ export async function postJson(path, body) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
     });
-    if (!res.ok) throw new Error(await readDetail(res) || "Error");
+    if (!res.ok) {
+        // The status rides along so a caller can tell an answer it knows how
+        // to act on (a 409 from /process-video: a run is already going) from
+        // a failure, without matching on the wording of the message.
+        const error = new Error(await readDetail(res) || "Error");
+        error.status = res.status;
+        throw error;
+    }
     return res.json();
 }
 

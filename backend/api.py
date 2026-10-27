@@ -88,7 +88,10 @@ CAPTURE_COUNT_RANGE = (1, 400)
 DEFAULT_CAPTURE_COUNT = 40
 
 _progress_lock = threading.Lock()
-_progress = {"stage": "idle", "percent": 0, "status": "idle", "detail": None}
+# `run` and `collected` are what a page that did not start the run needs in
+# order to finish it — see /process-video/progress.
+_progress = {"stage": "idle", "percent": 0, "status": "idle", "detail": None,
+             "run": None, "collected": False}
 
 # Held for as long as a pipeline run is in flight — see the note on
 # /process-video. Also what makes "is a run happening right now" a single
@@ -183,6 +186,24 @@ def _set_status(status: str, detail: str | None = None) -> None:
 
 @app.get("/process-video/progress")
 async def get_progress():
+    """
+    Where the run is, plus the two things a page needs to take it over.
+
+    The page that starts a run is not always the one that finishes it: a
+    reload, a second tab or a dropped connection leaves a fresh page in front
+    of a backend that is minutes into a video. That page used to be told the
+    run existed only by a 409 when it tried to start another, and then had no
+    way to get at the frames once they were done — so the user waited on
+    nothing and processed the video again. Now a page asks here first and
+    follows whatever it finds.
+
+    `run` is the page's own account of the run, sent with it and handed back
+    untouched (see ProcessRequest.client): which channel, which tab, whether
+    captions were wanted. Without it the frames would land in a page set up
+    for some other run. `collected` is whether /result has handed the frames
+    over yet — the difference between a finished run nobody has seen, which a
+    fresh page should pick up, and yesterday's, which it should not.
+    """
     with _progress_lock:
         return dict(_progress)
 
@@ -422,6 +443,10 @@ class ProcessRequest(BaseModel):
     # Absent for every channel whose footage the colour histogram can read,
     # which is all of them but two — see SelectionRequest.
     selection: SelectionRequest | None = None
+    # The page's settings for this run, kept only to be handed back through
+    # /process-video/progress to a page that has to pick the run up — see the
+    # note there. Nothing here reads it, so its shape is the page's business.
+    client: dict | None = None
 
 
 class VideoSource(NamedTuple):
@@ -1124,6 +1149,9 @@ async def process_video(req: ProcessRequest):
         req.framing.model_dump(exclude_none=True) if req.framing else None))
 
     _process_result = None
+    with _progress_lock:
+        _progress["run"] = req.client
+        _progress["collected"] = False
     _set_progress(source.stage, 0)
     _set_status("running")
     threading.Thread(
@@ -1143,6 +1171,10 @@ async def get_process_result():
         raise HTTPException(500, detail or "Processing failed")
     if status != "done" or _process_result is None:
         raise HTTPException(409, "No finished run to collect")
+    # Kept rather than dropped, so a second request for the same frames still
+    # gets them; marked, so a page opened later knows they were delivered.
+    with _progress_lock:
+        _progress["collected"] = True
     return JSONResponse(_process_result)
 
 

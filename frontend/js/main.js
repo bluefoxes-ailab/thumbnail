@@ -2,23 +2,27 @@
 // --- Output Mode Toggle (Frames with text vs Frames only) ---
 let framesOnlyMode = false;
 
+// The chosen button is marked with .btn-active and nothing else — the look is
+// the stylesheet's, shared with every other one-of-two choice in the app, so
+// the colours are written down once rather than here. Outside initModeToggle
+// because a run picked back up after a reload sets the mode too.
+function syncModeToggle() {
+    const btnText = document.getElementById("btnModeText");
+    const btnOnly = document.getElementById("btnModeFramesOnly");
+    if (!btnText || !btnOnly) return;
+    btnText.classList.toggle("btn-active", !framesOnlyMode);
+    btnOnly.classList.toggle("btn-active", framesOnlyMode);
+    btnText.setAttribute("aria-pressed", String(!framesOnlyMode));
+    btnOnly.setAttribute("aria-pressed", String(framesOnlyMode));
+}
+
 function initModeToggle() {
     const btnText = document.getElementById("btnModeText");
     const btnOnly = document.getElementById("btnModeFramesOnly");
     if (!btnText || !btnOnly) return;
-
-    // The chosen button is marked with .btn-active and nothing else — the
-    // look is the stylesheet's, shared with every other one-of-two choice in
-    // the app, so the colours are written down once rather than here.
-    const show = () => {
-        btnText.classList.toggle("btn-active", !framesOnlyMode);
-        btnOnly.classList.toggle("btn-active", framesOnlyMode);
-        btnText.setAttribute("aria-pressed", String(!framesOnlyMode));
-        btnOnly.setAttribute("aria-pressed", String(framesOnlyMode));
-    };
-    btnText.addEventListener("click", () => { framesOnlyMode = false; show(); });
-    btnOnly.addEventListener("click", () => { framesOnlyMode = true; show(); });
-    show();
+    btnText.addEventListener("click", () => { framesOnlyMode = false; syncModeToggle(); });
+    btnOnly.addEventListener("click", () => { framesOnlyMode = true; syncModeToggle(); });
+    syncModeToggle();
 }
 import { API, TITLE_FIELD_IDS, el } from "./config.js";
 import {
@@ -39,7 +43,7 @@ import {
     enhanceFrame, loadTextPanel, updateLines, setEditPreset, toggleFlip, toggleGradient, toggleGlow,
     varyFrame, syncFlipButtons, syncGradientButton, togglePick, handleLogoFile,
     initChannelPicker, selectChannel, syncChannelToFrame, guardChannel, warnChannelRequired,
-    handleFrameFile, syncVaryButton, syncLogoControls, ensureCutout, setTitleAlign,
+    handleFrameFile, syncVaryButton, syncLogoControls, ensureCutout, setTitleAlign, showChannel,
     cycleBackground, syncBackgroundButton, cycleFigureGlow, syncFigureGlowButton,
     warmCutouts, applyEditToAll,
 } from "./editor.js";
@@ -111,14 +115,88 @@ function base64ToObjectUrl(b64) {
 
 // Both source buttons move together: a run started from either one owns the
 // backend until it finishes (/process-video answers 409 to a second), so
-// leaving the other live would only offer the user a guaranteed error.
+// leaving the other live would only offer the user a second click on a run
+// that is already going.
 function setSourceBusy(busy) {
     el("processBtn").disabled = busy;
     el("uploadVideoBtn").disabled = busy;
 }
 
 /**
- * Runs one video end to end, whatever it came from.
+ * A run on the backend that this page did not start and should finish, or
+ * null.
+ *
+ * The page that starts a run is not always the page that sees it through: a
+ * reload, a second tab or a dropped connection puts a fresh page in front of
+ * a backend minutes into a video. That page used to learn about the run only
+ * as "Your video is being processed" in red when it tried to start another —
+ * and then had no way to reach the frames, so the user waited on nothing and
+ * ran the video again. Asked on load and before every run instead, so the
+ * page simply takes over.
+ *
+ * A finished run counts only with `finished`, and only while nobody has
+ * collected it (see the note on /process-video/progress): otherwise every
+ * visit to the page would bring back the last video anyone processed. Page
+ * load passes it; a click on Process does not, because there the user has
+ * just asked for a NEW video, and frames they abandoned earlier are not an
+ * answer to that — a run still going is, since nothing else can start until
+ * it ends.
+ */
+async function runInProgress(finished) {
+    const progress = await getJson("/process-video/progress").catch(() => null);
+    if (!progress) return null;
+    const waiting = progress.status === "running"
+                 || (finished && progress.status === "done" && progress.collected === false);
+    if (!waiting) return null;
+    showProgress(progress.stage, progress.percent);
+    const client = progress.run || null;
+    return { capture: client ? captureFor(client.channel) : null, client, resumed: true };
+}
+
+/**
+ * Puts the page back the way it was when the run being picked up was started,
+ * so its frames land in the tab, channel and mode they were made for. The
+ * channel decides the canvas a frame fetch is drawn on and the brand every
+ * frame is made under; landing them under whatever this page happens to have
+ * selected — nothing, on a page just reloaded — would make them a different
+ * run's frames.
+ */
+function resumeSettings(client) {
+    if (!client) return;
+    framesOnlyMode = !!client.framesOnly;
+    syncModeToggle();
+    // The tab before the channel: switching tab rebuilds the dropdowns from
+    // that tab's list, and a channel set first would be dropped as not on it.
+    setAppMode(client.tab === "static" ? "static" : "thumbnail");
+    showChannel(client.channel);
+}
+
+/**
+ * Starts a run of this page's own and describes it the way runInProgress
+ * describes one picked up, so the rest of runPipeline cannot tell them apart.
+ */
+async function startRun(prepare) {
+    const { body, stage, capture, client } = await prepare();
+    showProgress(stage, 0);
+    try {
+        await postJson("/process-video", { ...body, client });
+    } catch (e) {
+        // runPipeline asked this question before preparing anything, but an
+        // upload takes long enough for another tab to have started a run in
+        // the meantime. The uploaded file is then wasted; the run that won is
+        // still the user's, and following it beats an error.
+        // Finished runs included: the one that refused this may have ended
+        // between the 409 and this question, and it is still the one to show.
+        const run = e.status === 409 ? await runInProgress(true) : null;
+        if (!run) throw e;
+        return run;
+    }
+    return { capture, client, resumed: false };
+}
+
+/**
+ * Runs one video end to end, whatever it came from — or, with no `prepare`,
+ * only finishes a run already going (the check made on page load).
  *
  * `prepare` is the only part that differs between a pasted link and an
  * uploaded file: it does whatever getting the video within the backend's
@@ -126,14 +204,21 @@ function setSourceBusy(busy) {
  * start /process-video with. Everything from that call onward — the poll, the
  * grid, the font check, the first enhance — is shared, because from the
  * backend's side there is no longer any difference to act on.
+ *
+ * A run already going on the backend is followed rather than refused: it can
+ * only be one this same user started (the proxy gives every session a
+ * backend of its own), and it is the one the backend will finish first.
  */
 async function runPipeline(prepare) {
     setSourceBusy(true);
     status("");
     try {
-        const { body, stage, capture } = await prepare();
-        showProgress(stage, 0);
-        await postJson("/process-video", body);
+        const run = (await runInProgress(!prepare)) || (prepare && await startRun(prepare));
+        if (!run) return;
+        if (run.resumed) {
+            resumeSettings(run.client);
+            status("Picking up the video that was already processing...");
+        }
         const data = await waitForResult();
 
         // frame_ids are reused per video (0, 1, 2...), so anything keyed by
@@ -149,7 +234,7 @@ async function runPipeline(prepare) {
         // (see capture.enterMode). The block is the one captured when the run
         // STARTED, not what the picker says now — the user is free to have
         // moved it while the video was processing.
-        enterMode(capture);
+        enterMode(run.capture);
 
         store.frames = data.frames.map(f => makeFrame(
             f.frame_id, base64ToObjectUrl(f.frame),
@@ -161,7 +246,8 @@ async function runPipeline(prepare) {
         // in the video rather than the report the channel is built on. The
         // backend says which happened (see api._capture_frames_sync) and this
         // is the only place the user would ever find out.
-        const spoken = capture && capture.rewrite && data.rewritten === false;
+        const framesOnly = !!(run.client && run.client.framesOnly);
+        const spoken = run.capture && run.capture.rewrite && !framesOnly && data.rewritten === false;
         status(isCapture()
             ? `${data.count} frames, in the order they happen in the video`
               + (spoken ? " — captions are the transcript as spoken: the narration "
@@ -183,7 +269,11 @@ async function runPipeline(prepare) {
         // and which applyCaptions waits for itself. Before the panel is
         // loaded and before the grid is drawn, so the first thing the user
         // sees already has the words on it.
-        if (!framesOnlyMode) { await applyCaptions(); }
+        //
+        // The mode the run was started in, not the toggle's position now, for
+        // the reason the capture block above is the run's: the backend was
+        // told then whether to transcribe.
+        if (!framesOnly) { await applyCaptions(); }
 
         initCanvas(setupReframeInteraction);
         renderGrid();
@@ -274,15 +364,28 @@ function runCapture() {
         : null;
 }
 
+/**
+ * The page's own settings for a run: which channel, which tab, which output
+ * mode. The backend keeps them only to hand them back, so a page that picks
+ * the run up after a reload can be put back the way this one was (see
+ * runInProgress and resumeSettings). Read when the run is set going, like
+ * everything else a run is made from.
+ */
+const runClient = () => ({
+    channel: activeChannelId(), tab: currentMode, framesOnly: framesOnlyMode,
+});
+
 function processVideo() {
     const url = el("driveUrl").value.trim();
     if (!url) return status("Paste a link, or upload a video file from your computer");
     const capture = runCapture();
+    const client = runClient();
     return runPipeline(async () => ({
         body: { google_drive_url: url, framing: runFraming(), capture: capture && capture.request,
                 cleanup: runCleanup(), selection: runSelection() },
         stage: "Downloading video and extracting frames...",
         capture: capture && capture.block,
+        client,
     }));
 }
 
@@ -296,6 +399,7 @@ function processUploadedFile(file) {
     // their own time to cross, and the channel a run belongs to is the one
     // that was selected when the user set it going.
     const capture = runCapture();
+    const client = runClient();
     return runPipeline(async () => {
         const label = `Uploading ${file.name}...`;
         showProgress(label, 0);
@@ -306,6 +410,7 @@ function processUploadedFile(file) {
                     cleanup: runCleanup(), selection: runSelection() },
             stage: "Reading uploaded video and extracting frames...",
             capture: capture && capture.block,
+            client,
         };
     });
 }
@@ -566,8 +671,11 @@ if (channelSelectEl) {
     observer.observe(channelSelectEl, { childList: true, subtree: true });
 }
 
-setTimeout(() => setAppMode("thumbnail"), 200);
-setTimeout(() => setAppMode("thumbnail"), 600);
+// The mode the page is in rather than "thumbnail" outright: a run picked up on
+// load (see the end of this file) may already have moved the page to the
+// static tab, and these must not undo that a moment later.
+setTimeout(() => setAppMode(currentMode), 200);
+setTimeout(() => setAppMode(currentMode), 600);
 // Both pickers are the same selection (see editor.CHANNEL_PICKERS), so both
 // answer the same way and each keeps the other in step.
 el("channelSelect").addEventListener("change", (e) => selectChannel(e.target.value));
@@ -711,3 +819,8 @@ window.addEventListener("resize", () => {
 });
 
 initModeToggle();
+
+// A run this backend is still working on, or has finished without anyone
+// collecting it, belongs on this page — the usual way to get here with one
+// going is to have reloaded mid-run. See runInProgress.
+runPipeline(null);
