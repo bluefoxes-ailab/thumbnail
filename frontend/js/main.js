@@ -97,13 +97,20 @@ async function waitForResult(runId) {
             throw replaced;
         }
 
-        // Each of the three endings below leaves nothing for a reload to pick
+        // Each of the endings below leaves nothing for a reload to pick
         // up, so the browser stops remembering the run. Losing contact is not
         // one of them: the run may well still be going, and a reload once the
         // connection is back is exactly what should find it.
         if (progress.status === "error") {
             forgetRun(runId);
             throw new Error(progress.detail || "Processing failed");
+        }
+        // Stopped because the page that owned it was closed (see the leaving
+        // section at the end of this file) — reached only by a tab that page
+        // did not know was still open.
+        if (progress.status === "cancelled") {
+            forgetRun(runId);
+            throw new Error("Processing was stopped — the page that started it was closed.");
         }
         // "idle" can only mean the backend forgot the run it had just told us
         // it started — i.e. it restarted. Without this the poll would spin
@@ -951,6 +958,114 @@ window.addEventListener("resize", () => {
 });
 
 initModeToggle();
+
+// ── Leaving the page ──────────────────────────────────────────────────────
+//
+// A backend seat is one of a handful, and a user who has gone should give it
+// back at once rather than hold it until the proxy gives up on them (see
+// SEEN_TIMEOUT_SECONDS in serve.py). So the page says when it is still there
+// (a heartbeat) and when it is going (a goodbye), and before it goes with
+// something on it, it asks.
+
+// Whether this browser has another tab of the app open. Every tab shares the
+// seat and the run (see the storage listener above), so closing one of them
+// must not stop the run or give the seat back while another is using both.
+// Each tab writes when it was last alive; one that has not written in a while
+// crashed or was killed without the chance to say so, and does not count —
+// leaving the seat to the proxy's own timeout in the meantime.
+const TAB_ID = newRunId();
+const TABS_KEY = "thumbnailMaker.tabs";
+// Longer than a background tab's slowest heartbeat: browsers hold a hidden
+// tab's timers to about once a minute.
+const TAB_FRESH_MS = 150 * 1000;
+const HEARTBEAT_MS = 60 * 1000;
+
+function readTabs() {
+    try { return JSON.parse(localStorage.getItem(TABS_KEY)) || {}; } catch { return {}; }
+}
+
+function writeTabs(tabs) {
+    try { localStorage.setItem(TABS_KEY, JSON.stringify(tabs)); } catch { /* see RUN_KEY */ }
+}
+
+function markTabAlive() {
+    const now = Date.now();
+    const tabs = readTabs();
+    for (const [id, seen] of Object.entries(tabs)) if (now - seen > TAB_FRESH_MS) delete tabs[id];
+    tabs[TAB_ID] = now;
+    writeTabs(tabs);
+}
+
+function otherTabsOpen() {
+    const now = Date.now();
+    return Object.entries(readTabs()).some(([id, seen]) => id !== TAB_ID && now - seen <= TAB_FRESH_MS);
+}
+
+// Whether anyone has touched the page since the last heartbeat. Typing a title
+// reaches no backend, so without this the proxy would see a user hard at work
+// as an idle one (see IDLE_TIMEOUT_SECONDS in serve.py).
+let touchedSinceBeat = true;
+for (const type of ["pointerdown", "keydown", "input", "wheel"]) {
+    window.addEventListener(type, () => { touchedSinceBeat = true; }, { capture: true, passive: true });
+}
+
+function heartbeat() {
+    markTabAlive();
+    const active = touchedSinceBeat;
+    touchedSinceBeat = false;
+    fetch(`${API}/api/heartbeat`, {
+        method: "POST", body: JSON.stringify({ active }), keepalive: true,
+    }).catch(() => { /* the next one will do */ });
+}
+heartbeat();
+setInterval(heartbeat, HEARTBEAT_MS);
+document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") heartbeat();
+});
+
+// Set when the page reloads itself, so it does not ask the user to confirm a
+// reload they never asked for.
+let leavingQuietly = false;
+
+// The question before leaving, when leaving would lose something: a video
+// processing, or frames on the screen. Browsers decide the wording and the
+// language — a page may only ask for the dialog, never write it — and show it
+// only once the user has clicked or typed on the page. Saying no keeps
+// everything exactly as it was: no event follows, nothing below runs.
+window.addEventListener("beforeunload", (e) => {
+    if (leavingQuietly || (!pipelineBusy && !frames().length)) return;
+    e.preventDefault();
+    e.returnValue = "";   // what older Chrome needs to show the dialog
+});
+
+// The page actually going — closed, reloaded, or navigated away from, after a
+// yes or with nothing to ask about. If it is the browser's last tab of the
+// app, the run it had going is stopped and the seat given back at once (see
+// /api/leave in serve.py). A reload then starts from nothing, as the user was
+// told it would; the run is forgotten here so the new page does not go looking
+// for it.
+//
+// sendBeacon because nothing else is guaranteed to leave a page that is
+// unloading. It can still fail to — a crash, a phone killing the browser —
+// which is what the proxy's timeouts are for.
+window.addEventListener("pagehide", () => {
+    const tabs = readTabs();
+    delete tabs[TAB_ID];
+    writeTabs(tabs);
+    if (otherTabsOpen()) return;
+    const runId = storedRunId();
+    forgetRun(runId);
+    navigator.sendBeacon(`${API}/api/leave`, JSON.stringify({ runId }));
+});
+
+// Back to a page the browser kept in memory after leaving it. Its seat was
+// given back on the way out, so what it shows no longer exists on any
+// backend; starting over is the honest state to come back to.
+window.addEventListener("pageshow", (e) => {
+    if (!e.persisted) return;
+    leavingQuietly = true;
+    location.reload();
+});
 
 // A run this browser started that the backend is still working on, or has
 // finished without anyone collecting it, belongs on this page — the usual way

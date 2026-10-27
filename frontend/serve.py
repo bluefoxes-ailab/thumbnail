@@ -21,7 +21,26 @@ PROXY_PREFIXES = (
     "/frame-wide"
 )
 
-SESSION_TIMEOUT_SECONDS = 45 * 60
+# How long a seat is held. It used to be one number, 45 minutes since the last
+# request, because the proxy could not tell a user who had closed the page from
+# one reading it - so it waited long enough to be sure, and a seat stayed taken
+# for most of an hour after its user had gone. The page now says both things
+# itself (see main.js): it sends a heartbeat while it is open, saying whether
+# anyone has touched it since the last one, and says goodbye when it closes.
+#
+# SEEN: no request at all, not even a heartbeat - the page is gone without a
+# goodbye (a phone that killed the browser, a crash, a lid closed). Three
+# missed heartbeats; browsers slow a background tab's timers to once a minute,
+# so anything shorter would drop users who merely switched tabs.
+# IDLE: the page is open and nobody is using it - no processing, no editing,
+# not a key pressed. Long enough for someone carefully writing titles.
+# DRAIN: a backend just taken back may still be stopping its run (it stops at
+# the next checkpoint, not at once - see backend/cancel.py), so for this long
+# it is handed out only when nothing else is free.
+SEEN_TIMEOUT_SECONDS = 3 * 60
+IDLE_TIMEOUT_SECONDS = 20 * 60
+DRAIN_SECONDS = 60
+REAP_INTERVAL_SECONDS = 30
 LOGS_DIR = "/home/bluefoxesfreelancer/thumbnail/logs"
 os.makedirs(LOGS_DIR, exist_ok=True)
 
@@ -34,21 +53,72 @@ ALLOCATION_LOCK = threading.Lock()
 # hand out a session id - see do_GET.
 PAGE_PATHS = ("/", "/index.html", "/maintenance.html", "/maintenance-game.html")
 
+def stop_run(backend, run_id=None):
+    """
+    Asks a backend to stop the run it is working on, without waiting for it.
+
+    Sent whenever a seat is taken back: whatever that backend is processing
+    belongs to the user who has just gone, and left running it would hold the
+    backend for the next one. `run_id` is the run the page said was its own,
+    when it said; without one the backend stops whatever it has (see
+    /process-video/cancel). On its own thread because this is called while
+    seats are being handed out under ALLOCATION_LOCK, and nobody arriving
+    should wait on a backend's answer.
+    """
+    def send():
+        body = json.dumps({"id": run_id}).encode("utf-8")
+        req = urllib.request.Request(backend + "/process-video/cancel", data=body, method="POST",
+                                     headers={"Content-Type": "application/json"})
+        try:
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                print(f"[PROXY] Stop sent to {backend}: {resp.read().decode('utf-8', 'replace')}")
+        except Exception as ex:
+            print(f"[PROXY] Could not reach {backend} to stop its run: {ex}")
+    threading.Thread(target=send, daemon=True).start()
+
+
 class MultiUserProxyHandler(SimpleHTTPRequestHandler):
     user_backends = {}
-    last_activity = {}
+    # When each session was last heard from at all, and last actually used -
+    # see SEEN_TIMEOUT_SECONDS and IDLE_TIMEOUT_SECONDS.
+    last_seen = {}
+    last_used = {}
+    # Backends taken back recently, and when - see DRAIN_SECONDS.
+    draining = {}
     # The id to send with this response, when it is the first a browser gets.
     issue_session = None
 
     @classmethod
+    def release(cls, session_id, run_id=None, reason=""):
+        """
+        Takes a seat back, and stops the run its backend was doing for it.
+        Callers hold ALLOCATION_LOCK.
+        """
+        backend = cls.user_backends.pop(session_id, None)
+        cls.last_seen.pop(session_id, None)
+        cls.last_used.pop(session_id, None)
+        if backend:
+            cls.draining[backend] = time.time()
+            stop_run(backend, run_id)
+            print(f"[PROXY] Released {session_id} ({reason}), freed {backend}")
+
+    @classmethod
     def cleanup_stale_sessions(cls):
         now = time.time()
-        stale = [sid for sid, t in cls.last_activity.items() if now - t > SESSION_TIMEOUT_SECONDS]
-        for sid in stale:
-            backend = cls.user_backends.pop(sid, None)
-            cls.last_activity.pop(sid, None)
-            if backend:
-                print(f"[PROXY] Cleaned up inactive session {sid}, freed {backend}")
+        for sid in list(cls.user_backends):
+            if now - cls.last_seen.get(sid, 0) > SEEN_TIMEOUT_SECONDS:
+                cls.release(sid, reason="page gone")
+            elif now - cls.last_used.get(sid, 0) > IDLE_TIMEOUT_SECONDS:
+                cls.release(sid, reason="idle")
+
+    @classmethod
+    def touch(cls, session_id, used):
+        """Records that a seated session is still there, and whether it is in use."""
+        if session_id in cls.user_backends:
+            now = time.time()
+            cls.last_seen[session_id] = now
+            if used:
+                cls.last_used[session_id] = now
 
     def cookie_session(self):
         """
@@ -87,20 +157,28 @@ class MultiUserProxyHandler(SimpleHTTPRequestHandler):
         # thread: two sessions arriving together could otherwise both see the
         # same backend free and both be given it - two users on one backend,
         # which is the one thing this class exists to prevent.
+        cls = MultiUserProxyHandler
         with ALLOCATION_LOCK:
-            MultiUserProxyHandler.cleanup_stale_sessions()
+            cls.cleanup_stale_sessions()
 
-            if session_id in MultiUserProxyHandler.user_backends:
-                MultiUserProxyHandler.last_activity[session_id] = time.time()
-                return MultiUserProxyHandler.user_backends[session_id]
+            if session_id in cls.user_backends:
+                cls.touch(session_id, used=True)
+                return cls.user_backends[session_id]
 
-            used = set(MultiUserProxyHandler.user_backends.values())
-            for b in BACKENDS:
-                if b not in used:
-                    MultiUserProxyHandler.user_backends[session_id] = b
-                    MultiUserProxyHandler.last_activity[session_id] = time.time()
-                    print(f"[PROXY] Assigned user {session_id} -> {b}")
-                    return b
+            # A backend still stopping the last user's run is the last choice,
+            # not excluded: it is free a few seconds from now, and a busy
+            # message is worse than a short wait for the next user's run.
+            now = time.time()
+            taken = set(cls.user_backends.values())
+            free = [b for b in BACKENDS if b not in taken]
+            free.sort(key=lambda b: now - cls.draining.get(b, 0) < DRAIN_SECONDS)
+            if free:
+                b = free[0]
+                cls.draining.pop(b, None)
+                cls.user_backends[session_id] = b
+                cls.touch(session_id, used=True)
+                print(f"[PROXY] Assigned user {session_id} -> {b}")
+                return b
 
             return None
 
@@ -203,8 +281,53 @@ class MultiUserProxyHandler(SimpleHTTPRequestHandler):
                 self.allocate_worker(session_id)
             super().do_GET()
 
+    def read_json(self):
+        length = int(self.headers.get("Content-Length", 0) or 0)
+        try:
+            return json.loads(self.rfile.read(length).decode("utf-8") or "{}") if length else {}
+        except Exception:
+            return {}
+
+    def answer_empty(self):
+        self.send_response(204)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
     def do_POST(self):
         req_path = urlparse(self.path).path
+
+        # The page's heartbeat, once a minute while it is open (see
+        # SEEN_TIMEOUT_SECONDS). `active` says whether anyone has pressed a key
+        # or clicked since the last one: typing a title touches no backend, and
+        # without it the most careful user would be the one timed out as idle.
+        # Answered here, never forwarded, and never seats anyone - a page whose
+        # seat was taken back gets it again by doing something, not by being
+        # left open.
+        if req_path == "/api/heartbeat":
+            payload = self.read_json()
+            session_id = self.cookie_session()
+            if session_id:
+                with ALLOCATION_LOCK:
+                    MultiUserProxyHandler.touch(session_id, used=bool(payload.get("active")))
+            self.answer_empty()
+            return
+
+        # The page closing or reloading, after the user said yes to leaving
+        # (or with nothing to lose, when no question was asked). Only ever sent
+        # by the LAST tab of this browser: the others share the seat and the
+        # run, and are still using both. The seat is freed now rather than in
+        # three minutes, and the run it was doing is stopped.
+        if req_path == "/api/leave":
+            payload = self.read_json()
+            session_id = self.cookie_session()
+            run_id = payload.get("runId")
+            if session_id:
+                with ALLOCATION_LOCK:
+                    MultiUserProxyHandler.release(
+                        session_id, run_id if isinstance(run_id, str) else None, reason="left")
+            self.answer_empty()
+            return
+
         if req_path.startswith("/api/track/"):
             tool_name = req_path.replace("/api/track/", "").strip("/") or "thumbnail_maker"
             content_length = int(self.headers.get("Content-Length", 0))
@@ -224,6 +347,17 @@ class MultiUserProxyHandler(SimpleHTTPRequestHandler):
 
 if __name__ == "__main__":
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
+    # Seats used to be reclaimed only when someone new arrived and asked for
+    # one, which was enough when reclaiming meant nothing but a free seat. It
+    # now also stops the gone user's run, and that should not wait for a
+    # visitor: until then the backend processes a video for nobody.
+    def reap():
+        while True:
+            time.sleep(REAP_INTERVAL_SECONDS)
+            with ALLOCATION_LOCK:
+                MultiUserProxyHandler.cleanup_stale_sessions()
+    threading.Thread(target=reap, name="reaper", daemon=True).start()
+
     server = ThreadingHTTPServer(("0.0.0.0", PORT), MultiUserProxyHandler)
     print(f"Multi-user proxy serving on {PORT} with workers: {BACKENDS}")
     server.serve_forever()

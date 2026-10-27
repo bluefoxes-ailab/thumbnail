@@ -1,9 +1,11 @@
 import functools
-import gdown
+import glob
 import hashlib
 import os
 import re
 import shutil
+import subprocess
+import sys
 import sysconfig
 import time
 import urllib.request
@@ -11,6 +13,7 @@ import uuid
 from urllib.parse import urlparse, urlunparse, parse_qsl, urlencode
 import imageio_ffmpeg
 from yt_dlp import YoutubeDL
+import cancel
 from yt_dlp.utils import DownloadError
 
 # Private module, so its absence is survivable: with no way to ask about
@@ -39,6 +42,11 @@ YOUTUBE_MAX_RETRIES = 3   # yt-dlp's signed format URLs intermittently 403 witho
                           # (deno) to solve YouTube's signature challenge — a fresh extraction
                           # attempt almost always succeeds on retry
 YOUTUBE_RETRY_DELAY = 2.0  # seconds between retries
+
+# How often a Drive download checks whether its run has been stopped (see
+# _gdown), and the size each Dropbox read takes before checking again.
+GDOWN_POLL_SECONDS = 0.5
+DOWNLOAD_CHUNK = 1024 * 1024
 
 
 # ── JavaScript runtime ────────────────────────────────────────────────────
@@ -173,6 +181,17 @@ def extract_file_id(url: str) -> str:
     raise ValueError(f"Could not extract file ID from: {url}")
 
 
+def _stop_if_cancelled(_progress: dict) -> None:
+    """
+    yt-dlp calls this for every chunk it writes, which makes it the download's
+    checkpoint: a run whose user has left stops mid-file rather than fetching
+    the rest of a video nobody will see (see cancel.py). The exception is a
+    BaseException, so it passes through yt-dlp's own error handling and this
+    module's retries instead of being taken for a failed download.
+    """
+    cancel.check()
+
+
 def _download_youtube(url: str) -> str:
     os.makedirs(TEMP_DIR, exist_ok=True)
     ydl_opts = {
@@ -186,6 +205,7 @@ def _download_youtube(url: str) -> str:
         "ffmpeg_location": imageio_ffmpeg.get_ffmpeg_exe(),
         "noplaylist": True,
         "quiet": False,
+        "progress_hooks": [_stop_if_cancelled],
         "extractor_args": {
             "youtube": {
                 "player_client": ["default", "web_embedded", "android"]
@@ -209,6 +229,7 @@ def _download_youtube(url: str) -> str:
 
     last_error = None
     for attempt in range(1, YOUTUBE_MAX_RETRIES + 1):
+        cancel.check()
         try:
             with YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=True)
@@ -219,7 +240,7 @@ def _download_youtube(url: str) -> str:
         except DownloadError as e:
             last_error = e
         if attempt < YOUTUBE_MAX_RETRIES:
-            time.sleep(YOUTUBE_RETRY_DELAY)
+            cancel.wait(YOUTUBE_RETRY_DELAY)   # woken early by a stop, and the loop checks
 
     raise last_error
 
@@ -288,6 +309,7 @@ def _download_instagram(url: str) -> str:
         # be looked at and the video among them picked out below.
         "ignore_no_formats_error": True,
         "quiet": False,
+        "progress_hooks": [_stop_if_cancelled],
         "cookiefile": COOKIE_FILE if os.path.exists(COOKIE_FILE) else None,
     }
 
@@ -340,10 +362,17 @@ def _download_dropbox(url: str) -> str:
     request = urllib.request.Request(
         _dropbox_direct_url(url), headers={"User-Agent": "Mozilla/5.0"}
     )
+    # Chunk by chunk rather than shutil.copyfileobj, so a stop is noticed
+    # between chunks (see cancel.py). BaseException in the cleanup, not
+    # Exception: a stop leaves a half-written file under the final name just
+    # as a failure does, and the early return above would hand it to the next
+    # run of the same link as if it were the whole video.
     try:
         with urllib.request.urlopen(request) as response, open(output_path, "wb") as f:
-            shutil.copyfileobj(response, f)
-    except Exception:
+            while chunk := response.read(DOWNLOAD_CHUNK):
+                cancel.check()
+                f.write(chunk)
+    except BaseException:
         if os.path.exists(output_path):
             os.remove(output_path)
         raise
@@ -366,10 +395,75 @@ def download_video(url: str) -> str:
     output_path = os.path.join(TEMP_DIR, f"{file_id}.mp4")
     if os.path.exists(output_path):
         return output_path
-    gdown.download(id=file_id, output=output_path, quiet=False)
+    _gdown(file_id, output_path)
     if not os.path.exists(output_path):
         raise RuntimeError("Download failed")
     return output_path
+
+
+def _remove_quietly(path: str) -> None:
+    # A leftover that cannot be removed - still held open by the process just
+    # ended, on Windows - is left for prune_temp rather than failing the run.
+    try:
+        os.remove(path)
+    except OSError:
+        pass
+
+
+def _gdown(file_id: str, output_path: str) -> None:
+    """
+    Fetches a Drive file through gdown, in a process of its own.
+
+    gdown used to be called in-process, and nothing in that call can be told
+    to stop: it has no progress hook and reads the whole file before it
+    returns. A run whose user has left (see cancel.py) would download every
+    remaining byte for nobody, holding the backend the next user was given. As
+    a separate process it can simply be ended. Same package, same version,
+    same options as the in-process call: only where it runs has changed.
+
+    gdown writes to `<output><random>.part` and renames at the very end, so a
+    process ended mid-download leaves no file under the final name — only the
+    part file, which is removed here.
+    """
+    # A file rather than a pipe for gdown's output: its progress bar writes
+    # continuously, and a pipe nobody reads until the end fills up and stalls
+    # the download.
+    log_path = output_path + ".log"
+    try:
+        with open(log_path, "w+", encoding="utf-8", errors="replace") as log_file:
+            proc = subprocess.Popen(
+                [sys.executable, "-m", "gdown", file_id, "-O", output_path],
+                stdout=log_file, stderr=subprocess.STDOUT,
+            )
+            try:
+                while proc.poll() is None:
+                    if cancel.wait(GDOWN_POLL_SECONDS):
+                        proc.terminate()
+                        try:
+                            proc.wait(timeout=5)
+                        except subprocess.TimeoutExpired:
+                            proc.kill()
+                            proc.wait()
+                        for part in glob.glob(glob.escape(output_path) + "*.part"):
+                            _remove_quietly(part)
+                        raise cancel.RunCancelled()
+            finally:
+                # Echoed into this process's own output, where gdown's
+                # progress and errors always went when it ran in-process.
+                log_file.seek(0)
+                output = log_file.read()
+                sys.stderr.write(output)
+    finally:
+        _remove_quietly(log_path)
+
+    if proc.returncode != 0:
+        # gdown's own explanation — usually that the file is not shared with
+        # "anyone with the link" — which is what the in-process call raised as
+        # its message, rather than a bare exit code. Without the progress bars
+        # printed before it.
+        lines = [l.strip() for l in output.replace("\r", "\n").splitlines()
+                 if l.strip() and "%|" not in l]
+        raise RuntimeError(" ".join(lines)[:500] or f"gdown exited with {proc.returncode}")
 
 
 # ── Local uploads ─────────────────────────────────────────────────────────

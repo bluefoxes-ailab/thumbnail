@@ -19,6 +19,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 import appinfo
 import background_remover
+import cancel
 import face_restorer
 import framing
 import inpainter
@@ -167,15 +168,30 @@ async def app_info():
     return appinfo.as_dict()
 
 
-def _set_progress(stage: str, percent: int) -> None:
+def _write_progress(stage: str, percent: int) -> None:
     with _progress_lock:
         _progress["stage"] = stage
         _progress["percent"] = percent
 
 
+def _set_progress(stage: str, percent: int) -> None:
+    """
+    The run moving on to its next step — and so also the run's checkpoint.
+
+    Every step boundary already passes through here, which is what makes it
+    the place to notice that the user has left (see cancel.py): a run asked to
+    stop does not start another step. Only the pipeline's own steps call this;
+    anything that records an outcome rather than a step (the error handlers,
+    the request that starts a run) writes through _write_progress, so it
+    cannot be interrupted halfway through saying what happened.
+    """
+    cancel.check()
+    _write_progress(stage, percent)
+
+
 def _set_status(status: str, detail: str | None = None) -> None:
     """
-    Whether a run is idle/running/done/error — the part of the progress
+    Whether a run is idle/running/done/error/cancelled — the part of the progress
     payload the client makes control-flow decisions on, as opposed to the
     stage/percent it merely displays.
     """
@@ -1085,12 +1101,19 @@ def _run_pipeline(source: VideoSource, capture: CaptureRequest | None,
     global _process_result
     try:
         _process_result = _process_video_sync(source, capture, cleanup, selection)
+    except cancel.RunCancelled:
+        # Its own status rather than "error": nothing went wrong, and a page
+        # still following the run (another tab, see main.js) says so in those
+        # words rather than reporting a failure.
+        log.info("process-video: stopped, the user left")
+        _write_progress("Stopped", 0)
+        _set_status("cancelled")
     except HTTPException as e:
-        _set_progress("Error", 0)
+        _write_progress("Error", 0)
         _set_status("error", str(e.detail))
     except Exception as e:
         log.exception("process-video failed")
-        _set_progress("Error", 0)
+        _write_progress("Error", 0)
         _set_status("error", f"{type(e).__name__}: {e}")
     else:
         _set_status("done")
@@ -1154,7 +1177,10 @@ async def process_video(req: ProcessRequest):
     with _progress_lock:
         _progress["run"] = req.client
         _progress["collected"] = False
-    _set_progress(source.stage, 0)
+    # Inside the lock this run now holds, so a stop aimed at the run before it
+    # — requested after that one had already finished — cannot reach this one.
+    cancel.clear()
+    _write_progress(source.stage, 0)
     _set_status("running")
     threading.Thread(
         target=_run_pipeline, args=(source, capture, req.cleanup, req.selection),
@@ -1178,6 +1204,34 @@ async def get_process_result():
     with _progress_lock:
         _progress["collected"] = True
     return JSONResponse(_process_result)
+
+
+class CancelRequest(BaseModel):
+    # The run to stop, by the id its page sent (see ProcessRequest.client).
+    # None stops whatever is running — what the proxy sends when it takes the
+    # backend back from a user who went quiet without saying goodbye, and who
+    # therefore never said which run was theirs.
+    id: str | None = None
+
+
+@app.post("/process-video/cancel")
+async def cancel_process(req: CancelRequest):
+    """
+    Stops the run in flight, when the user who started it has left.
+
+    Answers at once; the run itself stops at its next checkpoint (see
+    cancel.py), and only then is the backend free for another. With an id,
+    only that run is stopped: a request that arrives late — the run it meant
+    has finished and another user's has started on this backend — must not
+    take the new run down with it.
+    """
+    with _progress_lock:
+        running = _progress["status"] == "running"
+        run = _progress["run"] if isinstance(_progress["run"], dict) else {}
+    match = running and (req.id is None or run.get("id") == req.id)
+    if match:
+        cancel.request()
+    return {"cancelled": match}
 
 
 # ── Editing endpoints ──────────────────────────────────────────────────────
