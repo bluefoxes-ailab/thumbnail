@@ -85,6 +85,18 @@ async function waitForResult(runId) {
         failures = 0;
         showProgress(progress.stage, progress.percent);
 
+        // The backend holds one run at a time, so a different id here means
+        // another tab of this browser has started a new video in its place —
+        // possible in the moment between this run finishing and this poll
+        // collecting it. Waiting on would collect THAT run's frames as if they
+        // were this one's, under this one's channel; stepping aside lets the
+        // run be picked up properly instead (see the storage listener below).
+        if (runId && progress.run && progress.run.id !== runId) {
+            const replaced = new Error("Another tab started a new video — following it instead.");
+            replaced.replaced = true;
+            throw replaced;
+        }
+
         // Each of the three endings below leaves nothing for a reload to pick
         // up, so the browser stops remembering the run. Losing contact is not
         // one of them: the run may well still be going, and a reload once the
@@ -280,11 +292,17 @@ async function startRun(prepare) {
  * A run of this browser's already going on the backend is followed rather
  * than refused: it is the one the backend will finish first, and a second
  * could not start until it had.
+ *
+ * `resumeMessage` is what the status line says while following a run this
+ * tab did not start — a reload and another tab's new video are both that,
+ * and the user is owed different words for each.
  */
-async function runPipeline(prepare) {
+async function runPipeline(prepare,
+                           resumeMessage = "Picking up the video that was already processing...") {
     // The load-time check, with nothing to check: returns before touching
     // the buttons, so an ordinary page load does not flicker them.
     if (!prepare && !storedRunId()) return;
+    pipelineBusy = true;
     setSourceBusy(true);
     status("");
     try {
@@ -292,7 +310,14 @@ async function runPipeline(prepare) {
         if (!run) return;
         if (run.resumed) {
             resumeSettings(run.client);
-            status("Picking up the video that was already processing...");
+            status(resumeMessage);
+            // Whatever frames this tab is showing belong to a video the
+            // backend has already let go of: starting a run wipes the last
+            // one's. Left on screen they look fine and edit wrongly — every
+            // edit asks the backend for a frame by number, and gets that
+            // number from the NEW video, or an error. Hidden until the new
+            // frames replace them below.
+            el("resultSection").classList.add("hidden");
         }
         const data = await waitForResult(run.client && run.client.id);
 
@@ -375,11 +400,43 @@ async function runPipeline(prepare) {
         else warmCutouts();
     } catch (e) {
         status(e.message);
+        if (e.replaced) followPending = true;
     } finally {
         hideProgress();
         setSourceBusy(false);
+        pipelineBusy = false;
+    }
+    // A run another tab started while this one was busy, now that it is not.
+    if (followPending) {
+        followPending = false;
+        runPipeline(null, "Following the video started in another tab...");
     }
 }
+
+// Whether runPipeline is in flight in this tab, and whether another tab
+// started a run meanwhile that this one should follow once it is free.
+let pipelineBusy = false;
+let followPending = false;
+
+// Every tab of this browser shares one session, so one backend, so one run:
+// when any of them starts a video, the frames every other tab is showing stop
+// existing on the backend (see runPipeline). The tab that started it says so
+// in localStorage (rememberRun), and the browser tells every OTHER tab of the
+// change — this is that. They follow the new run, and land on its frames
+// instead of being left editing ones the backend has thrown away.
+//
+// Only a new id counts: the key being removed is a run finishing.
+window.addEventListener("storage", (e) => {
+    if (e.key !== RUN_KEY || !e.newValue) return;
+    if (pipelineBusy) {
+        // Busy with a run of its own, or following one: picked up once that
+        // ends. If it is the same run, there is nothing left to pick up by
+        // then and the follow-up stops at its first check.
+        followPending = true;
+        return;
+    }
+    runPipeline(null, "Following the video started in another tab...");
+});
 
 /**
  * What the selected channel wants of the frame SELECTION, if anything — sent
