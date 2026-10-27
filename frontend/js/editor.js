@@ -1976,12 +1976,16 @@ export async function applyEditToAll() {
     trackEvent("batch_edit_all_frames", { total_frames: frames().length });
     const grid = frames();
     for (let i = 0; i < grid.length; i++) {
-        if (frames() !== grid) return;
+        if (frames() !== grid) return false;
         status(`Applying the edit — frame ${i + 1} of ${grid.length}`);
         await ensureEnhanced(i);
     }
-    if (frames() !== grid) return;
+    if (frames() !== grid) return false;
     status(`${grid.length} frames ready. Download all, or pick the ones you want.`);
+    // Whether the pass reached the end of the grid it started on — the moment
+    // every frame has loaded, which is what unlocks "Split the text" (see
+    // main.runPipeline). False when a newer run's frames replaced these.
+    return true;
 }
 
 // ── Image overlay ─────────────────────────────────────────────────────────

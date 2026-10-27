@@ -422,14 +422,12 @@ input[type="text"]::-moz-selection { background: #fffa00; color: #1b2fea; }
    typed, in the same group, answering the same moment. Its own
    column so the label, the box and the hint stack the way the
    channel picker's three do. */
-/* Frames with text / Frames only / Frames + my text (Static Studio).
-   Ordinary .btn buttons in a .btn-row; the one thing they need beyond
-   that is to share the row's width equally, so the three read as one
-   switch the width of the link box under it rather than as buttons of
-   different lengths that happen to sit together. The padding is
-   eased so all three labels fit on one row at the column's width. */
-.output-mode-toggle .btn { flex: 1; padding-left: 10px; padding-right: 10px; }
-#myTextHint { text-align: center; margin-top: -4px; }
+/* Frames with text / Frames only (Static Studio). Ordinary .btn
+   buttons in a .btn-row; the one thing they need beyond that is to
+   share the row's width equally, so the pair reads as one two-way
+   switch the width of the link box under it rather than as two
+   buttons of different lengths that happen to sit together. */
+.output-mode-toggle .btn { flex: 1; }
 #frameCountRow { display: flex; flex-direction: column; gap: 10px; }
 #frameCountRow.hidden { display: none; }
 /* Slider and its readout on one row, the readout wide enough for
@@ -843,35 +841,53 @@ body.mask-open { overflow: hidden; }
 .mask-actions { margin-top: 6px; }
 .mask-actions .btn { flex: 1; }
 
-/* ── The "Frames + my text" step (js/mytext.js) ────────────────────────
-   The mask step's backdrop and card, with the title block's own field
-   in it: the text typed here ends up as titles, and the box it is
-   typed into looks like the one it will later be edited in.
+/* ── The user's own text, on a "Frames only" run (js/mytext.js) ──────
+   The width of the link box above it and stacked the same way, so it
+   reads as the next step of the same column. The box is the title
+   block's own field: the text typed here ends up as titles, and it
+   looks like the field it will later be edited in.
 
    Unlike that field it does not grow to fit — a pasted script can run
    to pages — so it scrolls, and the user can drag it taller. */
-.text-step-input {
-    min-height: 140px; max-height: 40vh;
+.my-text-section {
+    display: flex; flex-direction: column; gap: 10px;
+    max-width: 500px; margin: 0 auto 24px;
+}
+.my-text-section.hidden { display: none; }
+.my-text-input {
+    min-height: 120px; max-height: 40vh;
     overflow-y: auto; resize: vertical;
 }
-.text-step-count { text-align: center; margin-top: -6px; }
-/* The breaks, previewed. The page's yellow numbers on the panel's blue
-   edge, so each piece reads as one card of the grid it is headed for. */
-.text-step-pieces {
-    margin: 0; padding: 0; list-style: none; counter-reset: piece;
-    display: flex; flex-direction: column; gap: 6px;
-    max-height: 30vh; overflow-y: auto;
+/* The Split button and the bubble that explains it while it is locked.
+   The wrapper is what the pointer is over: a disabled button takes no
+   pointer events in every browser, so it is made transparent to them
+   and the wrapper answers the hover and shows the not-allowed cursor
+   the button would have shown. */
+.split-wrap { position: relative; }
+.split-wrap .btn { width: 100%; }
+.split-wrap.locked { cursor: not-allowed; }
+.split-wrap.locked .btn { pointer-events: none; }
+/* The bubble: the mask card's navy and blue edge, with a point aimed
+   at the button. Above it rather than below, so it never lands on the
+   status line or the grid the button is about. */
+.split-tip {
+    position: absolute; left: 50%; bottom: calc(100% + 10px);
+    transform: translateX(-50%) translateY(4px);
+    width: max-content; max-width: min(320px, 90vw);
+    padding: 8px 12px; border-radius: 8px;
+    background: #080b1e; border: 1px solid #026dff; color: #fff;
+    font-size: 12px; line-height: 1.4; text-align: center;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);
+    opacity: 0; visibility: hidden; pointer-events: none;
+    transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s;
+    z-index: 20;
 }
-.text-step-pieces.hidden { display: none; }
-.text-step-pieces li {
-    counter-increment: piece;
-    display: flex; gap: 10px; align-items: baseline;
-    border-left: 2px solid #026dff; padding: 4px 10px;
-    font-size: 13px; line-height: 1.4;
+.split-tip::after {
+    content: ""; position: absolute; top: 100%; left: 50%;
+    margin-left: -6px; border: 6px solid transparent; border-top-color: #026dff;
 }
-.text-step-pieces li::before {
-    content: counter(piece);
-    color: #fffa00; font-weight: 900; font-size: 12px; min-width: 18px;
+.split-wrap.locked:hover .split-tip {
+    opacity: 1; visibility: visible; transform: translateX(-50%) translateY(0);
 }
 
 

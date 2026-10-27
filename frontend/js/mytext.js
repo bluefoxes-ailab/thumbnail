@@ -1,16 +1,26 @@
-// ── Frames + my text ──────────────────────────────────────────────────────
+// ── My text, on a "Frames only" run ───────────────────────────────────────
 //
-// The third way out of Static Studio. "Frames with text" captions every still
-// with what was being said over it; "Frames only" hands the stills back bare;
-// this one hands them back with the USER'S words on them — a script, a set of
-// facts, a story already written — broken into pieces and dealt out over the
-// grid in order.
+// "Frames with text" captions every still with what was being said over it;
+// "Frames only" hands the stills back bare. This is what a "Frames only" run
+// offers on top: the USER'S words on them — a script, a set of facts, a story
+// already written — broken into pieces and dealt out over the grid in order.
 //
-// Toward the backend it is "Frames only" exactly: nothing is transcribed and
-// nothing is rewritten, because nothing the video says will be used. The text
-// never leaves the page except inside the run's `client` record, which the
-// backend keeps only to hand back (see ProcessRequest.client in api.py) — so
-// a page that picks the run up after a reload still has the text to set.
+// The workflow, in the order the user meets it:
+//
+//   1. They pick "Frames only" and process the video. Nothing is transcribed
+//      or rewritten, because nothing the video says will be used.
+//   2. A text box appears under the progress bar the moment the run starts,
+//      so the text can be written or pasted while the video processes.
+//   3. Under it, "Split the text" — locked, with a bubble saying why, until
+//      every frame has finished loading (see main.runPipeline, which unlocks
+//      it when editor.applyEditToAll reaches the end of the grid). The split
+//      is computed against the frames that arrived, and until the last one is
+//      in, that number is not settled.
+//   4. Clicking it sets the pieces as the frames' captions. Clicking again
+//      after editing the text deals it out afresh, replacing what is there.
+//
+// The text never leaves the page. A run picked up after a reload shows an
+// empty box, because what was typed lived in the page that was closed.
 //
 // ## Where the text is broken
 //
@@ -215,80 +225,29 @@ export function spreadOver(text, count) {
     return captions;
 }
 
-// ── The pop-up ────────────────────────────────────────────────────────────
+// ── The box and its button ────────────────────────────────────────────────
 //
-// Built on the mask step's backdrop and card (see .mask-step in styles.css)
-// and the page's own field and buttons, for the reason that step was: a
-// dialog that looked designed for some other app would read as one.
-
-let _open = null;   // the live session's resolver, so a second open replaces it
-
-/**
- * Shows the pop-up with `initial` in the box and resolves with the text the
- * user confirmed, or null when they cancelled.
- */
-export function openTextStep(initial = "") {
-    if (_open) _open(null);
-    const root = el("textStep");
-    const box = el("textStepInput");
-    const confirm = el("textStepConfirmBtn");
-    const cancel = el("textStepCancelBtn");
-
-    box.value = initial;
-    const sync = () => {
-        const pieces = splitText(box.value);
-        confirm.disabled = !pieces.length;
-        renderPreview(pieces);
-    };
-    sync();
-
-    return new Promise((resolve) => {
-        const finish = (result) => {
-            _open = null;
-            root.classList.add("hidden");
-            document.body.classList.remove("mask-open");
-            box.removeEventListener("input", sync);
-            confirm.removeEventListener("click", onConfirm);
-            cancel.removeEventListener("click", onCancel);
-            document.removeEventListener("keydown", onKey);
-            resolve(result);
-        };
-        const onConfirm = () => { if (!confirm.disabled) finish(box.value.trim()); };
-        const onCancel = () => finish(null);
-        // Escape is Cancel; Ctrl+Enter is Confirm, since a plain Enter is a
-        // line break and a line break in this box means something.
-        const onKey = (e) => {
-            if (e.key === "Escape") { e.preventDefault(); onCancel(); }
-            else if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); onConfirm(); }
-        };
-        _open = finish;
-
-        box.addEventListener("input", sync);
-        confirm.addEventListener("click", onConfirm);
-        cancel.addEventListener("click", onCancel);
-        document.addEventListener("keydown", onKey);
-        root.classList.remove("hidden");
-        document.body.classList.add("mask-open");
-        box.focus();
-    });
-}
+// Two states, kept in one place so the button, the class the bubble hangs
+// off, and the box's visibility can never disagree. What the click DOES is
+// main.splitMyText's: it touches the frames, the captions and every view of
+// them, which is main's business and none of this file's.
 
 /**
- * The pieces as they will be set, numbered, under the box — so the user sees
- * every break before a single frame is fetched, and can move one by typing a
- * line break of their own where they want it.
+ * Shows the box for a run whose frames the user's text can go on, or hides
+ * it for any other run. Either way the button starts locked: a run that has
+ * just started has no frames loaded yet. What was typed stays in the box, so
+ * processing the video again does not mean writing it again.
  */
-function renderPreview(pieces) {
-    const list = el("textStepPieces");
-    const count = el("textStepCount");
-    list.innerHTML = "";
-    for (const piece of pieces) {
-        const item = document.createElement("li");
-        item.textContent = piece;
-        list.appendChild(item);
-    }
-    list.classList.toggle("hidden", !pieces.length);
-    count.textContent = pieces.length
-        ? `${pieces.length} ${pieces.length === 1 ? "piece" : "pieces"}, spread over the frames in this order`
-        : "Nothing to place yet";
+export function showMyText(on) {
+    el("myTextSection").classList.toggle("hidden", !on);
+    lockSplit(true);
 }
+
+/** Locks or unlocks "Split the text" — see the module header for when. */
+export function lockSplit(locked) {
+    el("splitTextBtn").disabled = locked;
+    el("splitWrap").classList.toggle("locked", locked);
+}
+
+/** The text in the box, as typed. */
+export const myText = () => el("myTextInput").value;

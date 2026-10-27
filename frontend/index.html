@@ -73,11 +73,11 @@
             <div class="panel-hint" id="frameCountHint"></div>
         </div>
         <!-- Output mode, Static Studio only (see setAppMode in main.js):
-             frames with their captions, the bare frames with no
-             transcription at all, or the bare frames with the user's own
-             text spread over them (see js/mytext.js).
+             frames with their captions, or the bare frames with no
+             transcription at all — onto which the user can then split a
+             text of their own (see #myTextSection below).
 
-             Three ordinary .btn buttons and the choice held in .btn-active,
+             Two ordinary .btn buttons and the choice held in .btn-active,
              the way every other one-of-two choice in the app shows itself
              (the edit presets, the alignment): blue at rest, yellow on hover,
              and yellow held on the one that is chosen. No styling of their
@@ -86,13 +86,7 @@
         <div class="btn-row output-mode-toggle hidden" id="outputModeToggle">
             <button type="button" class="btn btn-active" id="btnModeText" aria-pressed="true">Frames with text</button>
             <button type="button" class="btn" id="btnModeFramesOnly" aria-pressed="false">Frames only</button>
-            <button type="button" class="btn" id="btnModeMyText" aria-pressed="false"
-                    title="Spread your own text over the frames, one piece per frame">Frames + my text</button>
         </div>
-        <!-- What "Frames + my text" is holding, while it is the chosen mode:
-             the text lives in a pop-up, and without this line the only sign
-             of it would be a yellow button. -->
-        <div class="panel-hint hidden" id="myTextHint"></div>
         <input type="text" id="driveUrl" placeholder="Paste Google Drive, Dropbox, or YouTube link here">
         <button class="btn" style="width:100%" id="processBtn">Process Video</button>
         <!-- A video already on this machine takes the same route as a linked
@@ -109,6 +103,25 @@
     <div class="progress-section hidden" id="progressSection">
         <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
         <div class="progress-text" id="progressText"></div>
+    </div>
+
+    <!-- The user's own text, for a "Frames only" run (see js/mytext.js).
+         Shown from the moment such a run starts, so the text can be written
+         or pasted while the video processes — the wait is the time there is
+         to do it. Under the progress bar and above the grid, because it is
+         about the whole run and not about any one frame.
+
+         Split stays locked until every frame has finished loading: it deals
+         the text out over the frames that actually arrived, and until the
+         last one is in, that number is not known. The bubble on the locked
+         button says so, since a dead button with no reason reads as broken. -->
+    <div class="my-text-section hidden" id="myTextSection">
+        <textarea class="line-block my-text-input" id="myTextInput" rows="5"
+                  placeholder="Add your text here"></textarea>
+        <div class="split-wrap locked" id="splitWrap">
+            <button type="button" class="btn" id="splitTextBtn" disabled>Split the text</button>
+            <div class="split-tip" role="tooltip" id="splitTip">This option is available once every frame has finished loading.</div>
+        </div>
     </div>
 
     <div class="font-warning hidden" id="fontWarning"></div>
@@ -360,25 +373,6 @@
             <button type="button" class="btn" id="maskCancelBtn">Cancel</button>
             <button type="button" class="btn" id="maskSkipBtn" title="Place the image as it is, uncropped">No mask</button>
             <button type="button" class="btn" id="maskApplyBtn">Apply mask</button>
-        </div>
-    </div>
-</div>
-
-<!-- The "Frames + my text" step (see js/mytext.js): the user's text, and a
-     preview of the pieces it will be broken into, before anything is
-     processed. The mask step's backdrop and card, so the two dialogs of the
-     app read as one design. -->
-<div class="mask-step hidden" id="textStep" role="dialog" aria-modal="true" aria-labelledby="textStepLabel">
-    <div class="mask-card">
-        <h2 id="textStepLabel">Frames + my text</h2>
-        <div class="panel-hint mask-hint">Type or paste your text. It is broken at sentence and clause boundaries and spread over the frames in order. Press Enter to force a break of your own.</div>
-        <textarea class="line-block text-step-input" id="textStepInput" rows="7"
-                  placeholder="Your text"></textarea>
-        <div class="panel-hint text-step-count" id="textStepCount"></div>
-        <ol class="text-step-pieces hidden" id="textStepPieces"></ol>
-        <div class="btn-row mask-actions">
-            <button type="button" class="btn" id="textStepCancelBtn">Cancel</button>
-            <button type="button" class="btn" id="textStepConfirmBtn" disabled>Confirm</button>
         </div>
     </div>
 </div>

@@ -1,64 +1,30 @@
 
-// --- Output Mode Toggle (Frames with text / Frames only / Frames + my text) ---
-//
-// "text" captions the frames with what the video says, "frames" hands them
-// back bare, and "mytext" hands them back with the user's own text spread
-// over them (see js/mytext.js). The last two look the same to the backend —
-// nothing is transcribed — which is what `framesOnly` below means.
-let outputMode = "text";
-// The text "Frames + my text" was last confirmed with. Kept when the user
-// switches to another mode, so coming back to it does not mean typing it all
-// again.
-let myText = "";
-const isFramesOnly = () => outputMode !== "text";
-
-const MODE_BUTTONS = { text: "btnModeText", frames: "btnModeFramesOnly", mytext: "btnModeMyText" };
+// --- Output Mode Toggle (Frames with text vs Frames only) ---
+let framesOnlyMode = false;
 
 // The chosen button is marked with .btn-active and nothing else — the look is
-// the stylesheet's, shared with every other one-of-several choice in the app,
-// so the colours are written down once rather than here. Outside
-// initModeToggle because a run picked back up after a reload sets the mode too.
+// the stylesheet's, shared with every other one-of-two choice in the app, so
+// the colours are written down once rather than here. Outside initModeToggle
+// because a run picked back up after a reload sets the mode too.
 function syncModeToggle() {
-    for (const [mode, id] of Object.entries(MODE_BUTTONS)) {
-        const btn = document.getElementById(id);
-        if (!btn) continue;
-        btn.classList.toggle("btn-active", outputMode === mode);
-        btn.setAttribute("aria-pressed", String(outputMode === mode));
-    }
-    const hint = document.getElementById("myTextHint");
-    if (hint) {
-        const pieces = splitText(myText).length;
-        hint.classList.toggle("hidden", outputMode !== "mytext" || currentMode !== "static");
-        hint.textContent = `Your text: ${pieces} ${pieces === 1 ? "piece" : "pieces"}, `
-                         + "spread over the frames. Click Frames + my text again to edit it.";
-    }
-}
-
-/**
- * Opens the text pop-up from the "Frames + my text" button. Confirming makes it
- * the mode with that text; cancelling leaves the mode exactly as it was before
- * the click — including "Frames + my text" with its previous text, when that is
- * what the user was editing.
- */
-async function chooseMyText() {
-    const text = await openTextStep(myText);
-    if (text === null) return syncModeToggle();
-    myText = text;
-    outputMode = "mytext";
-    syncModeToggle();
+    const btnText = document.getElementById("btnModeText");
+    const btnOnly = document.getElementById("btnModeFramesOnly");
+    if (!btnText || !btnOnly) return;
+    btnText.classList.toggle("btn-active", !framesOnlyMode);
+    btnOnly.classList.toggle("btn-active", framesOnlyMode);
+    btnText.setAttribute("aria-pressed", String(!framesOnlyMode));
+    btnOnly.setAttribute("aria-pressed", String(framesOnlyMode));
 }
 
 function initModeToggle() {
     const btnText = document.getElementById("btnModeText");
     const btnOnly = document.getElementById("btnModeFramesOnly");
-    const btnMine = document.getElementById("btnModeMyText");
-    if (!btnText || !btnOnly || !btnMine) return;
-    btnText.addEventListener("click", () => { outputMode = "text"; syncModeToggle(); });
-    btnOnly.addEventListener("click", () => { outputMode = "frames"; syncModeToggle(); });
-    btnMine.addEventListener("click", chooseMyText);
+    if (!btnText || !btnOnly) return;
+    btnText.addEventListener("click", () => { framesOnlyMode = false; syncModeToggle(); });
+    btnOnly.addEventListener("click", () => { framesOnlyMode = true; syncModeToggle(); });
     syncModeToggle();
 }
-import { API, TITLE_FIELD_IDS, el } from "./config.js";
+import { API, LINE_IDS, TITLE_FIELD_IDS, el } from "./config.js";
 import {
     store, frames, current, selectedIndex, setSelectedIndex,
     makeFrame, releaseFrames, carryOverSettings,
@@ -89,7 +55,7 @@ import {
 } from "./capture.js";
 import { downloadFrame, downloadSelected, downloadAll } from "./download.js";
 import { titleFontReady, reportMissingTitleFont } from "./fontguard.js";
-import { openTextStep, splitText, spreadOver } from "./mytext.js";
+import { showMyText, lockSplit, myText, spreadOver } from "./mytext.js";
 
 const POLL_MS = 500;
 // Consecutive failed polls tolerated before giving up. A tunnel hiccup or a
@@ -278,8 +244,7 @@ async function runInProgress(finished) {
  */
 function resumeSettings(client) {
     if (!client) return;
-    myText = client.myText || "";
-    outputMode = myText ? "mytext" : client.framesOnly ? "frames" : "text";
+    framesOnlyMode = !!client.framesOnly;
     syncModeToggle();
     // The tab before the channel: switching tab rebuilds the dropdowns from
     // that tab's list, and a channel set first would be dropped as not on it.
@@ -351,6 +316,14 @@ async function runPipeline(prepare,
     try {
         const run = (await runInProgress(!prepare)) || (prepare && await startRun(prepare));
         if (!run) return;
+        // The box for the user's own text, on a "Frames only" run whose
+        // channel writes on its frames: up from the moment the run starts, so
+        // the text can be written while the video processes, and locked until
+        // every frame has loaded (see mytext.js and the end of this block).
+        // Any other run takes it away, since its frames are not ones the text
+        // could go on.
+        ownTextRun = !!(run.client && run.client.framesOnly && run.capture && run.capture.captions);
+        showMyText(ownTextRun);
         if (run.resumed) {
             resumeSettings(run.client);
             status(resumeMessage);
@@ -391,20 +364,8 @@ async function runPipeline(prepare,
         // is the only place the user would ever find out.
         const framesOnly = !!(run.client && run.client.framesOnly);
         const spoken = run.capture && run.capture.rewrite && !framesOnly && data.rewritten === false;
-        // "Frames + my text": the user's text, dealt out over the frames that
-        // actually landed — not over the slider's count, since frames rejected
-        // as blurred or blank make the grid shorter than what was asked for.
-        // Set where a transcript's sentence would have arrived, so from here on
-        // it is a caption like any other (see applyCaptions below).
-        const ownText = isCapture() && run.client && run.client.myText || "";
-        if (ownText) {
-            spreadOver(ownText, store.frames.length)
-                .forEach((caption, i) => { store.frames[i].caption = caption; });
-        }
-        const placed = store.frames.filter(f => f.caption).length;
         status(isCapture()
             ? `${data.count} frames, in the order they happen in the video`
-              + (ownText ? ` — your text is spread over ${placed} of them` : "")
               + (spoken ? " — captions are the transcript as spoken: the narration "
                         + "model did not load, so they were not rewritten as report" : "")
             : `${data.count} frames — select one and give it a title`);
@@ -427,9 +388,8 @@ async function runPipeline(prepare,
         //
         // The mode the run was started in, not the toggle's position now, for
         // the reason the capture block above is the run's: the backend was
-        // told then whether to transcribe. A run with the user's own text was
-        // not transcribed either, and still has captions to break.
-        if (!framesOnly || ownText) { await applyCaptions(); }
+        // told then whether to transcribe.
+        if (!framesOnly) { await applyCaptions(); }
 
         initCanvas(setupReframeInteraction);
         renderGrid();
@@ -452,9 +412,20 @@ async function runPipeline(prepare,
         //
         // Neither is awaited: the first frame is already being worked on above,
         // and this is the rest of them.
-        if (isCapture()) applyEditToAll();
-        else warmCutouts();
+        //
+        // The end of the edit pass is the end of loading — the last grey card
+        // has turned — so it is what unlocks "Split the text". Only when the
+        // pass reached the end of THIS grid: one cut short by a newer run
+        // answers false, and that run has locked the button for itself.
+        if (isCapture()) {
+            applyEditToAll().then((done) => { if (done && ownTextRun) lockSplit(false); });
+        } else {
+            warmCutouts();
+        }
     } catch (e) {
+        // Nothing arrived for the text to go on. A run being followed from
+        // another tab shows the box again as it starts, if it wants one.
+        showMyText(false);
         status(e.message);
         if (e.replaced) followPending = true;
     } finally {
@@ -473,6 +444,42 @@ async function runPipeline(prepare,
 // started a run meanwhile that this one should follow once it is free.
 let pipelineBusy = false;
 let followPending = false;
+// Whether the frames of the latest run are ones the user's own text can go
+// on — a "Frames only" run on a channel that captions (see runPipeline).
+let ownTextRun = false;
+
+/**
+ * "Split the text": the user's text, broken at its sentences and clauses and
+ * dealt out evenly over the frames that were fetched (see mytext.spreadOver).
+ *
+ * Over the frames that actually LANDED, not the slider's count — frames
+ * rejected as blurred or blank make the grid shorter than what was asked for.
+ * The pieces are set where a transcript's sentence would have arrived, so
+ * from here on each is a caption like any other: broken into lines in the
+ * channel's face (capture.applyCaptions), and the user's to edit per frame.
+ *
+ * Every frame is cleared first, so splitting again after changing the text
+ * replaces what the last split put there instead of leaving its pieces on
+ * the frames the new one skips.
+ */
+async function splitMyText() {
+    const text = myText();
+    if (!text.trim()) return status("Add your text first, then split it over the frames");
+    const grid = frames();
+    const captions = spreadOver(text, grid.length);
+    grid.forEach((f, i) => {
+        f.caption = captions[i];
+        f.lines = LINE_IDS.map(() => "");   // the fixed slots makeFrame starts with
+    });
+    await applyCaptions();
+    if (frames() !== grid) return;   // a new run landed while the face loaded
+    loadTextPanel();
+    refreshAllThumbs();
+    updatePreview();
+    const placed = captions.filter(Boolean).length;
+    status(`Your text is split into ${placed} ${placed === 1 ? "piece" : "pieces"}, `
+         + `spread over the ${grid.length} frames`);
+}
 
 // Every tab of this browser shares one session, so one backend, so one run:
 // when any of them starts a video, the frames every other tab is showing stop
@@ -545,8 +552,8 @@ function runCapture() {
             // transcription nothing will draw or a rewrite nothing will read.
             request: {
                 count: requestedCount(id),
-                captions: isFramesOnly() ? false : !!capture.captions,
-                rewrite: isFramesOnly() ? false : !!capture.rewrite,
+                captions: framesOnlyMode ? false : !!capture.captions,
+                rewrite: framesOnlyMode ? false : !!capture.rewrite,
             },
         }
         : null;
@@ -559,31 +566,13 @@ function runCapture() {
  * runInProgress and resumeSettings). Read when the run is set going, like
  * everything else a run is made from.
  */
-//
-// The user's own text travels in here too, for the same reason: the backend
-// never reads it, and a page picking the run up after a reload needs it to
-// set the frames' captions.
 const runClient = () => ({
-    channel: activeChannelId(), tab: currentMode, framesOnly: isFramesOnly(),
-    myText: outputMode === "mytext" && currentMode === "static" ? myText : "",
+    channel: activeChannelId(), tab: currentMode, framesOnly: framesOnlyMode,
 });
-
-/**
- * Why this run cannot start yet, or null. Only "Frames + my text" has a reason:
- * the text is set as the channel's captions, so a run with no frame-fetching
- * channel picked would process the video and quietly drop every word of it.
- */
-function notReady() {
-    if (outputMode !== "mytext" || currentMode !== "static") return null;
-    if (!captureFor(activeChannelId())) return "Pick a channel first — your text is set in its caption style";
-    return null;
-}
 
 function processVideo() {
     const url = el("driveUrl").value.trim();
     if (!url) return status("Paste a link, or upload a video file from your computer");
-    const reason = notReady();
-    if (reason) return status(reason);
     const capture = runCapture();
     const client = runClient();
     return runPipeline(async () => ({
@@ -601,8 +590,6 @@ function processVideo() {
  * bytes are across, and the poll takes over from there.
  */
 function processUploadedFile(file) {
-    const reason = notReady();
-    if (reason) return status(reason);
     // Read before the upload starts, not after it finishes: the bytes take
     // their own time to cross, and the channel a run belongs to is the one
     // that was selected when the user set it going.
@@ -848,7 +835,6 @@ function setAppMode(mode) {
     // the row keeps the layout .btn-row gives it whenever it is shown.
     const modeToggle = document.getElementById("outputModeToggle");
     if (modeToggle) modeToggle.classList.toggle("hidden", !isStatic);
-    syncModeToggle();   // the "Your text" line under it follows the tab too
 
     // The backend takes an Instagram link from either tab — it cannot tell
     // which one a run came from — but only Static Studio names it, because
@@ -967,6 +953,9 @@ el("batchBtn").addEventListener("click", downloadSelected);
 // button costs nothing, and one attached and detached with the mode would be
 // one more thing to keep in step.
 el("downloadAllBtn").addEventListener("click", downloadAll);
+// Locked until every frame of a "Frames only" run has loaded (see
+// runPipeline); a locked button takes no clicks, so nothing here has to ask.
+el("splitTextBtn").addEventListener("click", splitMyText);
 
 for (const id of ["presetNoneBtn", "presetNaturalBtn", "presetFullBtn"]) {
     el(id).addEventListener("click", () => setEditPreset(el(id).dataset.preset));
