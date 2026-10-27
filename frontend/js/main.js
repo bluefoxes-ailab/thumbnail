@@ -55,7 +55,7 @@ import {
 } from "./capture.js";
 import { downloadFrame, downloadSelected, downloadAll } from "./download.js";
 import { titleFontReady, reportMissingTitleFont } from "./fontguard.js";
-import { showMyText, lockSplit, myText, spreadOver } from "./mytext.js";
+import { showMyText, lockSplit, myText, maxChars, dealOut } from "./mytext.js";
 import { initReorder } from "./reorder.js";
 
 const POLL_MS = 500;
@@ -450,8 +450,9 @@ let followPending = false;
 let ownTextRun = false;
 
 /**
- * "Split the text": the user's text, broken at its sentences and clauses and
- * dealt out evenly over the frames that were fetched (see mytext.spreadOver).
+ * "Split the text": the user's text, broken at its sentences and clauses into
+ * pieces of at most "Max characters per frame", and set one piece per frame
+ * from the first frame on (see mytext.dealOut).
  *
  * In the grid's order, which is the user's if they have rearranged it (see
  * reorder.js): the first piece goes on the card in the first place. After a
@@ -467,24 +468,51 @@ let ownTextRun = false;
  * Every frame is cleared first, so splitting again after changing the text
  * replaces what the last split put there instead of leaving its pieces on
  * the frames the new one skips.
+ *
+ * The order is checked as the pieces are set, not trusted: each piece goes on
+ * its frame only once the frame before it in the grid has text of its own.
+ * dealOut is built so that always holds, and the check is there because a
+ * split that once left frames bare between captioned ones is exactly the
+ * mistake the user cannot see from the status line — they find it in the
+ * folder, after exporting. If it ever fails, the frames get back the captions
+ * they had and the user is told, rather than shown a split with holes in it.
  */
 async function splitMyText() {
     const text = myText();
     if (!text.trim()) return status("Add your text first, then split it over the frames");
+    const max = maxChars();
+    if (max === null) return status("Max characters per frame has to be a whole number of at least 1");
     const grid = frames();
-    const captions = spreadOver(text, grid.length);
-    gridOrder().forEach((i, position) => {
-        grid[i].caption = captions[position];
+    const order = gridOrder();
+    const { pieces, leftover } = dealOut(text, grid.length, max);
+
+    const before = grid.map(f => ({ caption: f.caption, lines: f.lines }));
+    order.forEach((i) => {
+        grid[i].caption = "";
         grid[i].lines = LINE_IDS.map(() => "");   // the fixed slots makeFrame starts with
     });
+    for (let position = 0; position < pieces.length; position++) {
+        const previous = position > 0 && grid[order[position - 1]];
+        if (previous && !previous.caption.trim()) {
+            grid.forEach((f, i) => { f.caption = before[i].caption; f.lines = before[i].lines; });
+            return status(`The text could not be split in order: frame ${position} was left `
+                        + `without text before frame ${position + 1}. Nothing was changed.`);
+        }
+        grid[order[position]].caption = pieces[position];
+    }
+
     await applyCaptions();
     if (frames() !== grid) return;   // a new run landed while the face loaded
     loadTextPanel();
     refreshAllThumbs();
     updatePreview();
-    const placed = captions.filter(Boolean).length;
-    status(`Your text is split into ${placed} ${placed === 1 ? "piece" : "pieces"}, `
-         + `spread over the ${grid.length} frames`);
+    const placed = pieces.length;
+    const where = placed === grid.length ? `one on each of the ${grid.length} frames`
+                : placed === 1 ? "on frame 1" : `on frames 1 to ${placed} of ${grid.length}`;
+    status(`Your text is split into ${placed} ${placed === 1 ? "piece" : "pieces"} of up to `
+         + `${max} characters, ${where}`
+         + (leftover ? ` — ${leftover} more ${leftover === 1 ? "piece does" : "pieces do"} not fit. `
+                     + "Raise the max characters per frame or fetch more frames." : ""));
 }
 
 // Every tab of this browser shares one session, so one backend, so one run:

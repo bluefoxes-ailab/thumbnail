@@ -11,6 +11,8 @@
 //      or rewritten, because nothing the video says will be used.
 //   2. A text box appears under the progress bar the moment the run starts,
 //      so the text can be written or pasted while the video processes.
+//      Beside it, "Max characters per frame" — a whole number, 80 unless the
+//      user changes it — the most text any one frame may be given.
 //   3. Under it, "Split the text" — locked, with a bubble saying why, until
 //      every frame has finished loading (see main.runPipeline, which unlocks
 //      it when editor.applyEditToAll reaches the end of the grid). The split
@@ -34,45 +36,50 @@
 //   2. A sentence end — . ! ? … — is a break, unless what follows starts in
 //      lower case or the mark closes an abbreviation ("Dr.", "e.g."). Case is
 //      the cheap, language-free signal for "something new starts here".
-//   3. A sentence still longer than CAPTION_CHARS is divided at a clause mark
-//      — , ; : — – — and only where both halves keep at least MIN_WORDS. A
-//      half that opens with a capital is preferred (a name, a new clause with
-//      its own subject), then the stronger marks over the comma, then the
-//      most even division. A comma followed by lower case is a cut only in a
-//      sentence too long for two stills (see divide). Recursively, until
-//      every piece fits or has nowhere left to come apart.
+//   3. A sentence still longer than the user's maximum is divided at a
+//      clause mark — , ; : — – — and only where both halves keep at least
+//      MIN_WORDS. A half that opens with a capital is preferred (a name, a
+//      new clause with its own subject), then the stronger marks over the
+//      comma, then the most even division. Recursively, until every piece
+//      fits or has nowhere left to come apart.
+//   4. A piece that still does not fit is divided between words, into as few
+//      pieces as the maximum allows and as even as they can be made (see
+//      wrapWords).
 //
-// A sentence with no such place stays whole. It is too long for one still
-// rather than two pieces that are not sentences, and the renderer wraps it
-// (see caption.captionLines), so nothing is lost. No word is ever changed,
-// dropped or cut in half: these are the user's words and only the breaks are
-// this file's.
+// Rule 4 is the one that makes fragments, and it is there because the
+// maximum is a ceiling the user set, not a target: it used to be that a
+// sentence with no clause mark stayed whole and ran long, and a user who
+// typed 80 and found 140 characters on a frame would rightly read the field
+// as broken. The clause marks are tried first so a word cut is only ever the
+// last resort. No word is ever changed, dropped or cut in half — a single
+// word longer than the maximum stays whole, since there is no place in it to
+// break that would still be the user's word.
 //
 // ## Where the pieces go
 //
-// Spread over the grid evenly, in order (see spreadOver): ten pieces over
-// forty stills land on every fourth one, starting at the first. The grid is
-// the count the user chose on the slider, and the backend may hand back fewer
-// than asked for when frames are rejected as blurred or blank — so the spread
-// is computed against the frames that actually LANDED, never against the
-// slider.
+// One per frame, in order, from the first frame of the grid with no frame
+// skipped (see dealOut): ten pieces over forty stills land on frames 1 to 10,
+// and 11 to 40 stay bare. It used to spread them evenly — every fourth still —
+// and that read as frames the text had missed, which is what a gap between
+// captioned stills looks like to anyone who did not write the spreading. The
+// grid is the frames that actually LANDED, never the slider's count: the
+// backend hands back fewer than asked for when frames are rejected as blurred
+// or blank.
 //
 // More pieces than stills is answered by joining pieces back together, the
 // shortest neighbouring pair first and never across a line break the user
-// typed while any other pair is left: the text is all set, on fewer and longer
-// captions, rather than its ending silently going missing.
+// typed while any other pair is left — but never past the maximum either. A
+// text that will not fit on the grid even so is placed as far as it goes and
+// the rest is reported as left over (see main.splitMyText), rather than the
+// ceiling quietly giving way.
 
 import { el } from "./config.js";
 
-// The length one still's caption is written to. A mirror of
-// transcriber.CAPTION_CHARS, which says at length why eighty: four lines of
-// the caption type at twenty characters each, taken in at a glance on a phone.
-const CAPTION_CHARS = 80;
-
-// ...and the length past which a sentence would take more than two stills
-// even divided as evenly as it can be, from transcriber.CAPTION_CHARS_MAX.
-// See divide for the one cut that is allowed only past it.
-const CAPTION_CHARS_MAX = CAPTION_CHARS * 2;
+// What "Max characters per frame" starts at, and what it falls back to if
+// the field is emptied. A mirror of transcriber.CAPTION_CHARS, which says at
+// length why eighty: four lines of the caption type at twenty characters
+// each, taken in at a glance on a phone. The markup's value="80" is this.
+export const CAPTION_CHARS = 80;
 
 // The fewest words a piece of a divided sentence may keep, from
 // transcriber.MIN_WORDS: below it a half is a scrap, not a line.
@@ -129,23 +136,23 @@ function sentencesOf(paragraph) {
 }
 
 /**
- * One sentence divided into pieces that each fit a still, or left whole when
- * it has nowhere to come apart. See the module header for the order of
- * preference between cuts.
+ * One sentence divided into pieces of at most `max` characters: at its
+ * clause marks where it has any, between words where it has not. See the
+ * module header for the order of preference between cuts.
  *
- * A comma followed by lower case is the weakest cut there is, and it is only
- * taken from a sentence too long for even two stills (CAPTION_CHARS_MAX). What
- * follows such a comma is as often an aside — "born in Tennessee, the fourth
- * of twelve children" — as a clause, and an aside alone on a still is a
- * caption of nothing. Below that length the sentence stays whole: long, but a
- * sentence.
+ * A comma followed by lower case is the weakest clause cut there is — what
+ * follows it is as often an aside ("born in Tennessee, the fourth of twelve
+ * children") as a clause — and it is ranked last. It used to be refused
+ * outright below twice the length, leaving the sentence whole; with the
+ * maximum a ceiling, the alternative is now a cut between two arbitrary
+ * words, and the comma is still the better of the two.
  *
  * The pieces keep the mark they were cut at, so that pieces joined back
- * together by spreadOver read exactly as the user wrote them; it is stripped
- * only from what is finally set (see piecesOf).
+ * together by dealOut read exactly as the user wrote them; it is stripped
+ * only from what is finally set (see shown).
  */
-function divide(sentence) {
-    if (sentence.length <= CAPTION_CHARS) return [sentence];
+function divide(sentence, max) {
+    if (sentence.length <= max) return [sentence];
 
     let best = null;
     for (const mark of sentence.matchAll(CLAUSE_MARK)) {
@@ -155,14 +162,43 @@ function divide(sentence) {
         if (wordCount(head) < MIN_WORDS || wordCount(tail) < MIN_WORDS) continue;
         const comma = mark[0][0] === ",";
         const lower = startsLower(tail);
-        if (comma && lower && sentence.length <= CAPTION_CHARS_MAX) continue;
         // Lower is better, compared in this order: a half with its own
         // subject, then a strong mark over a comma, then evenness.
         const rank = [lower ? 1 : 0, comma ? 1 : 0, Math.abs(head.length - tail.length)];
         if (!best || compare(rank, best.rank) < 0) best = { rank, head, tail };
     }
-    if (!best) return [sentence];
-    return [...divide(best.head), ...divide(best.tail)];
+    if (!best) return wrapWords(sentence, max);
+    return [...divide(best.head, max), ...divide(best.tail, max)];
+}
+
+/**
+ * A piece with no clause mark left to cut at, divided between words into the
+ * fewest pieces of at most `max` characters — and, among those, the most even
+ * ones. Packing greedily to `max` alone would leave "...a long sentence
+ * that" on one frame and "ends." on the next; packing to the smallest limit
+ * that still needs no more pieces spreads the words out instead.
+ *
+ * A word longer than `max` gets a piece to itself and keeps all its letters.
+ */
+function wrapWords(piece, max) {
+    const words = piece.split(" ");
+    const pack = (limit) => {
+        const out = [];
+        let line = "";
+        for (const word of words) {
+            if (line && line.length + 1 + word.length > limit) { out.push(line); line = word; }
+            else line = line ? `${line} ${word}` : word;
+        }
+        if (line) out.push(line);
+        return out;
+    };
+    const fewest = pack(max).length;
+    if (fewest <= 1) return [piece];
+    for (let limit = Math.ceil(piece.length / fewest); limit < max; limit++) {
+        const even = pack(limit);
+        if (even.length <= fewest) return even;
+    }
+    return pack(max);
 }
 
 function compare(a, b) {
@@ -172,19 +208,23 @@ function compare(a, b) {
 
 /**
  * The user's text as the pieces it will be set in, each with the line of the
- * text (`para`) it came from — the joining in spreadOver needs to know which
+ * text (`para`) it came from — the joining in dealOut needs to know which
  * neighbours the user separated with a line break of their own.
  *
  * `raw` is the piece exactly as written, mark and all; `shown` is what a
- * still carries, with a DANGLING mark taken off its end.
+ * still carries, with a DANGLING mark taken off its end. A piece that would
+ * show as nothing — a stray dash on a line of its own — is not a piece: set
+ * on a frame it would be a blank between two captioned ones.
  */
-function piecesOf(text) {
+function piecesOf(text, max) {
     const pieces = [];
     (text || "").split(/\r?\n/).forEach((line, para) => {
         const paragraph = line.replace(/\s+/g, " ").trim();
         if (!paragraph) return;
         for (const sentence of sentencesOf(paragraph)) {
-            for (const raw of divide(sentence)) pieces.push({ raw, para });
+            for (const raw of divide(sentence, max)) {
+                if (shown({ raw })) pieces.push({ raw, para });
+            }
         }
     });
     return pieces;
@@ -193,36 +233,43 @@ function piecesOf(text) {
 const shown = (piece) => piece.raw.replace(DANGLING, "").trim();
 
 /** The text's pieces as plain strings — what the pop-up previews. */
-export function splitText(text) {
-    return piecesOf(text).map(shown);
+export function splitText(text, max = CAPTION_CHARS) {
+    return piecesOf(text, max).map(shown);
 }
 
 /**
- * The caption each of `count` frames gets, in grid order: the pieces spread
- * evenly over the grid, "" on the frames between them. See the module header.
+ * The user's text dealt out over `count` frames, one piece per frame from the
+ * first, none over `max` characters. See the module header.
+ *
+ * Returns `pieces`, in the order they go on the grid — never more of them
+ * than there are frames — and `leftover`, how many would not fit on the grid
+ * even joined as far as the maximum allows. What sets them on the frames is
+ * main.splitMyText, which checks the order again as it goes.
  */
-export function spreadOver(text, count) {
-    const captions = new Array(Math.max(0, count)).fill("");
-    const pieces = piecesOf(text);
-    if (!count || !pieces.length) return captions;
+export function dealOut(text, count, max = CAPTION_CHARS) {
+    const pieces = piecesOf(text, max);
+    if (count <= 0) return { pieces: [], leftover: pieces.length };
 
-    // Too many pieces for the grid: join the cheapest neighbouring pair until
-    // they fit. A pair the user separated with a line break costs more than
-    // any pair they did not, so those are joined last.
+    // Too many pieces for the grid: join the cheapest neighbouring pair whose
+    // join still fits under the maximum, until they fit the grid or no such
+    // pair is left. A pair the user separated with a line break costs more
+    // than any pair they did not, so those are joined last.
     while (pieces.length > count) {
-        let at = 0, cheapest = Infinity;
+        let at = -1, cheapest = Infinity;
         for (let i = 0; i < pieces.length - 1; i++) {
-            const cost = pieces[i].raw.length + pieces[i + 1].raw.length
-                       + (pieces[i].para !== pieces[i + 1].para ? 1e6 : 0);
+            const joined = shown({ raw: `${pieces[i].raw} ${pieces[i + 1].raw}` });
+            if (joined.length > max) continue;
+            const cost = joined.length + (pieces[i].para !== pieces[i + 1].para ? 1e6 : 0);
             if (cost < cheapest) { cheapest = cost; at = i; }
         }
+        if (at < 0) break;
         pieces.splice(at, 2, { raw: `${pieces[at].raw} ${pieces[at + 1].raw}`, para: pieces[at].para });
     }
 
-    pieces.forEach((piece, k) => {
-        captions[Math.floor(k * count / pieces.length)] = shown(piece);
-    });
-    return captions;
+    return {
+        pieces: pieces.slice(0, count).map(shown),
+        leftover: Math.max(0, pieces.length - count),
+    };
 }
 
 // ── The box and its button ────────────────────────────────────────────────
@@ -251,3 +298,33 @@ export function lockSplit(locked) {
 
 /** The text in the box, as typed. */
 export const myText = () => el("myTextInput").value;
+
+/**
+ * "Max characters per frame" as a whole number of at least 1, or null when
+ * the field holds nothing usable — main.splitMyText says so rather than
+ * splitting against a number the user did not type.
+ */
+export function maxChars() {
+    const value = el("maxCharsInput").value.trim();
+    if (!/^\d+$/.test(value)) return null;
+    const n = parseInt(value, 10);
+    return n >= 1 ? n : null;
+}
+
+// The field takes whole numbers only. type="number" alone does not see to
+// that: every browser lets "e", "-", "+" and a decimal point through, since
+// they are all part of some number, and a pasted "80 chars" lands as typed in
+// some of them. Those keys are refused as they are pressed, and anything that
+// still gets in — a paste, a drop — is cut down to its digits.
+el("maxCharsInput").addEventListener("keydown", (e) => {
+    if (!e.ctrlKey && !e.metaKey && e.key.length === 1 && !/\d/.test(e.key)) e.preventDefault();
+});
+el("maxCharsInput").addEventListener("input", (e) => {
+    const digits = e.target.value.replace(/\D/g, "");
+    if (digits !== e.target.value) e.target.value = digits;
+});
+// An emptied field goes back to the default when the user leaves it, so the
+// number on screen is always the one the next split will use.
+el("maxCharsInput").addEventListener("blur", (e) => {
+    if (maxChars() === null) e.target.value = String(CAPTION_CHARS);
+});

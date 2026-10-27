@@ -116,8 +116,18 @@
          last one is in, that number is not known. The bubble on the locked
          button says so, since a dead button with no reason reads as broken. -->
     <div class="my-text-section hidden" id="myTextSection">
-        <textarea class="line-block my-text-input" id="myTextInput" rows="5"
-                  placeholder="Add your text here"></textarea>
+        <!-- Beside the box, the ceiling on how much of it one frame gets.
+             Whole numbers only (see mytext.js for why type="number" is not
+             enough on its own); 80 is transcriber.CAPTION_CHARS. -->
+        <div class="my-text-row">
+            <textarea class="line-block my-text-input" id="myTextInput" rows="5"
+                      placeholder="Add your text here"></textarea>
+            <div class="max-chars-field">
+                <label class="field-label" for="maxCharsInput">Max characters per frame</label>
+                <input type="number" class="line-block max-chars-input" id="maxCharsInput"
+                       min="1" step="1" inputmode="numeric" value="80">
+            </div>
+        </div>
         <div class="split-wrap locked" id="splitWrap">
             <button type="button" class="btn" id="splitTextBtn" disabled>Split the text</button>
             <div class="split-tip" role="tooltip" id="splitTip">This option is available once every frame has finished loading.</div>

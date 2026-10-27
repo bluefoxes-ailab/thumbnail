@@ -858,6 +858,19 @@ body.mask-open { overflow: hidden; }
     min-height: 120px; max-height: 40vh;
     overflow-y: auto; resize: vertical;
 }
+/* The box and "Max characters per frame" side by side: the number is a
+   setting OF the box, and beside it is where it reads as one. The box
+   takes whatever width is left; on a phone there is too little for both
+   and the field drops under it. */
+.my-text-row { display: flex; gap: 10px; align-items: flex-start; }
+.my-text-row .my-text-input { flex: 1; min-width: 0; }
+.max-chars-field { display: flex; flex-direction: column; gap: 6px; width: 110px; flex-shrink: 0; }
+.max-chars-field .field-label { margin-bottom: 0; line-height: 1.3; }
+.max-chars-input { width: 100%; text-align: center; }
+@media (max-width: 480px) {
+    .my-text-row { flex-direction: column; align-items: stretch; }
+    .max-chars-field { width: auto; }
+}
 /* The Split button and the bubble that explains it while it is locked.
    The wrapper is what the pointer is over: a disabled button takes no
    pointer events in every browser, so it is made transparent to them
