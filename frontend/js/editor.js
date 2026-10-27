@@ -1975,20 +1975,28 @@ export async function warmCutouts() {
  * Worked through in the grid's order, asked afresh before each frame: the user
  * may rearrange the grid while this runs (see reorder.js), and the frames they
  * have just dragged to the front are the ones they want to see turn first.
+ *
+ * The same question is what skips a frame the user has thrown out (see
+ * state.discardFrame): it is no longer in the grid's order, so it is never
+ * the next one. The pass ends when every frame still IN the order is done,
+ * and the count it shows is of those — a discard shortens it on the spot.
  */
 export async function applyEditToAll() {
     trackEvent("batch_edit_all_frames", { total_frames: frames().length });
     const grid = frames();
     const done = new Set();
-    for (let n = 0; n < grid.length; n++) {
+    for (;;) {
         if (frames() !== grid) return false;
-        const i = gridOrder().find(k => !done.has(k));
+        const order = gridOrder();
+        const i = order.find(k => !done.has(k));
+        if (i === undefined) break;
         done.add(i);
-        status(`Applying the edit — frame ${n + 1} of ${grid.length}`);
+        const finished = order.filter(k => done.has(k)).length;
+        status(`Applying the edit — frame ${finished} of ${order.length}`);
         await ensureEnhanced(i);
     }
     if (frames() !== grid) return false;
-    status(`${grid.length} frames ready. Download all, or pick the ones you want.`);
+    status(`${gridOrder().length} frames ready. Download all, or pick the ones you want.`);
     // Whether the pass reached the end of the grid it started on — the moment
     // every frame has loaded, which is what unlocks "Split the text" (see
     // main.runPipeline). False when a newer run's frames replaced these.

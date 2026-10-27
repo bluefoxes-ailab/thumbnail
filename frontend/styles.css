@@ -1026,6 +1026,32 @@ body.capture-mode .frame-card.pending img {
 body.capture-mode .frame-card.pending .badge { opacity: 0.55; }
 body.capture-mode .frame-card.pending .pick { display: none; }
 
+/* The X that discards a frame (main.discardFromGrid). Top right, where
+   the eye goes to close something, and at full strength on a grey card
+   as on a finished one — throwing a frame out before the edit reaches
+   it is the point of having it there early. The batch tick, which used
+   to own that corner, moves to the bottom one on a frame fetch: a
+   mark-for-download beside a throw-away is two very different clicks a
+   few pixels apart. */
+.frame-card .discard {
+    position: absolute; top: 3px; right: 3px;
+    width: 20px; height: 20px; padding: 0;
+    border: none; border-radius: 4px;
+    background: #e0201b; color: #fff;
+    cursor: pointer; z-index: 1;
+    display: flex; align-items: center; justify-content: center;
+}
+.frame-card .discard::before,
+.frame-card .discard::after {
+    content: ""; position: absolute;
+    width: 12px; height: 2px; border-radius: 1px; background: currentColor;
+}
+.frame-card .discard::before { transform: rotate(45deg); }
+.frame-card .discard::after { transform: rotate(-45deg); }
+.frame-card .discard:hover { background: #ff3b30; }
+.frame-card .discard:focus-visible { outline: 2px solid #fffa00; outline-offset: 1px; }
+body.capture-mode .frame-card .pick { top: auto; bottom: 3px; }
+
 /* ── The caption panel, turned on its side ────────────────────────
 
    Everywhere else the canvas is landscape and the panel is the only

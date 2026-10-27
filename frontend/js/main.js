@@ -27,7 +27,7 @@ function initModeToggle() {
 import { API, LINE_IDS, TITLE_FIELD_IDS, el } from "./config.js";
 import {
     store, frames, current, selectedIndex, setSelectedIndex,
-    makeFrame, releaseFrames, carryOverSettings, gridOrder, positionOf,
+    makeFrame, releaseFrames, carryOverSettings, gridOrder, positionOf, discardFrame,
 } from "./state.js";
 import { getJson, postJson, postFile } from "./net.js";
 import { initCanvas, updatePreview, refreshThumb, refreshAllThumbs, forgetThumbSignatures } from "./compose.js";
@@ -460,7 +460,9 @@ let ownTextRun = false;
  * dragged; splitting again deals the text out along the new order.
  *
  * Over the frames that actually LANDED, not the slider's count — frames
- * rejected as blurred or blank make the grid shorter than what was asked for.
+ * rejected as blurred or blank make the grid shorter than what was asked for
+ * — and of those, only the ones still on the grid: a frame the user threw out
+ * with its X (see discardFromGrid) is not in the order and gets nothing.
  * The pieces are set where a transcript's sentence would have arrived, so
  * from here on each is a caption like any other: broken into lines in the
  * channel's face (capture.applyCaptions), and the user's to edit per frame.
@@ -484,7 +486,7 @@ async function splitMyText() {
     if (max === null) return status("Max characters per frame has to be a whole number of at least 1");
     const grid = frames();
     const order = gridOrder();
-    const { pieces, leftover } = dealOut(text, grid.length, max);
+    const { pieces, leftover } = dealOut(text, order.length, max);
 
     const before = grid.map(f => ({ caption: f.caption, lines: f.lines }));
     order.forEach((i) => {
@@ -507,8 +509,8 @@ async function splitMyText() {
     refreshAllThumbs();
     updatePreview();
     const placed = pieces.length;
-    const where = placed === grid.length ? `one on each of the ${grid.length} frames`
-                : placed === 1 ? "on frame 1" : `on frames 1 to ${placed} of ${grid.length}`;
+    const where = placed === order.length ? `one on each of the ${order.length} frames`
+                : placed === 1 ? "on frame 1" : `on frames 1 to ${placed} of ${order.length}`;
     status(`Your text is split into ${placed} ${placed === 1 ? "piece" : "pieces"} of up to `
          + `${max} characters, ${where}`
          + (leftover ? ` — ${leftover} more ${leftover === 1 ? "piece does" : "pieces do"} not fit. `
@@ -674,6 +676,21 @@ function renderGrid() {
         d.innerHTML = `<img id="thumb-${i}" src="${f.plainUrl}" draggable="false">` +
                       `<div class="badge">${position + 1}</div>` +
                       `<div class="pick${f.picked ? " on" : ""}" id="pick-${i}" title="Include in batch download"></div>`;
+        // The X that throws the frame out, on a frame fetch only — there the
+        // grid is the deliverable and a frame the user does not want would
+        // otherwise be edited, captioned and zipped regardless. Live on a grey
+        // card too: the earlier a frame is thrown out, the less of the edit
+        // pass is spent on it (see discardFromGrid).
+        if (isCapture()) {
+            const x = document.createElement("button");
+            x.type = "button";
+            x.className = "discard";
+            x.title = "Discard this frame";
+            x.setAttribute("aria-label", `Discard frame ${position + 1}`);
+            x.draggable = false;
+            x.onclick = (e) => { e.stopPropagation(); discardFromGrid(i); };
+            d.appendChild(x);
+        }
         // A pending card cannot be opened until the edit reaches it. It can
         // still be dragged — rearranging is allowed at any point of the run —
         // so the stylesheet leaves it the pointer, and the refusal is here.
@@ -700,13 +717,56 @@ function renderGrid() {
  */
 function onGridReordered() {
     gridOrder().forEach((i, position) => {
-        const badge = el(`card-${i}`)?.querySelector(".badge");
+        const card = el(`card-${i}`);
+        const badge = card?.querySelector(".badge");
         if (badge) badge.textContent = position + 1;
+        card?.querySelector(".discard")?.setAttribute("aria-label", `Discard frame ${position + 1}`);
     });
     syncFrameNav();   // the frame on screen may have moved to an end
     if (!frames().length) return;
     el("previewLabel").textContent = `Preview — Frame ${positionOf(selectedIndex()) + 1}`;
     loadTextPanel();  // its heading carries the frame's number too
+}
+
+/**
+ * The X on a card: frame `i` leaves the run (see state.discardFrame), and the
+ * grid closes up behind it.
+ *
+ * No confirmation and no undo. The X is small, red and alone in its corner,
+ * so it is not pressed by accident, and a question before every discard
+ * would make throwing out ten frames twenty clicks. The tick that marks a
+ * frame for the batch sits in the opposite corner for the same reason.
+ *
+ * The edit pass needs telling nothing: it asks the grid's order afresh before
+ * every frame (editor.applyEditToAll), so a grey card thrown out is never
+ * reached, and one thrown out while it is being edited finishes unseen. The
+ * cards that stay keep theirs — the card is removed rather than the grid
+ * redrawn, and everything numbered is renumbered as after a drag.
+ *
+ * The last frame stays: a run with no frames left has nothing to show on the
+ * canvas, and starting a new video is the way to be rid of all of them.
+ */
+function discardFromGrid(i) {
+    const order = gridOrder();
+    if (!order.includes(i)) return;
+    if (order.length === 1) return status("The last frame cannot be discarded");
+    const position = order.indexOf(i);
+    // Where the selection goes if it is this frame: the next card that is
+    // ready, else the previous one, else whatever card took its place —
+    // grey or not, as the first frame of a run is selected while it is grey.
+    const wasSelected = i === selectedIndex();
+    let next = -1;
+    if (wasSelected) {
+        next = nextSelectable(i, +1);
+        if (next < 0) next = nextSelectable(i, -1);
+        if (next < 0) next = order[position + 1] ?? order[position - 1];
+    }
+    discardFrame(i);
+    el(`card-${i}`)?.remove();
+    syncBatchButton();   // it may have been ticked for the batch
+    if (wasSelected) selectFrame(next);
+    onGridReordered();
+    status(`Frame ${position + 1} discarded — ${gridOrder().length} frames left`);
 }
 
 /**

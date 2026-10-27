@@ -48,7 +48,8 @@ function triggerDownload(blob, filename) {
  * always had.
  */
 function baseName(i) {
-    return isCapture() ? frameName(positionOf(i), frames().length) : `thumbnail_frame${i + 1}`;
+    // Padded to the grid as it stands, which a discarded frame has left.
+    return isCapture() ? frameName(positionOf(i), gridOrder().length) : `thumbnail_frame${i + 1}`;
 }
 
 /**
@@ -149,7 +150,7 @@ export function downloadSelected() {
  * every frame whether or not the user ever opened one.
  */
 export function downloadAll() {
-    if (!frames().length) return status("Nothing to download yet");
+    if (!gridOrder().length) return status("Nothing to download yet");
     // In the grid's order, so the zip lists them the way they are laid out.
     return downloadMany([...gridOrder()], el("downloadAllBtn"), "frame");
 }

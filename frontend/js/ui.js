@@ -177,7 +177,7 @@ export function nextSelectable(from, step) {
 export function syncFrameNav() {
     const prev = el("prevFrameBtn"), next = el("nextFrameBtn");
     if (!prev || !next) return;
-    const many = frames().length > 1;
+    const many = gridOrder().length > 1;   // discarded frames are not in it
     prev.classList.toggle("hidden", !many);
     next.classList.toggle("hidden", !many);
     prev.disabled = nextSelectable(selectedIndex(), -1) < 0;

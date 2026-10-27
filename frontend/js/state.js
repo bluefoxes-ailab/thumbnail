@@ -11,8 +11,10 @@ import { branding, activeChannelId, styleFor, captureFor, decorFor } from "./cha
 export const store = {
     frames: [],
     selected: 0,
-    // The order the grid SHOWS the frames in — see gridOrder.
+    // The order the grid SHOWS the frames in — see gridOrder — and the frames
+    // array it was built for, so an order outlives no run.
     order: null,
+    orderOf: null,
 };
 
 export const frames = () => store.frames;
@@ -37,22 +39,55 @@ export const setSelectedIndex = (i) => { store.selected = i; };
  * numbers, the arrows beside the canvas, the file names and the order of a
  * zip, and the split of the user's own text. Starts as the order the frames
  * arrived in, which is the order they happen in the video.
+ *
+ * A frame the user has DISCARDED (see discardFrame) is not in it, and that
+ * one omission is the whole of how a discard reaches all of those: none of
+ * them has to learn what a discarded frame is, because none of them is ever
+ * shown one. So this list is not always every index — read its length, not
+ * store.frames', wherever the question is "how many frames are there".
  */
 export function gridOrder() {
-    const n = store.frames.length;
-    if (!store.order || store.order.length !== n) store.order = [...Array(n).keys()];
+    if (!store.order || store.orderOf !== store.frames) {
+        store.order = [...store.frames.keys()].filter(i => !store.frames[i].discarded);
+        store.orderOf = store.frames;
+    }
     return store.order;
 }
 
 /** Where frame `i` sits in the grid, counting from 0. */
 export const positionOf = (i) => gridOrder().indexOf(i);
 
-/** Replaces the grid's order with `order`, a rearrangement of the indices. */
+/** Replaces the grid's order with `order`, a rearrangement of the frames in it. */
 export function setGridOrder(order) {
-    const n = store.frames.length;
-    const valid = order.length === n && new Set(order).size === n
-        && order.every(i => Number.isInteger(i) && i >= 0 && i < n);
+    const now = gridOrder();
+    const valid = order.length === now.length && new Set(order).size === now.length
+        && order.every(i => now.includes(i));
     if (valid) store.order = [...order];
+}
+
+/**
+ * Takes frame `i` out of the run for good: off the grid, out of the edit
+ * pass if it has not been reached, out of "Split the text", the downloads and
+ * the arrows — and whatever text it carried goes with it rather than to any
+ * other frame.
+ *
+ * The record itself stays where it is in store.frames, for the reason the
+ * grid's order is a separate list at all (see gridOrder): an edit or a cutout
+ * in flight for this frame is holding its index, and must land on this record
+ * — harmlessly, unseen — and not on whichever frame would have slid into its
+ * place. What makes it gone is its absence from the order.
+ *
+ * The text is cleared rather than left on a record nobody sees, so that
+ * nothing that walks every frame (capture.applyCaptions) can bring it back.
+ */
+export function discardFrame(i) {
+    const f = store.frames[i];
+    if (!f || f.discarded) return;
+    f.discarded = true;
+    f.picked = false;
+    f.caption = "";
+    f.lines = f.lines.map(() => "");
+    store.order = gridOrder().filter(k => k !== i);
 }
 
 /**
@@ -446,6 +481,7 @@ export function releaseFrames() {
     }
     store.frames = [];
     store.order = null;   // an arrangement of frames that no longer exist
+    store.orderOf = null;
 }
 
 /**
@@ -579,6 +615,9 @@ export function makeFrame(frame_id, plainUrl, moment = null, caption = "") {
         // carried over to other frames: it describes which picture this one
         // holds, which is the one thing a carry-over must never copy.
         uploaded: false,
+        // Set once the user throws this frame out of the run with the X on
+        // its card — see discardFrame. Never unset: there is no undo.
+        discarded: false,
         picked: false,
         edited: false,                  // flips true on the user's first real edit — see carryOverSettings
         version: 0,
