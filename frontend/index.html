@@ -321,7 +321,7 @@
 <div class="mask-step hidden" id="maskStep" role="dialog" aria-modal="true" aria-labelledby="maskStepLabel">
     <div class="mask-card">
         <h2 id="maskStepLabel">Mask image</h2>
-        <div class="panel-hint mask-hint">Drag the picture to place it inside the frame, and zoom to choose how much of it shows.</div>
+        <div class="panel-hint mask-hint">Drag the picture to place it inside the frame, zoom to choose how much of it shows, and blur it with the slider on the left.</div>
         <label class="field-label">Shape</label>
         <div class="btn-row mask-shape-row">
             <button type="button" class="btn btn-active" id="maskSquareBtn" aria-pressed="true">
@@ -331,7 +331,18 @@
                 <span class="mask-glyph mask-glyph-round" aria-hidden="true"></span>Round
             </button>
         </div>
-        <canvas class="mask-canvas" id="maskCanvas"></canvas>
+        <!-- Blur stands upright beside the stage rather than under it with
+             zoom: two horizontal sliders stacked read as one setting in two
+             parts, and this one is a different kind of thing. -->
+        <div class="mask-stage-row">
+            <div class="mask-blur">
+                <label class="field-label" for="maskBlur">Blur</label>
+                <button type="button" class="zoom-cap" id="maskBlurUpBtn" title="More blur" aria-label="More blur">+</button>
+                <input type="range" id="maskBlur" class="count-slider" min="0" max="1" step="0.001" value="0" aria-orientation="vertical">
+                <button type="button" class="zoom-cap" id="maskBlurDownBtn" title="Less blur" aria-label="Less blur">&minus;</button>
+            </div>
+            <canvas class="mask-canvas" id="maskCanvas"></canvas>
+        </div>
         <label class="field-label" for="maskZoom">Zoom</label>
         <div class="mask-zoom">
             <button type="button" class="zoom-cap" id="maskZoomOutBtn" title="Zoom out" aria-label="Zoom out">&minus;</button>

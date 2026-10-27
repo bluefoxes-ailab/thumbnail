@@ -42,6 +42,75 @@ const MAX_ZOOM_OVER_FILL = 4;
 const MIN_OUT = 512;
 const MAX_OUT = 2048;
 
+// The blur slider's far end, as a radius in CSS pixels of the frame. Measured
+// against the frame rather than the image or the output so that what the
+// stage shows is what the PNG gets: the export is the frame scaled to `side`,
+// and the radius is scaled with it. At 24 of 320 a face is no longer a face,
+// which is about as far as a background picture ever needs to go.
+const MAX_BLUR = 24;
+
+/**
+ * Draws `img` into the rectangle (x, y, iw, ih) of `ctx`, blurred by `blur`
+ * units, without the soft transparent rim a plain blur filter leaves.
+ *
+ * A blur averages each pixel with its neighbours, and past the image's edge
+ * the neighbours are nothing — so the edge fades out over the blur's width.
+ * At "fill" two of the image's edges sit exactly on the frame's, and that
+ * fade would be cut into the exported picture as a dark, half-transparent
+ * border. So the edge rows and columns are stretched outward first, giving
+ * the blur more of the same colour to average with, and the result is
+ * clipped back to the image's own rectangle. Where the image is smaller than
+ * the frame the gap stays as crisp and as transparent as it is unblurred.
+ *
+ * `view` is the side of the square of `ctx` that can be seen, in its own
+ * units, and `density` its device pixels per unit — only that square is
+ * blurred, however far the image extends past it.
+ */
+function drawBlurred(ctx, img, x, y, iw, ih, blur, view, density) {
+    if (!(blur > 0)) {
+        ctx.drawImage(img, x, y, iw, ih);
+        return;
+    }
+    const w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+    const pad = Math.ceil(blur * 3);   // past three radii a Gaussian adds nothing visible
+    const side = view + pad * 2;
+    const px = Math.max(1, Math.round(side * density));
+
+    const src = document.createElement("canvas");
+    src.width = src.height = px;
+    const s = src.getContext("2d");
+    s.setTransform(density, 0, 0, density, pad * density, pad * density);
+    s.imageSmoothingQuality = "high";
+    // Edges, then corners, each stretched far enough to cover the padding
+    // whatever side of the view the image happens to end on.
+    const far = side * 2;
+    s.drawImage(img, 0, 0, 1, h, x - far, y, far, ih);                  // left
+    s.drawImage(img, w - 1, 0, 1, h, x + iw, y, far, ih);               // right
+    s.drawImage(img, 0, 0, w, 1, x, y - far, iw, far);                  // top
+    s.drawImage(img, 0, h - 1, w, 1, x, y + ih, iw, far);               // bottom
+    s.drawImage(img, 0, 0, 1, 1, x - far, y - far, far, far);
+    s.drawImage(img, w - 1, 0, 1, 1, x + iw, y - far, far, far);
+    s.drawImage(img, 0, h - 1, 1, 1, x - far, y + ih, far, far);
+    s.drawImage(img, w - 1, h - 1, 1, 1, x + iw, y + ih, far, far);
+    s.drawImage(img, x, y, iw, ih);
+
+    // The blur goes on in a second, untransformed pass, so its radius is
+    // in device pixels and nothing has to be assumed about whether a
+    // context's transform scales its filter.
+    const out = document.createElement("canvas");
+    out.width = out.height = px;
+    const o = out.getContext("2d");
+    o.filter = `blur(${blur * density}px)`;
+    o.drawImage(src, 0, 0);
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x, y, iw, ih);
+    ctx.clip();
+    ctx.drawImage(out, -pad, -pad, side, side);
+    ctx.restore();
+}
+
 let _open = null;   // the live session, so a second upload cannot stack a second step
 
 /**
@@ -77,10 +146,12 @@ class MaskSession {
         this.scale = this.fill;   // a square photo opens filled, a wide one centred and covering
         // Centre of the image relative to the centre of the frame, in CSS px.
         this.dx = 0; this.dy = 0;
+        this.blur = 0;   // radius in CSS px of the frame, 0..MAX_BLUR
 
         this.root = el("maskStep");
         this.canvas = el("maskCanvas");
         this.slider = el("maskZoom");
+        this.blurSlider = el("maskBlur");
         this.ctx = this.canvas.getContext("2d");
 
         // Drawn at the screen's own density so the preview is as sharp as
@@ -91,9 +162,12 @@ class MaskSession {
         this.canvas.style.width = this.canvas.style.height = `${STAGE}px`;
         this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
+        this.dpr = dpr;
+
         this.bind();
         this.setShape("square");
         this.syncSlider();
+        this.setBlur(0);   // every image starts sharp, whatever the last one was given
         this.root.classList.remove("hidden");
         document.body.classList.add("mask-open");
         el("maskApplyBtn").focus();
@@ -112,8 +186,10 @@ class MaskSession {
         el("maskRoundBtn").onclick = () => this.setShape("round");
         el("maskZoomOutBtn").onclick = () => this.stepZoom(-1);
         el("maskZoomInBtn").onclick = () => this.stepZoom(+1);
+        el("maskBlurUpBtn").onclick = () => this.setBlur(this.blur + MAX_BLUR * 0.1);
+        el("maskBlurDownBtn").onclick = () => this.setBlur(this.blur - MAX_BLUR * 0.1);
         el("maskCancelBtn").onclick = () => this.finish(null);
-        el("maskSkipBtn").onclick = () => this.finish(this.original);
+        el("maskSkipBtn").onclick = () => this.finish(this.renderWhole());
         el("maskApplyBtn").onclick = () => this.finish(this.render());
         // A press on the dimmed backdrop is a cancel, the way it is on any
         // dialog; a press inside the card is not, which is what the target
@@ -121,6 +197,7 @@ class MaskSession {
         this.root.onpointerdown = (e) => { if (e.target === this.root) this.finish(null); };
 
         this.slider.oninput = () => this.zoomTo(this.sliderToScale(+this.slider.value));
+        this.blurSlider.oninput = () => this.setBlur(+this.blurSlider.value * MAX_BLUR);
 
         this.canvas.onpointerdown = (e) => this.dragStart(e);
         this.canvas.onpointermove = (e) => this.dragMove(e);
@@ -147,9 +224,10 @@ class MaskSession {
 
     finish(result) {
         for (const id of ["maskSquareBtn", "maskRoundBtn", "maskZoomOutBtn", "maskZoomInBtn",
+                          "maskBlurUpBtn", "maskBlurDownBtn",
                           "maskCancelBtn", "maskSkipBtn", "maskApplyBtn"]) el(id).onclick = null;
         this.root.onpointerdown = null;
-        this.slider.oninput = null;
+        this.slider.oninput = this.blurSlider.oninput = null;
         const c = this.canvas;
         c.onpointerdown = c.onpointermove = c.onpointerup = c.onpointercancel = c.onwheel = null;
         document.removeEventListener("keydown", this.onKey);
@@ -203,6 +281,20 @@ class MaskSession {
         const v = this.max > this.fit ? this.scaleToSlider(this.scale) : 0;
         this.slider.value = String(v);
         this.slider.style.setProperty("--count-fill", String(v));
+    }
+
+    // ── Blur ──────────────────────────────────────────────────────────────
+    //
+    // Linear, unlike zoom: a radius is an amount, not a ratio, and the
+    // difference between 2 and 4 pixels looks about as large as the one
+    // between 20 and 22 — which a straight track already gives.
+
+    setBlur(b) {
+        this.blur = Math.min(MAX_BLUR, Math.max(0, b));
+        const v = this.blur / MAX_BLUR;
+        this.blurSlider.value = String(v);
+        this.blurSlider.style.setProperty("--count-fill", String(v));
+        this.draw();
     }
 
     // ── Pan ───────────────────────────────────────────────────────────────
@@ -268,7 +360,7 @@ class MaskSession {
         const iw = this.w * this.scale, ih = this.h * this.scale;
         const cx = STAGE / 2 + this.dx, cy = STAGE / 2 + this.dy;
         ctx.imageSmoothingQuality = "high";
-        ctx.drawImage(this.img, cx - iw / 2, cy - ih / 2, iw, ih);
+        drawBlurred(ctx, this.img, cx - iw / 2, cy - ih / 2, iw, ih, this.blur, STAGE, this.dpr);
 
         // Everything outside the frame, dimmed: one path holding the whole
         // stage and the frame, filled even-odd so the frame is the hole.
@@ -307,7 +399,26 @@ class MaskSession {
         }
         const iw = this.w * this.scale * k, ih = this.h * this.scale * k;
         const cx = side / 2 + this.dx * k, cy = side / 2 + this.dy * k;
-        ctx.drawImage(this.img, cx - iw / 2, cy - ih / 2, iw, ih);
+        drawBlurred(ctx, this.img, cx - iw / 2, cy - ih / 2, iw, ih, this.blur * k, side, 1);
+        return out.toDataURL("image/png");
+    }
+
+    /**
+     * "No mask": the whole image, uncropped. Untouched — the original file
+     * itself — unless it was blurred, because skipping the crop is not
+     * asking to lose the blur. A blurred one is redrawn at its own size
+     * (capped like the masked export), with the radius carried over from
+     * the stage at "fit", where the frame's width is the image's long side.
+     */
+    renderWhole() {
+        if (!(this.blur > 0)) return this.original;
+        const k = Math.min(1, MAX_OUT / Math.max(this.w, this.h));
+        const w = Math.max(1, Math.round(this.w * k)), h = Math.max(1, Math.round(this.h * k));
+        const out = document.createElement("canvas");
+        out.width = w; out.height = h;
+        const ctx = out.getContext("2d");
+        ctx.imageSmoothingQuality = "high";
+        drawBlurred(ctx, this.img, 0, 0, w, h, this.blur * Math.max(w, h) / FRAME, Math.max(w, h), 1);
         return out.toDataURL("image/png");
     }
 }

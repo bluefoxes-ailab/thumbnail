@@ -773,7 +773,7 @@ body.mask-open { overflow: hidden; }
    picture is a card nobody can read. The tint is kept as a gradient
    over the navy so it is still recognisably the panel's colour. */
 .mask-card {
-    width: 440px; max-width: 100%; max-height: 100%; overflow-y: auto;
+    width: 500px; max-width: 100%; max-height: 100%; overflow-y: auto;
     display: flex; flex-direction: column; gap: 14px;
     background: linear-gradient(rgba(27, 47, 234, 0.18), rgba(27, 47, 234, 0.18)), #080b1e;
     border: 1px solid rgba(2, 109, 255, 0.5); border-radius: 12px;
@@ -805,6 +805,37 @@ body.mask-open { overflow: hidden; }
 .mask-canvas.dragging { cursor: grabbing; }
 .mask-zoom { display: flex; align-items: center; gap: 12px; }
 /* The canvas zoom bar's caps are divs; these are real buttons, so the
+/* The stage with the blur control standing to its left. min-width: 0 on
+   the canvas lets it give up width on a narrow window instead of pushing
+   the slider out of the card. */
+.mask-stage-row { display: flex; align-items: stretch; gap: 12px; }
+.mask-stage-row .mask-canvas { min-width: 0; flex: 1 1 auto; margin: 0; }
+.mask-blur {
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    flex: 0 0 auto;
+}
+.mask-blur .field-label { margin: 0; }
+.mask-blur .zoom-cap { border: none; padding: 0; font-family: inherit; }
+/* The frame-count slider turned upright. writing-mode is what makes a
+   range input vertical with its own keyboard and pointer handling intact
+   (a rotate() would leave its hit box lying on its side), and rtl puts the
+   minimum at the bottom, where "less" is everywhere else. Every rule of
+   .count-slider that names a direction is restated for the other axis. */
+.mask-blur .count-slider {
+    writing-mode: vertical-lr; direction: rtl;
+    flex: 1 1 auto; width: 22px; height: auto; min-height: 120px;
+}
+.mask-blur .count-slider::-webkit-slider-runnable-track {
+    width: 8px; height: auto;
+    background: linear-gradient(to top, #fffa00 calc(var(--count-fill) * 100%),
+                                        #1b2fea calc(var(--count-fill) * 100%));
+}
+.mask-blur .count-slider::-moz-range-track {
+    width: 8px; height: auto;
+    background: linear-gradient(to top, #fffa00 calc(var(--count-fill) * 100%),
+                                        #1b2fea calc(var(--count-fill) * 100%));
+}
+.mask-blur .count-slider::-webkit-slider-thumb { margin-top: 0; margin-left: -7px; }
    browser's own border and padding have to be taken off them first. */
 .mask-zoom .zoom-cap { border: none; padding: 0; font-family: inherit; }
 .mask-actions { margin-top: 6px; }
