@@ -62,6 +62,7 @@ import {
     showMyText, lockSplit, myText, maxChars, dealOut, captionChars, respreadCaptions,
 } from "./mytext.js";
 import { initReorder } from "./reorder.js";
+import { primeReadyNotice, announceReady } from "./notify.js";
 
 const POLL_MS = 500;
 // Consecutive failed polls tolerated before giving up. A tunnel hiccup or a
@@ -415,6 +416,9 @@ async function runPipeline(prepare,
 
         initCanvas(setupReframeInteraction);
         renderGrid();
+        // The moment the frames start going onto the grid is the moment a
+        // user in another tab wants to hear about (see notify.js).
+        announceReady(store.frames.length);
         loadTextPanel();
         syncFlipButtons();
         syncGradientButton();
@@ -689,6 +693,7 @@ function processVideo() {
     const url = el("driveUrl").value.trim();
     if (!url) return status("Paste a link, or upload a video file from your computer");
     if (missingCaptionChars()) return;
+    primeReadyNotice();
     const capture = runCapture();
     const client = runClient();
     return runPipeline(async () => ({
@@ -1037,8 +1042,13 @@ el("driveUrl").addEventListener("keydown", (e) => {
 // image-overlay picker further down.
 // ...with the caption ceiling asked for first, so the user is not sent through
 // the file dialog only to be told afterwards that a field was empty.
+// The notice is primed on this click rather than on the file being chosen:
+// a `change` event is not the user's gesture as far as the permission prompt
+// is concerned.
 el("uploadVideoBtn").addEventListener("click", () => {
-    if (!missingCaptionChars()) el("videoFileInput").click();
+    if (missingCaptionChars()) return;
+    primeReadyNotice();
+    el("videoFileInput").click();
 });
 el("videoFileInput").addEventListener("change", (e) => {
     const file = e.target.files[0];

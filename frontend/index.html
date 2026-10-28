@@ -435,6 +435,19 @@
     </div>
 </div>
 
+<!-- The pop-up that greets a user coming back to a video that finished while
+     they were in another tab (see js/notify.js). The mask step's card,
+     like the framing step above, so it reads as part of this app. -->
+<div class="mask-step hidden" id="readyNotice" role="dialog" aria-modal="true" aria-labelledby="readyNoticeLabel">
+    <div class="mask-card ready-card">
+        <h2 id="readyNoticeLabel">Your video has finished processing</h2>
+        <div class="panel-hint mask-hint" id="readyNoticeText"></div>
+        <div class="btn-row mask-actions">
+            <button type="button" class="btn btn-active" id="readyNoticeOkBtn">See the frames</button>
+        </div>
+    </div>
+</div>
+
 <script type="module" src="js/main.js?v=2.1"></script>
 </body>
 </html>

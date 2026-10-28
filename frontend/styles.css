@@ -845,6 +845,9 @@ body.mask-open { overflow: hidden; }
 .mask-zoom .zoom-cap { border: none; padding: 0; font-family: inherit; }
 .mask-actions { margin-top: 6px; }
 .mask-actions .btn { flex: 1; }
+/* The "video ready" notice (see js/notify.js): a message, not a tool, so
+   the card is narrower and its few lines centred. */
+.ready-card { width: 380px; text-align: center; }
 /* The framing step's stage (js/framecrop.js): the mask stage's look, with
    the shape left to the script — it is the video's, not a square. No
    checkerboard behind it, because nothing in this window is ever
