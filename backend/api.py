@@ -812,9 +812,11 @@ def _capture_frames_sync(video_path: str, count: int, captions: bool = False,
             # Told how many stills it is writing for, and it is `grabs` rather
             # than `count`: the request is what the user asked for and this is
             # what the video actually yielded, after the blurred and blank
-            # frames were rejected. Writing forty captions for a run that
-            # produced thirty-one leaves nine of them with no frame to appear
-            # on. See narrator._group.
+            # frames were rejected. The stills are a budget of characters, not
+            # a number of lines — one screen of transcriber.CAPTION_CHARS each
+            # — and writing to forty screens' worth for a run that produced
+            # thirty-one leaves nine screens of the account with no frame to
+            # appear on. See narrator._group and narrator._screens.
             sentences = narrator.rewrite(sentences, transcriber.detected_language(),
                                          frames=len(grabs))
 
@@ -825,10 +827,10 @@ def _capture_frames_sync(video_path: str, count: int, captions: bool = False,
     # on which other frames claimed the same sentence.
     #
     # Indexed by the GRAB and not by the finished slot. A grab that fails to
-    # decode or to crop below is dropped from `results`, and its piece of a
-    # split caption goes with it — one gap in a sentence spread over three
-    # stills, rather than every later frame in the run captioned with the
-    # words of the one before it.
+    # decode or to crop below is dropped from `results`, and so is its caption
+    # for a moment — the gap it leaves is closed once the grid is known (see
+    # close_gaps after the loop), rather than every later frame being
+    # captioned with the words of the one before it by an index that slipped.
     frame_captions = transcriber.captions_for(sentences, [g.timestamp for g in grabs])
 
     _set_progress("Preparing frames...", 65)
@@ -890,7 +892,9 @@ def _capture_frames_sync(video_path: str, count: int, captions: bool = False,
             # asks for none, for a silent video, for a frame that fell in a
             # gap too wide to be called the same moment, and for one whose
             # sentence had no room left to be split any further (see
-            # transcriber.captions_for). The frontend fills the frame's title
+            # transcriber.captions_for). Moved back over any bare frame ahead
+            # of it once the loop is done (see close_gaps below), so the "" are
+            # always at the end of the grid. The frontend fills the frame's title
             # with it, so "" is simply an empty text box the user can type
             # into rather than a state anything has to test for.
             "caption":   frame_captions[slot],
@@ -901,6 +905,14 @@ def _capture_frames_sync(video_path: str, count: int, captions: bool = False,
 
     if not results:
         raise HTTPException(422, "No usable frames found — none of them could be reframed")
+
+    # No frame is given text unless the frame before it has some; the first
+    # frame is given its text regardless. Over `results` and not over the
+    # grabs, because this is the grid the user gets — a grab that failed above
+    # is not a frame anybody will see, and the gap it left is exactly what
+    # this closes. See transcriber.close_gaps.
+    for result, caption in zip(results, transcriber.close_gaps([r["caption"] for r in results])):
+        result["caption"] = caption
 
     log.info("capture: %s", ", ".join(
         f"frame {n + 1} at {r['timecode']}" for n, r in enumerate(results)))

@@ -87,6 +87,23 @@
             <button type="button" class="btn btn-active" id="btnModeText" aria-pressed="true">Frames with text</button>
             <button type="button" class="btn" id="btnModeFramesOnly" aria-pressed="false">Frames only</button>
         </div>
+        <!-- The ceiling on a frame's caption, for a "Frames with text" run
+             (see syncCaptionCharsField and runPipeline in main.js). The same
+             question "Frames only" asks beside the user's own text, asked
+             here before processing because the captions arrive with the
+             frames and are dealt out the moment they land.
+
+             Empty, not 80, and required: there is no default the user can
+             have agreed to without typing it, and a figure already in the box
+             is a figure nobody reads. A text field rather than type="number"
+             so it wears the link box's look, and whole numbers only (see
+             mytext.js). -->
+        <div class="hidden" id="captionCharsRow">
+            <label class="field-label" for="captionCharsInput">Max characters per frame</label>
+            <input type="text" id="captionCharsInput" inputmode="numeric" autocomplete="off"
+                   placeholder="Required: a whole number, e.g. 80">
+            <div class="panel-hint" id="captionCharsHint">The most text any one frame's caption may hold. The captions are cut at sentences and clauses to fit under it, and spread over the frames in order.</div>
+        </div>
         <input type="text" id="driveUrl" placeholder="Paste Google Drive, Dropbox, or YouTube link here">
         <button class="btn" style="width:100%" id="processBtn">Process Video</button>
         <!-- A video already on this machine takes the same route as a linked

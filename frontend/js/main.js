@@ -14,6 +14,8 @@ function syncModeToggle() {
     btnOnly.classList.toggle("btn-active", framesOnlyMode);
     btnText.setAttribute("aria-pressed", String(!framesOnlyMode));
     btnOnly.setAttribute("aria-pressed", String(framesOnlyMode));
+    // "Max characters per frame" belongs to one of the two modes only.
+    syncCaptionCharsField();
 }
 
 function initModeToggle() {
@@ -48,14 +50,16 @@ import {
     warmCutouts, applyEditToAll,
 } from "./editor.js";
 import { hasChannel, activeChannelId, framingFor, captureFor, cleanupFor,
-         selectionFor } from "./channels.js";
+         selectionFor, NO_CHANNEL } from "./channels.js";
 import {
     enterMode, isCapture, syncCaptureFields, requestedCount, syncCountValue,
     applyCaptions,
 } from "./capture.js";
 import { downloadFrame, downloadSelected, downloadAll } from "./download.js";
 import { titleFontReady, reportMissingTitleFont } from "./fontguard.js";
-import { showMyText, lockSplit, myText, maxChars, dealOut } from "./mytext.js";
+import {
+    showMyText, lockSplit, myText, maxChars, dealOut, captionChars, respreadCaptions,
+} from "./mytext.js";
 import { initReorder } from "./reorder.js";
 
 const POLL_MS = 500;
@@ -365,8 +369,20 @@ async function runPipeline(prepare,
         // is the only place the user would ever find out.
         const framesOnly = !!(run.client && run.client.framesOnly);
         const spoken = run.capture && run.capture.rewrite && !framesOnly && data.rewritten === false;
+        // The captions dealt out again under the ceiling the user typed for
+        // this run, before anything is broken into lines or drawn. The run's
+        // own number, from its record: a page that picked the run up after a
+        // reload has an empty field, and the user's figure is still the one
+        // owed. A run started before the field existed has none, and keeps
+        // its captions as they came.
+        const ceiling = !framesOnly && run.capture && run.capture.captions
+                        && run.client && run.client.captionChars;
+        const leftover = ceiling ? respreadOverGrid(ceiling) : 0;
         status(isCapture()
             ? `${data.count} frames, in the order they happen in the video`
+              + (ceiling ? `, captions of up to ${ceiling} characters` : "")
+              + (leftover ? ` — ${leftover} more ${leftover === 1 ? "piece does" : "pieces do"} `
+                          + "not fit. Raise the max characters per frame or fetch more frames" : "")
               + (spoken ? " — captions are the transcript as spoken: the narration "
                         + "model did not load, so they were not rewritten as report" : "")
             : `${data.count} frames — select one and give it a title`);
@@ -596,19 +612,75 @@ function runCapture() {
 }
 
 /**
+ * Whether a run started now would caption its frames with what the video
+ * says: a "Frames with text" run on a channel that captions. The question
+ * runCapture's `captions` answers, asked of the page as it stands.
+ */
+function captionsRun() {
+    const capture = captureFor(activeChannelId());
+    return !framesOnlyMode && !!(capture && capture.captions);
+}
+
+/**
+ * Shows "Max characters per frame" above the link box exactly when the run it
+ * is required for would be the one started — so it answers the channel, the
+ * mode and the tab, from wherever each of them is changed. A function
+ * declaration, so syncModeToggle can call it from the top of the file.
+ */
+function syncCaptionCharsField() {
+    el("captionCharsRow").classList.toggle("hidden", !captionsRun());
+}
+
+/**
+ * Refuses to start a "Frames with text" run without a ceiling, and says why.
+ * True when it refused. Asked before anything is spent — before an upload's
+ * file dialog, before a link is sent — because the captions are dealt out
+ * the moment the frames land, and a run cannot be told the number later.
+ */
+function missingCaptionChars() {
+    if (!captionsRun() || captionChars() !== null) return false;
+    status("Fill in Max characters per frame with a whole number before processing the video");
+    el("captionCharsInput").focus();
+    return true;
+}
+
+/**
  * The page's own settings for a run: which channel, which tab, which output
- * mode. The backend keeps them only to hand them back, so a page that picks
- * the run up after a reload can be put back the way this one was (see
- * runInProgress and resumeSettings). Read when the run is set going, like
- * everything else a run is made from.
+ * mode, and the caption ceiling. The backend keeps them only to hand them
+ * back, so a page that picks the run up after a reload can be put back the
+ * way this one was (see runInProgress and resumeSettings). Read when the run
+ * is set going, like everything else a run is made from.
+ *
+ * The ceiling travels here rather than in the capture request because it is
+ * this page's to apply, to the captions as they land (see runPipeline) — and
+ * riding in the record the backend hands back is what lets a page that picks
+ * the run up after a reload still apply the number the user typed.
  */
 const runClient = () => ({
     channel: activeChannelId(), tab: currentMode, framesOnly: framesOnlyMode,
+    captionChars: captionsRun() ? captionChars() : null,
 });
+
+/**
+ * A "Frames with text" run's captions, dealt out again over the grid under
+ * the ceiling the user typed (see mytext.respreadCaptions). In the grid's
+ * order — at this point the order the frames arrived in — and over every
+ * frame of it, so a frame the new split leaves without text is cleared
+ * rather than keeping the caption it came with. Returns how many pieces did
+ * not fit.
+ */
+function respreadOverGrid(max) {
+    const grid = frames();
+    const order = gridOrder();
+    const { pieces, leftover } = respreadCaptions(order.map(i => grid[i].caption), order.length, max);
+    order.forEach((i, position) => { grid[i].caption = pieces[position] || ""; });
+    return leftover;
+}
 
 function processVideo() {
     const url = el("driveUrl").value.trim();
     if (!url) return status("Paste a link, or upload a video file from your computer");
+    if (missingCaptionChars()) return;
     const capture = runCapture();
     const client = runClient();
     return runPipeline(async () => ({
@@ -626,6 +698,9 @@ function processVideo() {
  * bytes are across, and the poll takes over from there.
  */
 function processUploadedFile(file) {
+    // Asked again here, not only before the file dialog opened: the field can
+    // be emptied, or the mode switched, while the dialog is up.
+    if (missingCaptionChars()) return;
     // Read before the upload starts, not after it finishes: the bytes take
     // their own time to cross, and the channel a run belongs to is the one
     // that was selected when the user set it going.
@@ -850,7 +925,11 @@ el("driveUrl").addEventListener("keydown", (e) => {
 // button: choosing a video in the OS file dialog and pressing Open is already
 // the deliberate act that "Process Video" is for a link. Same shape as the
 // image-overlay picker further down.
-el("uploadVideoBtn").addEventListener("click", () => el("videoFileInput").click());
+// ...with the caption ceiling asked for first, so the user is not sent through
+// the file dialog only to be told afterwards that a field was empty.
+el("uploadVideoBtn").addEventListener("click", () => {
+    if (!missingCaptionChars()) el("videoFileInput").click();
+});
 el("videoFileInput").addEventListener("change", (e) => {
     const file = e.target.files[0];
     e.target.value = "";   // so re-picking the same file still fires `change`
@@ -972,6 +1051,23 @@ function setAppMode(mode) {
     storeAndRenderDropdown(document.getElementById("runChannelSelect"), mode);
     storeAndRenderDropdown(document.getElementById("channelSelect"), mode);
 
+    // The selection follows the list. Rebuilding a dropdown without the
+    // selected channel only changes what it SHOWS — it reads "-" while the
+    // page is still on, say, a Snapchat channel picked on the other tab. That
+    // hidden channel is what the next run is made from: a Thumbnail Maker run
+    // would go out as a Snapchat frame fetch, and the frame-count slider,
+    // which answers to the selection, stays up on a tab that has no use for
+    // it. So a channel the new tab does not list is dropped, through
+    // showChannel because nobody picked anything: no frame is re-branded and
+    // no usage event is sent. Checked rather than done every time, because
+    // this runs again on timers after load (below) and must leave a channel
+    // that belongs to the tab alone.
+    const listed = Array.from(el("runChannelSelect")?.options || [])
+        .some(o => o.value === activeChannelId());
+    if (hasChannel() && !listed) showChannel(NO_CHANNEL);
+    syncCaptureFields(activeChannelId());
+    syncCaptionCharsField();
+
     if (typeof fitTitleToInputWidth === "function") {
         fitTitleToInputWidth();
     }
@@ -1006,7 +1102,10 @@ el("runChannelSelect").addEventListener("change", (e) => selectChannel(e.target.
 // the reason they are one selection: either one moving is the same answer
 // changing, and the box has to follow it from wherever it was changed.
 for (const id of ["runChannelSelect", "channelSelect"]) {
-    el(id).addEventListener("change", () => syncCaptureFields(activeChannelId()));
+    el(id).addEventListener("change", () => {
+        syncCaptureFields(activeChannelId());
+        syncCaptionCharsField();
+    });
 }
 syncCaptureFields(activeChannelId());
 // The slider's fill and its readout follow the handle, wherever the handle was

@@ -22,7 +22,30 @@ import { invalidate as invalidateWide, prefetchWide } from "./wide.js";
 import { syncZoomSliderFor } from "./reframe.js";
 import { captureMode } from "./capture.js";
 import { openMaskStep } from "./mask.js";
+
+/**
+ * Records a usage event. Never throws, whatever goes wrong inside it.
+ *
+ * Every caller invokes it on its FIRST line — picking a channel, the edit
+ * pass, picking a frame, both uploads — so an exception here is not a lost
+ * log line, it is the feature itself abandoned before it starts. That is
+ * exactly what happened in a browser with no prompt() (the Claude app's
+ * preview pane): the channel dropdown moved, selectChannel died on its first
+ * line, the page went on believing no channel was picked, and a Static
+ * Studio run went out as a plain thumbnail run — 1280x720, the three-line
+ * template, no frame-count slider. localStorage can throw too (blocked site
+ * data, some private windows). A usage counter is never worth any of that,
+ * so a failure anywhere in here costs the event and nothing else.
+ */
 function trackEvent(action, details = {}) {
+    try {
+        sendTrackEvent(action, details);
+    } catch (e) {
+        console.warn(`Usage event "${action}" was not recorded:`, e);
+    }
+}
+
+function sendTrackEvent(action, details) {
     // 1. Identify which tool this page represents
     const toolName = window.location.pathname.includes("static") ? "static_studio" : "thumbnail_maker";
 

@@ -430,6 +430,11 @@ input[type="text"]::-moz-selection { background: #fffa00; color: #1b2fea; }
 .output-mode-toggle .btn { flex: 1; }
 #frameCountRow { display: flex; flex-direction: column; gap: 10px; }
 #frameCountRow.hidden { display: none; }
+/* Max characters per frame, for "Frames with text" — the frame
+   count's column, for the same reason: label, box, hint. */
+#captionCharsRow { display: flex; flex-direction: column; gap: 10px; }
+#captionCharsRow.hidden { display: none; }
+#captionCharsRow #captionCharsHint { margin: -4px 0 0; opacity: 0.75; }
 /* Slider and its readout on one row, the readout wide enough for
    three digits so the track does not resize as the number changes. */
 .count-control { display: flex; align-items: center; gap: 12px; }

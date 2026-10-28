@@ -72,6 +72,13 @@
 // text that will not fit on the grid even so is placed as far as it goes and
 // the rest is reported as left over (see main.splitMyText), rather than the
 // ceiling quietly giving way.
+//
+// ## The same rules on a "Frames with text" run
+//
+// That mode asks for a ceiling too, above the link box and before the video
+// is processed, and deals the captions the video came back with through
+// exactly this machinery (see respreadCaptions). One set of rules for where
+// text is broken and where it lands, whoever wrote the text.
 
 import { el } from "./config.js";
 
@@ -299,32 +306,63 @@ export function lockSplit(locked) {
 /** The text in the box, as typed. */
 export const myText = () => el("myTextInput").value;
 
-/**
- * "Max characters per frame" as a whole number of at least 1, or null when
- * the field holds nothing usable — main.splitMyText says so rather than
- * splitting against a number the user did not type.
- */
-export function maxChars() {
-    const value = el("maxCharsInput").value.trim();
+/** Field `id` as a whole number of at least 1, or null when it holds nothing usable. */
+function wholeNumberIn(id) {
+    const value = el(id).value.trim();
     if (!/^\d+$/.test(value)) return null;
     const n = parseInt(value, 10);
     return n >= 1 ? n : null;
 }
 
-// The field takes whole numbers only. type="number" alone does not see to
+/**
+ * "Max characters per frame" beside the user's text, or null when the field
+ * holds nothing usable — main.splitMyText says so rather than splitting
+ * against a number the user did not type.
+ */
+export const maxChars = () => wholeNumberIn("maxCharsInput");
+
+/**
+ * "Max characters per frame" above the link box, for a "Frames with text"
+ * run, or null — and null there stops the run before it starts (see
+ * main.missingCaptionChars).
+ */
+export const captionChars = () => wholeNumberIn("captionCharsInput");
+
+/**
+ * A "Frames with text" run's captions, dealt out again under the user's
+ * ceiling: the same breaking and the same one-per-frame dealing as the
+ * user's own text, applied to the text the video gave instead.
+ *
+ * Each caption goes in as a line of its own, so it reads to piecesOf as a
+ * break the writer made — which it is: the rewrite chose where one thought
+ * ends and the next begins (see narrator.py). A caption over the ceiling is
+ * cut at its clauses, and two are joined onto one frame only when the grid
+ * is too short for them otherwise, and never past the ceiling. What still
+ * does not fit is `leftover`, for the status line to report rather than
+ * drop in silence.
+ */
+export function respreadCaptions(captions, count, max) {
+    const text = captions.map(c => (c || "").trim()).filter(Boolean).join("\n");
+    return dealOut(text, count, max);
+}
+
+// Both fields take whole numbers only. type="number" alone does not see to
 // that: every browser lets "e", "-", "+" and a decimal point through, since
 // they are all part of some number, and a pasted "80 chars" lands as typed in
 // some of them. Those keys are refused as they are pressed, and anything that
 // still gets in — a paste, a drop — is cut down to its digits.
-el("maxCharsInput").addEventListener("keydown", (e) => {
-    if (!e.ctrlKey && !e.metaKey && e.key.length === 1 && !/\d/.test(e.key)) e.preventDefault();
-});
-el("maxCharsInput").addEventListener("input", (e) => {
-    const digits = e.target.value.replace(/\D/g, "");
-    if (digits !== e.target.value) e.target.value = digits;
-});
+for (const id of ["maxCharsInput", "captionCharsInput"]) {
+    el(id).addEventListener("keydown", (e) => {
+        if (!e.ctrlKey && !e.metaKey && e.key.length === 1 && !/\d/.test(e.key)) e.preventDefault();
+    });
+    el(id).addEventListener("input", (e) => {
+        const digits = e.target.value.replace(/\D/g, "");
+        if (digits !== e.target.value) e.target.value = digits;
+    });
+}
 // An emptied field goes back to the default when the user leaves it, so the
-// number on screen is always the one the next split will use.
+// number on screen is always the one the next split will use. Not the field
+// above the link box: that one is empty until the user fills it, on purpose.
 el("maxCharsInput").addEventListener("blur", (e) => {
     if (maxChars() === null) e.target.value = String(CAPTION_CHARS);
 });
