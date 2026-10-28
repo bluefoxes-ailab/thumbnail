@@ -77,6 +77,26 @@ export async function postJson(path, body) {
     return res.json();
 }
 
+/**
+ * POSTs a Blob's raw bytes and reads the JSON the backend answers with —
+ * postJson's answer, with a binary body. For /add-frame, whose answer is a
+ * frame in the shape a run's frames arrive in rather than a bare image, so
+ * neither postImageFile nor postFile (which waits for an upload_id) fits it.
+ */
+export async function postBlobJson(path, blob) {
+    const res = await fetch(`${API}${path}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/octet-stream" },
+        body: blob,
+    });
+    if (!res.ok) {
+        const error = new Error(await readDetail(res) || "Error");
+        error.status = res.status;
+        throw error;
+    }
+    return res.json();
+}
+
 export async function getJson(path) {
     const res = await fetch(`${API}${path}`);
     if (!res.ok) return null;

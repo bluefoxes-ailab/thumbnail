@@ -29,9 +29,10 @@ function initModeToggle() {
 import { API, LINE_IDS, TITLE_FIELD_IDS, el } from "./config.js";
 import {
     store, frames, current, selectedIndex, setSelectedIndex,
-    makeFrame, releaseFrames, carryOverSettings, gridOrder, positionOf, discardFrame,
+    makeFrame, releaseFrames, carryOverSettings, gridOrder, positionOf, discardFrame, addFrame,
 } from "./state.js";
-import { getJson, postJson, postFile } from "./net.js";
+import { getJson, postJson, postFile, postBlobJson, loadImage } from "./net.js";
+import { openFrameCrop } from "./framecrop.js";
 import { initCanvas, updatePreview, refreshThumb, refreshAllThumbs, forgetThumbSignatures } from "./compose.js";
 import {
     status, showProgress, hideProgress, syncBatchButton, resetPending,
@@ -52,7 +53,7 @@ import {
 import { hasChannel, activeChannelId, framingFor, captureFor, cleanupFor,
          selectionFor, NO_CHANNEL } from "./channels.js";
 import {
-    enterMode, isCapture, syncCaptureFields, requestedCount, syncCountValue,
+    enterMode, isCapture, captureMode, syncCaptureFields, requestedCount, syncCountValue,
     applyCaptions,
 } from "./capture.js";
 import { downloadFrame, downloadSelected, downloadAll } from "./download.js";
@@ -361,6 +362,10 @@ async function runPipeline(prepare,
             f.frame_id, base64ToObjectUrl(f.frame),
             f.timecode ? { timestamp: f.timestamp, timecode: f.timecode } : null,
             f.caption || ""));
+        // The video's own size, which an image the user adds to this grid is
+        // framed to (see addOwnFrame). A backend older than /add-frame sends
+        // none, and the tile then falls back to the canvas's shape.
+        runSourceSize = Array.isArray(data.source_size) ? data.source_size : null;
         // A channel that asked for rewritten captions and did not get them is
         // the one outcome here that looks exactly like success: every frame is
         // captioned, every caption reads, and every one of them is the speech
@@ -464,6 +469,9 @@ let followPending = false;
 // Whether the frames of the latest run are ones the user's own text can go
 // on — a "Frames only" run on a channel that captions (see runPipeline).
 let ownTextRun = false;
+// The latest frame fetch's video size, [width, height], or null — see
+// runPipeline and addOwnFrame.
+let runSourceSize = null;
 
 /**
  * "Split the text": the user's text, broken at its sentences and clauses into
@@ -728,59 +736,161 @@ function processUploadedFile(file) {
 function renderGrid() {
     const g = el("framesGrid");
     g.innerHTML = "";
-    gridOrder().forEach((i, position) => {
-        const f = frames()[i];
-        const d = document.createElement("div");
-        // Grey and inert until the edit reaches it, on a frame fetch only —
-        // there the whole grid is worked through up front and the user's
-        // question is "which of these can I open yet" (see ui.markFrameReady
-        // and the capture-mode rules in styles.css). On a thumbnail run
-        // nothing but the selected frame is ever restored, so a pending card
-        // would simply never come back.
-        const pending = isCapture() && !f.enhancedUrl;
-        d.className = "frame-card"
-                    + (i === selectedIndex() ? " selected" : "")
-                    + (pending ? " pending" : "");
-        d.id = `card-${i}`;
-        d.dataset.index = i;
-        // Draggable on a frame fetch only, where the order is the deliverable
-        // (see reorder.js). The picture inside is not, or the browser would
-        // drag the bare image instead of the card.
-        d.draggable = isCapture();
-        if (isCapture()) d.title = "Drag to reorder";
-        d.innerHTML = `<img id="thumb-${i}" src="${f.plainUrl}" draggable="false">` +
-                      `<div class="badge">${position + 1}</div>` +
-                      `<div class="pick${f.picked ? " on" : ""}" id="pick-${i}" title="Include in batch download"></div>`;
-        // The X that throws the frame out, on a frame fetch only — there the
-        // grid is the deliverable and a frame the user does not want would
-        // otherwise be edited, captioned and zipped regardless. Live on a grey
-        // card too: the earlier a frame is thrown out, the less of the edit
-        // pass is spent on it (see discardFromGrid).
-        if (isCapture()) {
-            const x = document.createElement("button");
-            x.type = "button";
-            x.className = "discard";
-            x.title = "Discard this frame";
-            x.setAttribute("aria-label", `Discard frame ${position + 1}`);
-            x.draggable = false;
-            x.onclick = (e) => { e.stopPropagation(); discardFromGrid(i); };
-            d.appendChild(x);
-        }
-        // A pending card cannot be opened until the edit reaches it. It can
-        // still be dragged — rearranging is allowed at any point of the run —
-        // so the stylesheet leaves it the pointer, and the refusal is here.
-        d.onclick = () => { if (!d.classList.contains("pending")) selectFrame(i); };
-        // Ticking a frame for the batch must not also switch the preview to
-        // it — the user builds the batch while working on one frame.
-        d.querySelector(".pick").onclick = (e) => {
-            e.stopPropagation();
-            if (d.classList.contains("pending")) return;
-            togglePick(i, carryOverForPick);
-        };
-        g.appendChild(d);
-    });
+    gridOrder().forEach((i, position) => g.appendChild(frameCard(i, position)));
+    // The way to add an image of the user's own to the set, on a frame fetch
+    // only — there the grid is the deliverable, and the frame the video did
+    // not have is still one the user may want in it (see addOwnFrame). Last,
+    // because that is where a new frame lands; the user drags it from there.
+    if (isCapture()) g.appendChild(addFrameTile());
     syncFrameNav();
     refreshAllThumbs();
+}
+
+/**
+ * The card for frame `i`, at `position` in the grid. Built on its own so a
+ * frame the user adds (see addOwnFrame) gets exactly the card the run's own
+ * frames got, without the whole grid being drawn again for it.
+ */
+function frameCard(i, position) {
+    const f = frames()[i];
+    const d = document.createElement("div");
+    // Grey and inert until the edit reaches it, on a frame fetch only —
+    // there the whole grid is worked through up front and the user's
+    // question is "which of these can I open yet" (see ui.markFrameReady
+    // and the capture-mode rules in styles.css). On a thumbnail run
+    // nothing but the selected frame is ever restored, so a pending card
+    // would simply never come back.
+    const pending = isCapture() && !f.enhancedUrl;
+    d.className = "frame-card"
+                + (i === selectedIndex() ? " selected" : "")
+                + (pending ? " pending" : "");
+    d.id = `card-${i}`;
+    d.dataset.index = i;
+    // Draggable on a frame fetch only, where the order is the deliverable
+    // (see reorder.js). The picture inside is not, or the browser would
+    // drag the bare image instead of the card.
+    d.draggable = isCapture();
+    if (isCapture()) d.title = "Drag to reorder";
+    d.innerHTML = `<img id="thumb-${i}" src="${f.plainUrl}" draggable="false">` +
+                  `<div class="badge">${position + 1}</div>` +
+                  `<div class="pick${f.picked ? " on" : ""}" id="pick-${i}" title="Include in batch download"></div>`;
+    // The X that throws the frame out, on a frame fetch only — there the
+    // grid is the deliverable and a frame the user does not want would
+    // otherwise be edited, captioned and zipped regardless. Live on a grey
+    // card too: the earlier a frame is thrown out, the less of the edit
+    // pass is spent on it (see discardFromGrid).
+    if (isCapture()) {
+        const x = document.createElement("button");
+        x.type = "button";
+        x.className = "discard";
+        x.title = "Discard this frame";
+        x.setAttribute("aria-label", `Discard frame ${position + 1}`);
+        x.draggable = false;
+        x.onclick = (e) => { e.stopPropagation(); discardFromGrid(i); };
+        d.appendChild(x);
+    }
+    // A pending card cannot be opened until the edit reaches it. It can
+    // still be dragged — rearranging is allowed at any point of the run —
+    // so the stylesheet leaves it the pointer, and the refusal is here.
+    d.onclick = () => { if (!d.classList.contains("pending")) selectFrame(i); };
+    // Ticking a frame for the batch must not also switch the preview to
+    // it — the user builds the batch while working on one frame.
+    d.querySelector(".pick").onclick = (e) => {
+        e.stopPropagation();
+        if (d.classList.contains("pending")) return;
+        togglePick(i, carryOverForPick);
+    };
+    return d;
+}
+
+/** The "Add image" tile that ends a frame fetch's grid (see addOwnFrame). */
+function addFrameTile() {
+    const tile = document.createElement("button");
+    tile.type = "button";
+    tile.className = "frame-add";
+    tile.id = "addFrameTile";
+    tile.title = "Add an image from your computer as a frame";
+    tile.draggable = false;
+    tile.innerHTML = `<span class="frame-add-plus" aria-hidden="true">+</span><span>Add image</span>`;
+    tile.onclick = () => el("addFrameFileInput").click();
+    return tile;
+}
+
+/**
+ * The "Add image" tile: an image of the user's own, framed to the video's
+ * proportions in a pop-up (see framecrop.js), becomes one more frame of the
+ * run — at the end of the grid, numbered after the rest.
+ *
+ * From there it is not a special case. The backend makes it an ordinary
+ * capture slot (see /add-frame), so the edit, the presets, the reframe and
+ * the zoom on the canvas all reach it by its id; and this side gives it a
+ * frame record and a card built exactly as the run's own were, so it is
+ * dragged, discarded, captioned, given text by "Split the text" and zipped
+ * by "Download all" with no more said about it. The two things it does not
+ * have are a moment in the video — so no timestamp, and Variation stays off
+ * on it (`uploaded`) — and a caption from the transcript: its text starts
+ * empty, for the user to type or split onto.
+ *
+ * The channel is taken from the last frame of the grid, which is the
+ * neighbour it lands beside: the run's own brand, whatever the picker above
+ * the link box has been moved to since.
+ */
+async function addOwnFrame(file) {
+    const grid = frames();
+    if (!isCapture() || !grid.length) return;
+
+    let img;
+    const local = URL.createObjectURL(file);
+    try {
+        img = await loadImage(local);
+    } catch (_) {
+        return status("That file could not be read as an image");
+    } finally {
+        URL.revokeObjectURL(local);
+    }
+    // The video's own size; failing that, the canvas's, which is at least
+    // the shape every frame of the run ends up as.
+    const output = captureMode() && captureMode().output;
+    const [w, h] = runSourceSize || (output ? [output.width, output.height] : [1080, 1920]);
+    const blob = await openFrameCrop(img, w, h);
+    if (!blob) return;                  // cancelled — nothing added
+    if (frames() !== grid) return;      // a new run's frames replaced these meanwhile
+
+    const tile = el("addFrameTile");
+    if (tile) tile.disabled = true;
+    status("Adding your image to the frames...");
+    let res;
+    try {
+        res = await postBlobJson("/add-frame", blob);
+    } catch (e) {
+        // A backend older than this file has no /add-frame, and answers with
+        // FastAPI's own "Not Found" rather than anything about frames.
+        const stale = (e.status === 404 && e.message === "Not Found") || e.status === 405;
+        return status(stale ? "Backend is out of date (no /add-frame)" : e.message);
+    } finally {
+        if (tile) tile.disabled = false;
+    }
+    if (frames() !== grid) return;
+
+    const frame = makeFrame(res.frame_id, base64ToObjectUrl(res.frame));
+    frame.uploaded = true;
+    const order = gridOrder();
+    const neighbour = grid[order[order.length - 1]];
+    if (neighbour) {
+        frame.channel = neighbour.channel;
+        frame.channelTouched = neighbour.channelTouched;
+    }
+    const i = addFrame(frame);
+    const position = gridOrder().length - 1;
+    const card = frameCard(i, position);
+    el("framesGrid").insertBefore(card, el("addFrameTile"));
+    refreshThumb(i);
+    // Opened at once, as the first frame of a run is: the edit starts on it
+    // there (selectFrame asks for it), and the card turns from grey when it
+    // lands, exactly as the run's own did.
+    selectFrame(i);
+    card.scrollIntoView({ block: "nearest" });
+    status(`Your image was added as frame ${position + 1}`);
 }
 
 /**
@@ -1181,6 +1291,13 @@ el("downloadAllBtn").addEventListener("click", downloadAll);
 // Dragging cards to rearrange a frame fetch (see reorder.js). Bound once, to
 // the grid itself, so it keeps working as renderGrid replaces the cards.
 initReorder(onGridReordered);
+// The "Add image" tile's file dialog (see addOwnFrame). Picking a file goes
+// straight to the framing step, which is where the user can still back out.
+el("addFrameFileInput").addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    e.target.value = "";   // so re-picking the same file still fires `change`
+    if (file) addOwnFrame(file);
+});
 // Locked until every frame of a "Frames only" run has loaded (see
 // runPipeline); a locked button takes no clicks, so nothing here has to ask.
 el("splitTextBtn").addEventListener("click", splitMyText);

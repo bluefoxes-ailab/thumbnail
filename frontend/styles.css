@@ -845,6 +845,17 @@ body.mask-open { overflow: hidden; }
 .mask-zoom .zoom-cap { border: none; padding: 0; font-family: inherit; }
 .mask-actions { margin-top: 6px; }
 .mask-actions .btn { flex: 1; }
+/* The framing step's stage (js/framecrop.js): the mask stage's look, with
+   the shape left to the script — it is the video's, not a square. No
+   checkerboard behind it, because nothing in this window is ever
+   transparent: the picture always covers it. */
+.frame-crop-canvas {
+    display: block; margin: 0 auto; max-width: 100%; height: auto;
+    border-radius: 8px; cursor: grab; touch-action: none;
+    background: #0d1026;
+    border: 2px solid #026dff;
+}
+.frame-crop-canvas.dragging { cursor: grabbing; }
 
 /* ── The user's own text, on a "Frames only" run (js/mytext.js) ──────
    The width of the link box above it and stacked the same way, so it
@@ -1056,6 +1067,25 @@ body.capture-mode .frame-card.pending .pick { display: none; }
 .frame-card .discard:hover { background: #ff3b30; }
 .frame-card .discard:focus-visible { outline: 2px solid #fffa00; outline-offset: 1px; }
 body.capture-mode .frame-card .pick { top: auto; bottom: 3px; }
+
+/* The "Add image" tile at the end of a frame fetch's grid
+   (main.addOwnFrame). The shape of a card, so it reads as the place the
+   next frame goes, and dashed, so it does not read as a frame already
+   there. Not a .frame-card: reorder.js rearranges exactly those, and a
+   tile that could be dragged into the middle of the set would be a frame
+   numbered among the others that is not one. */
+.frame-add {
+    aspect-ratio: 9 / 16; width: 100%;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+    border: 2px dashed rgba(2, 109, 255, 0.7); border-radius: 4px;
+    background: rgba(27, 47, 234, 0.12); color: #fff;
+    font-family: inherit; font-size: 12px; font-weight: 700;
+    cursor: pointer; padding: 6px; text-align: center;
+}
+.frame-add:hover:not(:disabled) { border-color: #fffa00; color: #fffa00; }
+.frame-add:focus-visible { outline: 2px solid #fffa00; outline-offset: 1px; }
+.frame-add:disabled { opacity: 0.5; cursor: progress; }
+.frame-add-plus { font-size: 30px; line-height: 1; font-weight: 400; }
 
 /* ── The caption panel, turned on its side ────────────────────────
 

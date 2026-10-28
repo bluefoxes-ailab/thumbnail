@@ -946,8 +946,15 @@ def _capture_frames_sync(video_path: str, count: int, captions: bool = False,
     # is looking at (see main.runPipeline). A channel that asked for a
     # rewrite and did not get one is the only case worth a word on screen, and
     # it is the case the user cannot otherwise tell from a working run.
+    #
+    # `source_size` is the video's own width and height, which every slot of a
+    # capture run shares — the slots point at the uncropped frames (see
+    # above). It is what an image the user adds to the grid is framed to
+    # before it is sent (see /add-frame and the frontend's framecrop.js), so
+    # that it reaches the pipeline the same shape a frame of this video does.
+    source_h, source_w = session.frames[results[0]["frame_id"]].source_shape[:2]
     return {"frames": results, "count": len(results), "capture": True,
-            "rewritten": rewritten}
+            "rewritten": rewritten, "source_size": [source_w, source_h]}
 
 
 def _process_video_sync(source: VideoSource, capture: CaptureRequest | None = None,
@@ -1876,6 +1883,95 @@ async def upload_frame(request: Request, frame_id: int, flip_image: bool = False
         raise HTTPException(400, "No image was uploaded")
     return await asyncio.to_thread(
         _upload_frame_sync, frame_id, data, flip_image, flip_text, gradient)
+
+
+# -- /add-frame -------------------------------------------------------------
+
+# Held while a new slot's id is chosen and its record written. Two images
+# added in quick succession run on two worker threads, and both would
+# otherwise read the same highest id and write their records over each other.
+_add_frame_lock = threading.Lock()
+
+
+def _add_frame_sync(data: bytes) -> dict:
+    # A run in progress opens with session.reset(), so a slot added now would
+    # be wiped the moment it was written — or, worse, land among the new
+    # video's slots under an id that run is about to hand out itself.
+    if _process_lock.locked():
+        raise HTTPException(409, "A video is being processed — add your image once it has finished")
+    if not session.frames:
+        raise HTTPException(404, "No frames to add to — process a video first")
+
+    image = cv2.imdecode(np.frombuffer(data, np.uint8), cv2.IMREAD_COLOR)
+    if image is None:
+        raise HTTPException(415, "That file could not be read as an image")
+    h, w = image.shape[:2]
+    if max(h, w) > MAX_UPLOADED_FRAME_SIDE:
+        k = MAX_UPLOADED_FRAME_SIDE / max(h, w)
+        image = cv2.resize(image, (int(w * k), int(h * k)), interpolation=cv2.INTER_AREA)
+
+    with _add_frame_lock:
+        # One past the highest id ever handed out, not the count: a frame the
+        # user discarded keeps its record (the frontend still addresses it by
+        # id while anything for it is in flight), so ids are not contiguous
+        # once anything has been thrown out.
+        frame_id = max(session.frames) + 1
+        os.makedirs(TEMP_DIR, exist_ok=True)
+        path = os.path.join(TEMP_DIR, f"added_frame_{frame_id}.jpg")
+        imwrite(path, image, [cv2.IMWRITE_JPEG_QUALITY, 95])
+
+        # Built exactly as a capture slot is (see _capture_frames_sync), and
+        # for the same reasons: the image arrives already framed to the
+        # video's proportions by the user, so it IS the uncropped frame and is
+        # centred rather than framed around a face. The one difference is
+        # `uploaded`, which is what stops Variation searching the video for
+        # moments either side of a picture that never was in it.
+        best_face, face_count = _centred_subject(image)
+        record = FrameRecord(
+            source_path=path,
+            origin_path=path,
+            origin_face=best_face,
+            best_face=best_face,
+            face_count=face_count,
+            source_shape=image.shape,
+            full_shape=None,
+            source_is_cropped=False,
+            source_raw_path=path,
+            geometry=compute_geometry(image.shape, best_face, face_count),
+            edit_preset=DEFAULT_EDIT_PRESET,
+            uploaded=True,
+        )
+        canvas = build_initial_crop(image, record)
+        if canvas is None:
+            raise HTTPException(422, "That image could not be reframed to a frame")
+        record.crop_state = default_crop_state(record)
+        session.frames[frame_id] = record
+
+    imwrite(pipeline.plain_crop_path(frame_id), canvas, [cv2.IMWRITE_JPEG_QUALITY, 95])
+    log.info("capture: frame %d added from an image the user uploaded", frame_id)
+    return {"frame_id": frame_id, "frame": img_to_base64(compose(canvas, False, False, False))}
+
+
+@app.post("/add-frame")
+async def add_frame(request: Request):
+    """
+    A new slot at the end of a frame fetch's grid, made from an image of the
+    user's own rather than a moment of the video.
+
+    Where /upload-frame replaces the photo behind a slot that already exists,
+    this makes one that did not — and from the moment it returns, the slot is
+    an ordinary capture slot: restoration, the edit presets, manual reframing
+    and zoom reach it through their existing endpoints by its id, and the
+    frontend gives it a card that is captioned, dragged, discarded and
+    downloaded like every other.
+
+    Answers in the shape a capture run's frames arrive in (an id and a base64
+    plain crop), because that is what the frontend builds a card from.
+    """
+    data = await request.body()
+    if not data:
+        raise HTTPException(400, "No image was uploaded")
+    return await asyncio.to_thread(_add_frame_sync, data)
 
 
 @app.post("/cleanup")

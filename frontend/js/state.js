@@ -66,6 +66,24 @@ export function setGridOrder(order) {
 }
 
 /**
+ * Puts a frame the user added (see main.addOwnFrame) on the end of the grid,
+ * and returns its index.
+ *
+ * Appended to store.frames rather than placed into it, for the reason a drag
+ * never moves a record (see gridOrder): every index already handed out has to
+ * go on naming the frame it named. Where it SITS is the order's business, and
+ * the order is written here because the cache in gridOrder would not notice —
+ * the frames array is the same array, one longer.
+ */
+export function addFrame(frame) {
+    const order = gridOrder();
+    store.frames.push(frame);
+    const i = store.frames.length - 1;
+    store.order = [...order, i];
+    return i;
+}
+
+/**
  * Takes frame `i` out of the run for good: off the grid, out of the edit
  * pass if it has not been reached, out of "Split the text", the downloads and
  * the arrows — and whatever text it carried goes with it rather than to any

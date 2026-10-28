@@ -166,6 +166,10 @@
              change. Hidden on a thumbnail run by the stylesheet. -->
         <div class="panel-hint reorder-hint">Drag the frames into any order — the numbers, file names and text split follow it.</div>
         <div class="frames-grid" id="framesGrid"></div>
+        <!-- Behind the "Add image" tile at the end of a frame fetch's grid
+             (see main.addOwnFrame). Hidden for the reason the video's is: the
+             tile is what the user sees, and it forwards the click. -->
+        <input type="file" id="addFrameFileInput" accept="image/*" class="hidden">
 
         <h2 id="previewLabel">Preview</h2>
         <div class="reframe-hint" id="reframeHint">Click and drop to reframe the image — drag past the edge and the gap is filled in automatically</div>
@@ -404,6 +408,29 @@
             <button type="button" class="btn" id="maskCancelBtn">Cancel</button>
             <button type="button" class="btn" id="maskSkipBtn" title="Place the image as it is, uncropped">No mask</button>
             <button type="button" class="btn" id="maskApplyBtn">Apply mask</button>
+        </div>
+    </div>
+</div>
+
+<!-- The framing step: shown between picking an image to add to a frame
+     fetch's grid and its card appearing there (see js/framecrop.js). The
+     mask step's card and controls, because it is the same gesture — a
+     picture placed behind a fixed window — with the window the shape of the
+     video instead of a square or a circle. -->
+<div class="mask-step hidden" id="frameCropStep" role="dialog" aria-modal="true" aria-labelledby="frameCropLabel">
+    <div class="mask-card">
+        <h2 id="frameCropLabel">Frame your image</h2>
+        <div class="panel-hint mask-hint" id="frameCropHint"></div>
+        <canvas class="frame-crop-canvas" id="frameCropCanvas"></canvas>
+        <label class="field-label" for="frameCropZoom">Zoom</label>
+        <div class="mask-zoom">
+            <button type="button" class="zoom-cap" id="frameCropZoomOutBtn" title="Zoom out" aria-label="Zoom out">&minus;</button>
+            <input type="range" id="frameCropZoom" class="count-slider" min="0" max="1" step="0.001" value="0">
+            <button type="button" class="zoom-cap" id="frameCropZoomInBtn" title="Zoom in" aria-label="Zoom in">+</button>
+        </div>
+        <div class="btn-row mask-actions">
+            <button type="button" class="btn" id="frameCropCancelBtn">Cancel</button>
+            <button type="button" class="btn" id="frameCropApplyBtn">Add frame</button>
         </div>
     </div>
 </div>
