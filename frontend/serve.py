@@ -21,26 +21,28 @@ PROXY_PREFIXES = (
     "/frame-wide"
 )
 
-# How long a seat is held. It used to be one number, 45 minutes since the last
-# request, because the proxy could not tell a user who had closed the page from
-# one reading it - so it waited long enough to be sure, and a seat stayed taken
-# for most of an hour after its user had gone. The page now says both things
-# itself (see main.js): it sends a heartbeat while it is open, saying whether
-# anyone has touched it since the last one, and says goodbye when it closes.
+# A seat is held until its page says goodbye (/api/leave), and for no other
+# reason. There is no timeout of any kind.
 #
-# SEEN: no request at all, not even a heartbeat - the page is gone without a
-# goodbye (a phone that killed the browser, a crash, a lid closed). Three
-# missed heartbeats; browsers slow a background tab's timers to once a minute,
-# so anything shorter would drop users who merely switched tabs.
-# IDLE: the page is open and nobody is using it - no processing, no editing,
-# not a key pressed. Long enough for someone carefully writing titles.
+# There used to be two - three minutes without a request, twenty without use -
+# and both stopped the user's run when they fired. Going quiet is not leaving:
+# browsers freeze or discard a tab that has sat in the background a while
+# (Memory Saver, Energy Saver), a Windows PC with the screen off stops its
+# network, a phone suspends the browser. Every one of those took the video
+# down minutes in, with the tab still open and the user fully intending to
+# come back to the frames. Only the goodbye comes after the user said yes to
+# losing their work (see the leaving section of main.js), so only it frees a
+# seat and stops a run.
+#
+# The price is knowingly paid: a browser that vanishes without saying goodbye
+# - a crash, a killed process, a laptop that never wakes up - keeps its seat
+# until this proxy restarts. The same browser coming back carries the same
+# cookie and sits straight back down in it.
+#
 # DRAIN: a backend just taken back may still be stopping its run (it stops at
 # the next checkpoint, not at once - see backend/cancel.py), so for this long
 # it is handed out only when nothing else is free.
-SEEN_TIMEOUT_SECONDS = 3 * 60
-IDLE_TIMEOUT_SECONDS = 20 * 60
 DRAIN_SECONDS = 60
-REAP_INTERVAL_SECONDS = 30
 LOGS_DIR = "/home/bluefoxesfreelancer/thumbnail/logs"
 os.makedirs(LOGS_DIR, exist_ok=True)
 
@@ -79,10 +81,6 @@ def stop_run(backend, run_id=None):
 
 class MultiUserProxyHandler(SimpleHTTPRequestHandler):
     user_backends = {}
-    # When each session was last heard from at all, and last actually used -
-    # see SEEN_TIMEOUT_SECONDS and IDLE_TIMEOUT_SECONDS.
-    last_seen = {}
-    last_used = {}
     # Backends taken back recently, and when - see DRAIN_SECONDS.
     draining = {}
     # The id to send with this response, when it is the first a browser gets.
@@ -95,30 +93,10 @@ class MultiUserProxyHandler(SimpleHTTPRequestHandler):
         Callers hold ALLOCATION_LOCK.
         """
         backend = cls.user_backends.pop(session_id, None)
-        cls.last_seen.pop(session_id, None)
-        cls.last_used.pop(session_id, None)
         if backend:
             cls.draining[backend] = time.time()
             stop_run(backend, run_id)
             print(f"[PROXY] Released {session_id} ({reason}), freed {backend}")
-
-    @classmethod
-    def cleanup_stale_sessions(cls):
-        now = time.time()
-        for sid in list(cls.user_backends):
-            if now - cls.last_seen.get(sid, 0) > SEEN_TIMEOUT_SECONDS:
-                cls.release(sid, reason="page gone")
-            elif now - cls.last_used.get(sid, 0) > IDLE_TIMEOUT_SECONDS:
-                cls.release(sid, reason="idle")
-
-    @classmethod
-    def touch(cls, session_id, used):
-        """Records that a seated session is still there, and whether it is in use."""
-        if session_id in cls.user_backends:
-            now = time.time()
-            cls.last_seen[session_id] = now
-            if used:
-                cls.last_used[session_id] = now
 
     def cookie_session(self):
         """
@@ -159,10 +137,7 @@ class MultiUserProxyHandler(SimpleHTTPRequestHandler):
         # which is the one thing this class exists to prevent.
         cls = MultiUserProxyHandler
         with ALLOCATION_LOCK:
-            cls.cleanup_stale_sessions()
-
             if session_id in cls.user_backends:
-                cls.touch(session_id, used=True)
                 return cls.user_backends[session_id]
 
             # A backend still stopping the last user's run is the last choice,
@@ -176,7 +151,6 @@ class MultiUserProxyHandler(SimpleHTTPRequestHandler):
                 b = free[0]
                 cls.draining.pop(b, None)
                 cls.user_backends[session_id] = b
-                cls.touch(session_id, used=True)
                 print(f"[PROXY] Assigned user {session_id} -> {b}")
                 return b
 
@@ -296,27 +270,20 @@ class MultiUserProxyHandler(SimpleHTTPRequestHandler):
     def do_POST(self):
         req_path = urlparse(self.path).path
 
-        # The page's heartbeat, once a minute while it is open (see
-        # SEEN_TIMEOUT_SECONDS). `active` says whether anyone has pressed a key
-        # or clicked since the last one: typing a title touches no backend, and
-        # without it the most careful user would be the one timed out as idle.
-        # Answered here, never forwarded, and never seats anyone - a page whose
-        # seat was taken back gets it again by doing something, not by being
-        # left open.
+        # The heartbeat pages used to send when seats timed out. Nothing reads
+        # it any more, but a page loaded before this proxy was updated still
+        # sends one a minute, and forwarded it would only earn a 404 from a
+        # backend - so it is answered here and dropped.
         if req_path == "/api/heartbeat":
-            payload = self.read_json()
-            session_id = self.cookie_session()
-            if session_id:
-                with ALLOCATION_LOCK:
-                    MultiUserProxyHandler.touch(session_id, used=bool(payload.get("active")))
+            self.read_json()
             self.answer_empty()
             return
 
         # The page closing or reloading, after the user said yes to leaving
         # (or with nothing to lose, when no question was asked). Only ever sent
         # by the LAST tab of this browser: the others share the seat and the
-        # run, and are still using both. The seat is freed now rather than in
-        # three minutes, and the run it was doing is stopped.
+        # run, and are still using both. The one way a seat is freed and a run
+        # stopped (see DRAIN_SECONDS for why there is no other).
         if req_path == "/api/leave":
             payload = self.read_json()
             session_id = self.cookie_session()
@@ -347,17 +314,6 @@ class MultiUserProxyHandler(SimpleHTTPRequestHandler):
 
 if __name__ == "__main__":
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
-    # Seats used to be reclaimed only when someone new arrived and asked for
-    # one, which was enough when reclaiming meant nothing but a free seat. It
-    # now also stops the gone user's run, and that should not wait for a
-    # visitor: until then the backend processes a video for nobody.
-    def reap():
-        while True:
-            time.sleep(REAP_INTERVAL_SECONDS)
-            with ALLOCATION_LOCK:
-                MultiUserProxyHandler.cleanup_stale_sessions()
-    threading.Thread(target=reap, name="reaper", daemon=True).start()
-
     server = ThreadingHTTPServer(("0.0.0.0", PORT), MultiUserProxyHandler)
     print(f"Multi-user proxy serving on {PORT} with workers: {BACKENDS}")
     server.serve_forever()

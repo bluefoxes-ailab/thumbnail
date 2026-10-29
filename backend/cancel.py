@@ -5,7 +5,9 @@ A run takes minutes and holds the backend for all of them: one run at a time
 (see api.process_video), and the proxy hands each backend to one user. When
 that user closes the page or reloads it and says yes to leaving, the run is
 working for nobody — and the next user given this backend would be told it is
-busy until it ends. So the run is asked to stop, and stops at the next point
+busy until it ends. The same when the user starts a new video over one still
+going: the old one is working for nobody either, and the new one cannot
+start until it ends. So the run is asked to stop, and stops at the next point
 it checks: every progress update (api._set_progress), every chunk of a
 download (video_downloader), and while a Drive download runs in its own
 process.

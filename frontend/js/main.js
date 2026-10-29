@@ -91,7 +91,9 @@ async function waitForResult(runId) {
             continue;
         }
         failures = 0;
-        showProgress(progress.stage, progress.percent);
+        // Not while this tab is stopping the run to start over: the bar says
+        // so then, and the dying run's stages would talk over it.
+        if (!restarting) showProgress(progress.stage, progress.percent);
 
         // The backend holds one run at a time, so a different id here means
         // another tab of this browser has started a new video in its place —
@@ -113,11 +115,14 @@ async function waitForResult(runId) {
             forgetRun(runId);
             throw new Error(progress.detail || "Processing failed");
         }
-        // Stopped because the page that owned it was closed (see the leaving
-        // section at the end of this file) — reached only by a tab that page
-        // did not know was still open.
+        // Stopped on purpose, for one of the only two reasons a run is ever
+        // stopped: the user started a new video in its place (see
+        // startFresh), or the page that owned it was closed (see the leaving
+        // section at the end of this file) — the second reached only by a
+        // tab that page did not know was still open.
         if (progress.status === "cancelled") {
             forgetRun(runId);
+            if (replacedRun() === runId) throw new Error("Stopped — a new video was started in its place.");
             throw new Error("Processing was stopped — the page that started it was closed.");
         }
         // "idle" can only mean the backend forgot the run it had just told us
@@ -151,10 +156,10 @@ function base64ToObjectUrl(b64) {
     return URL.createObjectURL(new Blob([bytes], { type: "image/jpeg" }));
 }
 
-// Both source buttons move together: a run started from either one owns the
-// backend until it finishes (/process-video answers 409 to a second), so
-// leaving the other live would only offer the user a second click on a run
-// that is already going.
+// Both source buttons move together, and are off only while a new video is
+// being set going (see startFresh) — not while one processes. A click during
+// a run is how the user asks to drop it and start another, so it has to
+// reach startFresh, which asks before anything is lost.
 function setSourceBusy(busy) {
     el("processBtn").disabled = busy;
     el("uploadVideoBtn").disabled = busy;
@@ -186,6 +191,20 @@ function rememberRun(id) {
 function forgetRun(id) {
     try { if (id && localStorage.getItem(RUN_KEY) === id) localStorage.removeItem(RUN_KEY); }
     catch { /* see RUN_KEY */ }
+}
+
+// The run the user threw away to start a new video in its place (see
+// startFresh), so every tab following it can say that rather than "the page
+// was closed". In localStorage because the tab that starts over is not always
+// the one following the run.
+const REPLACED_KEY = "thumbnailMaker.replacedRun";
+
+function replacedRun() {
+    try { return localStorage.getItem(REPLACED_KEY); } catch { return null; }
+}
+
+function markReplaced(id) {
+    try { if (id) localStorage.setItem(REPLACED_KEY, id); } catch { /* see RUN_KEY */ }
 }
 
 // getRandomValues rather than randomUUID: the latter exists only on https and
@@ -318,7 +337,6 @@ async function runPipeline(prepare,
     // the buttons, so an ordinary page load does not flicker them.
     if (!prepare && !storedRunId()) return;
     pipelineBusy = true;
-    setSourceBusy(true);
     status("");
     try {
         const run = (await runInProgress(!prepare)) || (prepare && await startRun(prepare));
@@ -452,11 +470,12 @@ async function runPipeline(prepare,
         // Nothing arrived for the text to go on. A run being followed from
         // another tab shows the box again as it starts, if it wants one.
         showMyText(false);
-        status(e.message);
+        // Ended because this tab is starting over: startFresh is already
+        // saying what is happening, and "stopped" would talk over it.
+        if (!restarting) status(e.message);
         if (e.replaced) followPending = true;
     } finally {
-        hideProgress();
-        setSourceBusy(false);
+        if (!restarting) hideProgress();
         pipelineBusy = false;
     }
     // A run another tab started while this one was busy, now that it is not.
@@ -470,6 +489,13 @@ async function runPipeline(prepare,
 // started a run meanwhile that this one should follow once it is free.
 let pipelineBusy = false;
 let followPending = false;
+// Whether startFresh is between the click and the new run being under way,
+// and whether that includes stopping the old one (see startFresh).
+let starting = false;
+let restarting = false;
+// The upload this tab is sending, so starting over can call it off — a file
+// half across belongs to the video being dropped.
+let uploadAbort = null;
 // Whether the frames of the latest run are ones the user's own text can go
 // on — a "Frames only" run on a channel that captions (see runPipeline).
 let ownTextRun = false;
@@ -689,6 +715,139 @@ function respreadOverGrid(max) {
     return leftover;
 }
 
+const STOP_POLL_MS = 500;
+// How long starting over waits for the old run to stop. It stops at its next
+// checkpoint, and a step already under way — scoring every frame,
+// transcribing the voice track — finishes first (see backend/cancel.py).
+const STOP_WAIT_MS = 10 * 60 * 1000;
+
+/**
+ * Every new video goes through here, from a link or from a file.
+ *
+ * If one is already processing — in this tab, in another tab of this browser
+ * (they share a backend), or still landing on the grid — the user is asked
+ * first, because going on throws it away. Saying yes stops it, clears the
+ * backend, and starts the new one from nothing; saying no changes nothing.
+ * Either way the page is cleared before the new run starts: the backend wipes
+ * the last video's frames the moment a run begins, so anything left on screen
+ * would only look editable.
+ */
+async function startFresh(prepare) {
+    if (starting) return;          // a second click while the first is still deciding
+    starting = true;
+    setSourceBusy(true);
+    try {
+        if (pipelineBusy || await backendRunning()) {
+            if (!(await askRestart())) return;
+            restarting = true;
+            if (!(await stopCurrentRun())) return;   // the status line says why
+        }
+        clearWork();
+        // runPipeline marks itself busy before its first await, so by the time
+        // the finally below turns the buttons back on, a click lands on a run.
+        return runPipeline(prepare);
+    } finally {
+        restarting = false;
+        starting = false;
+        setSourceBusy(false);
+    }
+}
+
+async function backendRunning() {
+    const progress = await getJson("/process-video/progress").catch(() => null);
+    return !!progress && progress.status === "running";
+}
+
+/**
+ * The question before a video in progress is thrown away. Resolves true to
+ * go on. Anything but the one button is a no — Escape, the backdrop — since
+ * the safe answer is the one that loses nothing.
+ */
+function askRestart() {
+    return new Promise((resolve) => {
+        const box = el("restartConfirm");
+        const onKey = (e) => {
+            if (e.key !== "Escape") return;
+            e.stopPropagation();
+            done(false);
+        };
+        const done = (answer) => {
+            box.classList.add("hidden");
+            el("restartConfirmBtn").onclick = el("restartCancelBtn").onclick = box.onclick = null;
+            document.removeEventListener("keydown", onKey, true);
+            resolve(answer);
+        };
+        el("restartConfirmBtn").onclick = () => done(true);
+        el("restartCancelBtn").onclick = () => done(false);
+        box.onclick = (e) => { if (e.target === box) done(false); };
+        document.addEventListener("keydown", onKey, true);
+        box.classList.remove("hidden");
+        el("restartCancelBtn").focus();
+    });
+}
+
+/**
+ * Stops whatever this browser has processing and leaves the backend empty.
+ * True once it is; false, with the status line saying why, if it would not.
+ *
+ * Marked as replaced before it is stopped, so every tab following it says
+ * "a new video was started" instead of "the page was closed" (see
+ * waitForResult), and forgotten, so none of them goes looking for it again.
+ * Then the backend's own /cleanup, which the user asked for by name: the
+ * next run would reset the session anyway, but this also drops the temp
+ * files and the channel the last run was framed by.
+ */
+async function stopCurrentRun() {
+    showProgress("Stopping the video that was processing...", 0);
+    status("");
+    const progress = await getJson("/process-video/progress").catch(() => null);
+    const old = (progress && progress.run && progress.run.id) || storedRunId();
+    markReplaced(old);
+    forgetRun(old);
+    if (uploadAbort) uploadAbort.abort();
+    // No id: whatever this backend is running is this browser's, since the
+    // proxy gives every browser a backend of its own.
+    await postJson("/process-video/cancel", { id: null })
+        .catch(() => { /* judged below by whether it is still running */ });
+
+    const deadline = Date.now() + STOP_WAIT_MS;
+    const giveUp = (why) => {
+        hideProgress();
+        status(why);
+        return false;
+    };
+    for (;;) {
+        const now = await getJson("/process-video/progress").catch(() => null);
+        // This tab's own pipeline too: it has to have let go of the old
+        // video before the page is cleared for the new one.
+        if (now && now.status !== "running" && !pipelineBusy) break;
+        if (Date.now() > deadline) return giveUp("The video that was processing would not stop — try again in a moment");
+        await sleep(STOP_POLL_MS);
+    }
+    // 409 while the stopped run is still letting go of the backend: its
+    // status changes a moment before its lock is released.
+    for (;;) {
+        try {
+            await postJson("/cleanup", {});
+            return true;
+        } catch (e) {
+            if (e.status !== 409 || Date.now() > deadline) return giveUp(`Could not clear the last video: ${e.message}`);
+            await sleep(STOP_POLL_MS);
+        }
+    }
+}
+
+/** Takes the last video off the page: its frames, their titles and text, the grid. */
+function clearWork() {
+    releaseFrames();
+    wide.clearAll();
+    forgetThumbSignatures();
+    resetPending();
+    el("framesGrid").innerHTML = "";
+    el("resultSection").classList.add("hidden");
+    showMyText(false);
+}
+
 function processVideo() {
     const url = el("driveUrl").value.trim();
     if (!url) return status("Paste a link, or upload a video file from your computer");
@@ -696,7 +855,7 @@ function processVideo() {
     primeReadyNotice();
     const capture = runCapture();
     const client = runClient();
-    return runPipeline(async () => ({
+    return startFresh(async () => ({
         body: { google_drive_url: url, framing: runFraming(), capture: capture && capture.request,
                 cleanup: runCleanup(), selection: runSelection() },
         stage: "Downloading video and extracting frames...",
@@ -719,11 +878,17 @@ function processUploadedFile(file) {
     // that was selected when the user set it going.
     const capture = runCapture();
     const client = runClient();
-    return runPipeline(async () => {
+    return startFresh(async () => {
         const label = `Uploading ${file.name}...`;
         showProgress(label, 0);
-        const { upload_id } = await postFile("/upload-video", file,
-            (fraction) => showProgress(label, Math.round(fraction * 100)));
+        const abort = uploadAbort = new AbortController();
+        let upload_id;
+        try {
+            ({ upload_id } = await postFile("/upload-video", file,
+                (fraction) => showProgress(label, Math.round(fraction * 100)), abort.signal));
+        } finally {
+            if (uploadAbort === abort) uploadAbort = null;
+        }
         return {
             body: { upload_id, framing: runFraming(), capture: capture && capture.request,
                     cleanup: runCleanup(), selection: runSelection() },
@@ -1375,24 +1540,59 @@ initModeToggle();
 
 // ── Leaving the page ──────────────────────────────────────────────────────
 //
-// A backend seat is one of a handful, and a user who has gone should give it
-// back at once rather than hold it until the proxy gives up on them (see
-// SEEN_TIMEOUT_SECONDS in serve.py). So the page says when it is still there
-// (a heartbeat) and when it is going (a goodbye), and before it goes with
-// something on it, it asks.
+// Closing or reloading the page is the one thing that stops a run and gives
+// the backend seat back — nothing else does, however long the page sits
+// quiet (see the top of serve.py). So before it goes with something on it,
+// it asks; and once it is going, it says goodbye.
 
 // Whether this browser has another tab of the app open. Every tab shares the
 // seat and the run (see the storage listener above), so closing one of them
 // must not stop the run or give the seat back while another is using both.
-// Each tab writes when it was last alive; one that has not written in a while
-// crashed or was killed without the chance to say so, and does not count —
-// leaving the seat to the proxy's own timeout in the meantime.
-const TAB_ID = newRunId();
+//
+// Each tab is in the list from the moment it opens until it closes, and
+// writes now and then that it is still alive. A tab the browser has frozen in
+// the background writes nothing for as long as it is frozen and still counts:
+// it is open, and closing its sibling must not take its video down. Only a
+// day of silence drops a tab from the list — that is a tab that crashed or
+// was killed without the chance to say goodbye, and a seat it holds then
+// stays held until the same browser comes back for it.
+//
+// The id lives in sessionStorage so a tab keeps it across a reload, and
+// across the browser discarding the tab and loading it again — otherwise the
+// discarded page would sit in the list as a second tab nobody can close.
 const TABS_KEY = "thumbnailMaker.tabs";
-// Longer than a background tab's slowest heartbeat: browsers hold a hidden
-// tab's timers to about once a minute.
-const TAB_FRESH_MS = 150 * 1000;
-const HEARTBEAT_MS = 60 * 1000;
+const TAB_ID_KEY = "thumbnailMaker.tabId";
+const TAB_FORGET_MS = 24 * 60 * 60 * 1000;
+const TAB_ALIVE_MS = 60 * 1000;
+
+let TAB_ID = (() => {
+    try { return sessionStorage.getItem(TAB_ID_KEY) || newRunId(); } catch { return newRunId(); }
+})();
+function keepTabId() {
+    try { sessionStorage.setItem(TAB_ID_KEY, TAB_ID); } catch { /* see RUN_KEY */ }
+}
+keepTabId();
+
+// A duplicated tab (the browser's "Duplicate" or a middle-click on a link
+// back to the page) starts with a COPY of its original's sessionStorage, and
+// so with the original's id. The original answers when the copy announces
+// itself, and the copy takes an id of its own. A BroadcastChannel because it
+// reaches every other tab of this browser and works on plain http.
+const PAGE_ID = newRunId();
+const tabChannel = "BroadcastChannel" in window ? new BroadcastChannel("thumbnailMaker.tabs") : null;
+if (tabChannel) {
+    tabChannel.onmessage = ({ data }) => {
+        if (!data) return;
+        if (data.hello === TAB_ID && data.page !== PAGE_ID) {
+            tabChannel.postMessage({ taken: TAB_ID, page: data.page });
+        } else if (data.taken === TAB_ID && data.page === PAGE_ID) {
+            TAB_ID = newRunId();
+            keepTabId();
+            markTabAlive();
+        }
+    };
+    tabChannel.postMessage({ hello: TAB_ID, page: PAGE_ID });
+}
 
 function readTabs() {
     try { return JSON.parse(localStorage.getItem(TABS_KEY)) || {}; } catch { return {}; }
@@ -1405,36 +1605,22 @@ function writeTabs(tabs) {
 function markTabAlive() {
     const now = Date.now();
     const tabs = readTabs();
-    for (const [id, seen] of Object.entries(tabs)) if (now - seen > TAB_FRESH_MS) delete tabs[id];
+    for (const [id, seen] of Object.entries(tabs)) if (now - seen > TAB_FORGET_MS) delete tabs[id];
     tabs[TAB_ID] = now;
     writeTabs(tabs);
 }
 
 function otherTabsOpen() {
     const now = Date.now();
-    return Object.entries(readTabs()).some(([id, seen]) => id !== TAB_ID && now - seen <= TAB_FRESH_MS);
+    return Object.entries(readTabs()).some(([id, seen]) => id !== TAB_ID && now - seen <= TAB_FORGET_MS);
 }
 
-// Whether anyone has touched the page since the last heartbeat. Typing a title
-// reaches no backend, so without this the proxy would see a user hard at work
-// as an idle one (see IDLE_TIMEOUT_SECONDS in serve.py).
-let touchedSinceBeat = true;
-for (const type of ["pointerdown", "keydown", "input", "wheel"]) {
-    window.addEventListener(type, () => { touchedSinceBeat = true; }, { capture: true, passive: true });
-}
-
-function heartbeat() {
-    markTabAlive();
-    const active = touchedSinceBeat;
-    touchedSinceBeat = false;
-    fetch(`${API}/api/heartbeat`, {
-        method: "POST", body: JSON.stringify({ active }), keepalive: true,
-    }).catch(() => { /* the next one will do */ });
-}
-heartbeat();
-setInterval(heartbeat, HEARTBEAT_MS);
+// Nothing here reaches the proxy: it no longer cares how long a page has been
+// quiet. This only keeps the list above from forgetting a tab that is open.
+markTabAlive();
+setInterval(markTabAlive, TAB_ALIVE_MS);
 document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible") heartbeat();
+    if (document.visibilityState === "visible") markTabAlive();
 });
 
 // Set when the page reloads itself, so it does not ask the user to confirm a
@@ -1461,7 +1647,8 @@ window.addEventListener("beforeunload", (e) => {
 //
 // sendBeacon because nothing else is guaranteed to leave a page that is
 // unloading. It can still fail to — a crash, a phone killing the browser —
-// which is what the proxy's timeouts are for.
+// and then the seat stays held until this browser comes back to the page:
+// there is deliberately no timeout to take it back (see serve.py).
 window.addEventListener("pagehide", () => {
     const tabs = readTabs();
     delete tabs[TAB_ID];

@@ -1232,16 +1232,17 @@ async def get_process_result():
 
 class CancelRequest(BaseModel):
     # The run to stop, by the id its page sent (see ProcessRequest.client).
-    # None stops whatever is running — what the proxy sends when it takes the
-    # backend back from a user who went quiet without saying goodbye, and who
-    # therefore never said which run was theirs.
+    # None stops whatever is running — what a page sends when the user starts
+    # a new video over one still processing (main.startFresh), and what the
+    # proxy sends when a page said goodbye without naming its run.
     id: str | None = None
 
 
 @app.post("/process-video/cancel")
 async def cancel_process(req: CancelRequest):
     """
-    Stops the run in flight, when the user who started it has left.
+    Stops the run in flight, when the user who started it has left or has
+    started a new video in its place.
 
     Answers at once; the run itself stops at its next checkpoint (see
     cancel.py), and only then is the backend free for another. With an id,
@@ -1976,6 +1977,13 @@ async def add_frame(request: Request):
 
 @app.post("/cleanup")
 async def cleanup():
+    # Not under a run: it would wipe the session and the temp files out from
+    # under a video midway through writing them. The page calls this right
+    # after stopping one (see main.startFresh), in the moment between the run
+    # saying it stopped and letting go of the lock — so it is told to try
+    # again, not left to break the run that is still letting go.
+    if _process_lock.locked():
+        raise HTTPException(409, "A video is still processing — try again in a moment.")
     session.reset()
     # Part of the run, exactly as the frames are: leaving it set would frame
     # the next video by a channel nobody has picked yet.

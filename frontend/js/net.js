@@ -130,10 +130,17 @@ export function loadImage(src) {
  * only of a response. A video takes long enough to send that a bar sitting at
  * zero for two minutes reads as a hung app, and the upload is the one stage
  * whose progress the backend cannot report — it hasn't received it yet.
+ *
+ * `signal`, an AbortSignal, calls the upload off part-way: the user starting
+ * a different video over the one still crossing (see main.startFresh).
  */
-export function postFile(path, file, onProgress) {
+export function postFile(path, file, onProgress, signal = null) {
     return new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();
+        if (signal) {
+            if (signal.aborted) return reject(new Error("Upload cancelled"));
+            signal.addEventListener("abort", () => xhr.abort(), { once: true });
+        }
         // The name travels in the query string, not the body: the body is the
         // file itself, byte for byte (see /upload-video).
         xhr.open("POST", `${API}${path}?name=${encodeURIComponent(file.name)}`);

@@ -448,6 +448,17 @@
     </div>
 </div>
 
-<script type="module" src="js/main.js?v=2.1"></script>
+<div class="mask-step hidden" id="restartConfirm" role="dialog" aria-modal="true" aria-labelledby="restartConfirmLabel">
+    <div class="mask-card ready-card">
+        <h2 id="restartConfirmLabel">A video is already processing</h2>
+        <div class="panel-hint mask-hint">Start this one instead? The video processing now will be stopped, and everything from it — frames, titles and text — will be cleared.</div>
+        <div class="btn-row mask-actions">
+            <button type="button" class="btn" id="restartCancelBtn">Keep processing</button>
+            <button type="button" class="btn btn-active" id="restartConfirmBtn">Stop it and start over</button>
+        </div>
+    </div>
+</div>
+
+<script type="module" src="js/main.js?v=2.2"></script>
 </body>
 </html>
