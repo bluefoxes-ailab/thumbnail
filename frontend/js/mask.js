@@ -19,7 +19,7 @@
 // and a logo is usually already cut out on a transparent field — forcing it
 // into a square would put back the very rectangle its maker took away.
 
-import { el } from "./config.js";
+import { CW, OVERLAY_DEFAULT_WIDTH, el } from "./config.js";
 
 // The frame the image is cut to, in CSS pixels, and how far the stage
 // extends past it on every side. The margin is not decoration: it is where the
@@ -48,6 +48,23 @@ const MAX_OUT = 2048;
 // and the radius is scaled with it. At 24 of 320 a face is no longer a face,
 // which is about as far as a background picture ever needs to go.
 const MAX_BLUR = 24;
+
+// "Add contour": a solid edge along the mask's outline, square or round,
+// baked into the PNG like everything else this step does.
+//
+// Its width is in pixels OF THE THUMBNAIL, at the size the overlay first
+// lands at (OVERLAY_DEFAULT_WIDTH of the canvas, see editor.placeLogo) —
+// not pixels of the PNG, which may be anything from 512 to 2048 across and
+// is drawn shrunk. So the PNG carries it at whatever width shrinks to this
+// one. Resizing the overlay afterwards scales the edge with it, as it
+// scales everything else in the picture.
+//
+// Drawn inside the outline rather than across it: the export is cut to the
+// outline, so half of a centred stroke would be cut away with the rest.
+const CONTOUR_WIDTH = 4;
+// The red of the Ring asset (assets/assets.json), so the two red edges an
+// overlay can be given match unless the user says otherwise.
+const CONTOUR_COLOR = "#ff0000";
 
 /**
  * Draws `img` into the rectangle (x, y, iw, ih) of `ctx`, blurred by `blur`
@@ -164,10 +181,14 @@ class MaskSession {
 
         this.dpr = dpr;
 
+        this.contour = false;
+        this.contourColor = CONTOUR_COLOR;
+
         this.bind();
         this.setShape("square");
         this.syncSlider();
         this.setBlur(0);   // every image starts sharp, whatever the last one was given
+        this.setContour(false, CONTOUR_COLOR);   // ...and without an edge, in the default red
         this.root.classList.remove("hidden");
         document.body.classList.add("mask-open");
         el("maskApplyBtn").focus();
@@ -188,6 +209,10 @@ class MaskSession {
         el("maskZoomInBtn").onclick = () => this.stepZoom(+1);
         el("maskBlurUpBtn").onclick = () => this.setBlur(this.blur + MAX_BLUR * 0.1);
         el("maskBlurDownBtn").onclick = () => this.setBlur(this.blur - MAX_BLUR * 0.1);
+        el("maskContourBtn").onclick = () => this.setContour(!this.contour);
+        // Picking a colour is asking for the edge in it, so it turns the
+        // contour on rather than waiting for a second press.
+        el("maskContourColor").oninput = (e) => this.setContour(true, e.target.value);
         el("maskCancelBtn").onclick = () => this.finish(null);
         el("maskSkipBtn").onclick = () => this.finish(this.renderWhole());
         el("maskApplyBtn").onclick = () => this.finish(this.render());
@@ -224,8 +249,9 @@ class MaskSession {
 
     finish(result) {
         for (const id of ["maskSquareBtn", "maskRoundBtn", "maskZoomOutBtn", "maskZoomInBtn",
-                          "maskBlurUpBtn", "maskBlurDownBtn",
+                          "maskBlurUpBtn", "maskBlurDownBtn", "maskContourBtn",
                           "maskCancelBtn", "maskSkipBtn", "maskApplyBtn"]) el(id).onclick = null;
+        el("maskContourColor").oninput = null;
         this.root.onpointerdown = null;
         this.slider.oninput = this.blurSlider.oninput = null;
         const c = this.canvas;
@@ -295,6 +321,42 @@ class MaskSession {
         this.blurSlider.value = String(v);
         this.blurSlider.style.setProperty("--count-fill", String(v));
         this.draw();
+    }
+
+    // ── Contour ───────────────────────────────────────────────────────────
+
+    setContour(on, color = this.contourColor) {
+        this.contour = on;
+        this.contourColor = color;
+        el("maskContourColor").value = color;
+        // Held as .btn-active while on, the way the chosen shape is.
+        el("maskContourBtn").classList.toggle("btn-active", on);
+        el("maskContourBtn").setAttribute("aria-pressed", String(on));
+        el("maskContourBtn").closest(".mask-contour-row").classList.toggle("on", on);
+        this.draw();
+    }
+
+    /**
+     * The contour's width in pixels of a PNG `width` across: CONTOUR_WIDTH
+     * divided by the scale editor.placeLogo will draw that PNG at.
+     */
+    contourFor(width) {
+        return CONTOUR_WIDTH / Math.min(1, (CW * OVERLAY_DEFAULT_WIDTH) / width);
+    }
+
+    /**
+     * Strokes the contour inside the rectangle (x, y, w, h) — or inside the
+     * circle it holds, for the round mask — `lw` wide.
+     */
+    strokeContour(ctx, x, y, w, h, lw, round) {
+        ctx.save();
+        ctx.beginPath();
+        if (round) ctx.arc(x + w / 2, y + h / 2, Math.max(0, Math.min(w, h) / 2 - lw / 2), 0, Math.PI * 2);
+        else ctx.rect(x + lw / 2, y + lw / 2, Math.max(0, w - lw), Math.max(0, h - lw));
+        ctx.lineWidth = lw;
+        ctx.strokeStyle = this.contourColor;
+        ctx.stroke();
+        ctx.restore();
     }
 
     // ── Pan ───────────────────────────────────────────────────────────────
@@ -380,13 +442,28 @@ class MaskSession {
         ctx.lineWidth = 2;
         ctx.strokeStyle = "#fffa00";
         ctx.stroke();
+
+        // After the yellow edge, so the contour covers its inner half and
+        // shows at the width it will have; the outer half stays visible
+        // around it as the frame. Sized as render() will size it, scaled
+        // down to the stage — the export at the current zoom, previewed.
+        if (this.contour) {
+            const side = this.outSide();
+            this.strokeContour(ctx, MARGIN, MARGIN, FRAME, FRAME,
+                               this.contourFor(side) * FRAME / side, this.shape === "round");
+        }
+    }
+
+    /** The exported side, in pixels, for the current zoom. */
+    outSide() {
+        // How many original pixels the frame covers along its side.
+        const covered = FRAME / this.scale;
+        return Math.round(Math.min(MAX_OUT, Math.max(MIN_OUT, Math.min(covered, Math.max(this.w, this.h)))));
     }
 
     /** The crop as a PNG data URL, at the original's own resolution. */
     render() {
-        // How many original pixels the frame covers along its side.
-        const covered = FRAME / this.scale;
-        const side = Math.round(Math.min(MAX_OUT, Math.max(MIN_OUT, Math.min(covered, Math.max(this.w, this.h)))));
+        const side = this.outSide();
         const k = side / FRAME;   // output pixels per CSS pixel of the frame
         const out = document.createElement("canvas");
         out.width = out.height = side;
@@ -400,18 +477,21 @@ class MaskSession {
         const iw = this.w * this.scale * k, ih = this.h * this.scale * k;
         const cx = side / 2 + this.dx * k, cy = side / 2 + this.dy * k;
         drawBlurred(ctx, this.img, cx - iw / 2, cy - ih / 2, iw, ih, this.blur * k, side, 1);
+        if (this.contour) this.strokeContour(ctx, 0, 0, side, side, this.contourFor(side), this.shape === "round");
         return out.toDataURL("image/png");
     }
 
     /**
      * "No mask": the whole image, uncropped. Untouched — the original file
-     * itself — unless it was blurred, because skipping the crop is not
-     * asking to lose the blur. A blurred one is redrawn at its own size
-     * (capped like the masked export), with the radius carried over from
-     * the stage at "fit", where the frame's width is the image's long side.
+     * itself — unless it was blurred or given a contour, because skipping
+     * the crop is not asking to lose either. Such a one is redrawn at its own
+     * size (capped like the masked export), with the blur's radius carried
+     * over from the stage at "fit", where the frame's width is the image's
+     * long side. The contour goes round the whole picture, which is the one
+     * shape it has without a mask: its rectangle.
      */
     renderWhole() {
-        if (!(this.blur > 0)) return this.original;
+        if (!(this.blur > 0) && !this.contour) return this.original;
         const k = Math.min(1, MAX_OUT / Math.max(this.w, this.h));
         const w = Math.max(1, Math.round(this.w * k)), h = Math.max(1, Math.round(this.h * k));
         const out = document.createElement("canvas");
@@ -419,6 +499,7 @@ class MaskSession {
         const ctx = out.getContext("2d");
         ctx.imageSmoothingQuality = "high";
         drawBlurred(ctx, this.img, 0, 0, w, h, this.blur * Math.max(w, h) / FRAME, Math.max(w, h), 1);
+        if (this.contour) this.strokeContour(ctx, 0, 0, w, h, this.contourFor(w), false);
         return out.toDataURL("image/png");
     }
 }

@@ -56,7 +56,7 @@ import {
 } from "./reframe.js";
 import {
     enhanceFrame, loadTextPanel, updateLines, setEditPreset, toggleFlip, toggleGradient, toggleGlow,
-    varyFrame, syncFlipButtons, syncGradientButton, togglePick, handleLogoFile,
+    varyFrame, syncFlipButtons, syncGradientButton, togglePick, handleLogoFile, handleAssetPick,
     initChannelPicker, selectChannel, syncChannelToFrame, guardChannel, warnChannelRequired,
     handleFrameFile, syncVaryButton, syncLogoControls, ensureCutout, setTitleAlign, showChannel,
     cycleBackground, syncBackgroundButton, cycleFigureGlow, syncFigureGlowButton,
@@ -1930,6 +1930,7 @@ el("frameFileInput").addEventListener("change", (e) => {
 });
 
 el("logoUploadBtn").addEventListener("click", () => el("logoFileInput").click());
+el("logoAssetsBtn").addEventListener("click", handleAssetPick);
 // Pressing an overlay on the canvas selects it (see reframe.js); the panel's
 // list has to follow, and this is where the two sides are joined.
 document.addEventListener("logo-selection-changed", () => {

@@ -379,6 +379,12 @@
                              the user adds, so this never turns into "Replace". -->
                         <button class="btn" id="logoUploadBtn">Upload image</button>
                     </div>
+                    <!-- The same overlay from a ready-made picture instead of a
+                         file of the user's own, painted in a colour they pick
+                         (see js/assets.js). -->
+                    <div class="btn-row">
+                        <button class="btn" id="logoAssetsBtn" title="Add a ready-made picture in a colour of your choice">Assets</button>
+                    </div>
                     <!-- One chip per overlay already on the frame, each with the
                          only action it needs: delete. -->
                     <div class="logo-list" id="logoList"></div>
@@ -408,6 +414,14 @@
                 <span class="mask-glyph mask-glyph-round" aria-hidden="true"></span>Round
             </button>
         </div>
+        <!-- A coloured edge drawn along the mask's own outline (see
+             MaskSession.drawContour). Off until asked for; picking a colour
+             turns it on, since nobody picks a colour for an edge they do not
+             want. -->
+        <div class="mask-contour-row">
+            <button type="button" class="btn" id="maskContourBtn" aria-pressed="false">Add contour</button>
+            <input type="color" id="maskContourColor" class="color-well" value="#ff0000" title="Contour colour" aria-label="Contour colour">
+        </div>
         <!-- Blur stands upright beside the stage rather than under it with
              zoom: two horizontal sliders stacked read as one setting in two
              parts, and this one is a different kind of thing. -->
@@ -430,6 +444,48 @@
             <button type="button" class="btn" id="maskCancelBtn">Cancel</button>
             <button type="button" class="btn" id="maskSkipBtn" title="Place the image as it is, uncropped">No mask</button>
             <button type="button" class="btn" id="maskApplyBtn">Apply mask</button>
+        </div>
+    </div>
+</div>
+
+<!-- The asset step: the image overlay's ready-made pictures (see
+     js/assets.js). The mask step's card, for the same reason the framing
+     step below wears it — one more way a picture reaches the frame. Two
+     views, shelf then colour, rather than two dialogs: going Back to try a
+     different asset is part of choosing one. -->
+<div class="mask-step hidden" id="assetStep" role="dialog" aria-modal="true" aria-labelledby="assetStepLabel">
+    <div class="mask-card">
+        <h2 id="assetStepLabel">Assets</h2>
+        <div class="asset-view" id="assetShelfView">
+            <div class="panel-hint mask-hint">Pick one; you choose its colour next.</div>
+            <div class="asset-grid" id="assetGrid"></div>
+            <div class="panel-hint mask-hint hidden" id="assetShelfEmpty">No assets could be loaded.</div>
+            <div class="btn-row mask-actions">
+                <button type="button" class="btn" id="assetShelfCancelBtn">Cancel</button>
+            </div>
+        </div>
+        <div class="asset-view hidden" id="assetColorView">
+            <div class="panel-hint mask-hint">The colour you pick replaces the asset's own.</div>
+            <div class="asset-stage">
+                <canvas class="asset-canvas" id="assetCanvas"></canvas>
+            </div>
+            <label class="field-label" for="assetColor">Colour</label>
+            <div class="asset-color-row">
+                <input type="color" id="assetColor" class="color-well" value="#ff0000" title="Choose a colour">
+                <input type="text" id="assetHex" class="asset-hex" maxlength="7" spellcheck="false" autocomplete="off" aria-label="Colour as a hex code">
+            </div>
+            <!-- Three switches, each held as .btn-active while on, the way
+                 the mask step's shape and contour are. -->
+            <div class="btn-row asset-toggle-row">
+                <button type="button" class="btn" id="assetFlipHBtn" aria-pressed="false" title="Mirror the asset left to right">Flip horizontal</button>
+                <button type="button" class="btn" id="assetFlipVBtn" aria-pressed="false" title="Mirror the asset top to bottom">Flip vertical</button>
+                <button type="button" class="btn" id="assetShadowBtn" aria-pressed="false" title="A soft shadow under the asset">Drop shadow</button>
+            </div>
+            <div class="btn-row mask-actions">
+                <button type="button" class="btn" id="assetBackBtn">Back</button>
+                <button type="button" class="btn" id="assetCancelBtn">Cancel</button>
+                <button type="button" class="btn" id="assetApplyBtn">OK</button>
+            </div>
         </div>
     </div>
 </div>

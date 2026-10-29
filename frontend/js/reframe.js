@@ -41,6 +41,20 @@ const TITLE_KEEP_ON_CANVAS = 40;
 // user has to drag their way back out of.
 const TITLE_MIN_SCALE = 0.25, TITLE_MAX_SCALE = 4;
 
+// A rotating asset settles onto the nearest multiple of 45° once it comes
+// within this many degrees of one. Straight is the angle most often wanted
+// back after trying a tilt, and by hand it is nearly impossible to land on
+// exactly: an arrow at 0.6° looks crooked rather than straight.
+const ROTATE_SNAP = 4;
+
+/** `deg` brought into (-180, 180] and snapped to a nearby multiple of 45°. */
+function snapAngle(deg) {
+    let a = ((deg % 360) + 540) % 360 - 180;
+    if (a === -180) a = 180;
+    const near = Math.round(a / 45) * 45;
+    return Math.abs(a - near) <= ROTATE_SNAP ? (near === -180 ? 180 : near) : a;
+}
+
 /**
  * Selects the title on the canvas, taking the handles off whatever had them.
  *
@@ -514,14 +528,20 @@ export function setupReframeInteraction() {
                     // wiring, the way it does for every other control.
                     document.dispatchEvent(new CustomEvent("logo-selection-changed"));
                 }
-                dragCanvas.classList.remove("hover-move", "hover-resize");
+                dragCanvas.classList.remove("hover-move", "hover-resize", "hover-rotate");
                 _logoDrag = {
-                    mode: hit, logo, displayScale: displayScale0,
+                    mode: hit, logo, displayScale: displayScale0, rect: rect0,
                     startClientX: e.clientX, startClientY: e.clientY,
                     startX: logo.x, startY: logo.y, startScale: logo.scale,
+                    startAngle: logo.angle || 0,
+                    // Where the pointer began, as an angle round the overlay's
+                    // centre: a rotation turns the picture by however far the
+                    // pointer has gone round since, so pressing the handle
+                    // anywhere on it does not make the picture jump.
+                    startPointer: Math.atan2(cy - logo.y, cx - logo.x),
                     natW: logo.natW, natH: logo.natH,
                 };
-                dragCanvas.classList.add(hit === "resize" ? "hover-resize" : "hover-move");
+                dragCanvas.classList.add(`hover-${hit}`);
                 e.preventDefault();
                 return;
             }
@@ -592,7 +612,7 @@ export function setupReframeInteraction() {
                     document.dispatchEvent(new CustomEvent("logo-selection-changed"));
                     updatePreview();
                 }
-                dragCanvas.classList.remove("hover-move", "hover-resize");
+                dragCanvas.classList.remove("hover-move", "hover-resize", "hover-rotate");
                 _cutoutDrag = {
                     layer, spec: cutoutSpec(selectedIndex()),
                     displayScale: displayScale0,
@@ -619,7 +639,7 @@ export function setupReframeInteraction() {
             if (hit) {
                 selectTitle(f);
                 const box = f.titleBox || { dx: 0, dy: 0, scale: 1 };
-                dragCanvas.classList.remove("hover-move", "hover-resize");
+                dragCanvas.classList.remove("hover-move", "hover-resize", "hover-rotate");
                 _titleDrag = {
                     mode: hit, displayScale: displayScale0,
                     startClientX: e.clientX, startClientY: e.clientY,
@@ -675,7 +695,7 @@ export function setupReframeInteraction() {
         snapshotOverlays();
         drawLiveCrop(wideImg, wide.crop_x, wide.crop_y, wide);
         liveCropLayer.style.display = "block";
-        dragCanvas.classList.remove("hover-move", "hover-resize");
+        dragCanvas.classList.remove("hover-move", "hover-resize", "hover-rotate");
         dragCanvas.classList.add("dragging");
         e.preventDefault();
     });
@@ -757,11 +777,20 @@ export function setupReframeInteraction() {
             if (s.mode === "move") {
                 s.logo.x = Math.max(0, Math.min(CW, s.startX + dx));
                 s.logo.y = Math.max(0, Math.min(CH, s.startY + dy));
+            } else if (s.mode === "rotate") {
+                const [cx, cy] = clientToCanvasPoint(e, s.rect, s.displayScale);
+                const turned = (Math.atan2(cy - s.logo.y, cx - s.logo.x) - s.startPointer) * 180 / Math.PI;
+                s.logo.angle = snapAngle(s.startAngle + turned);
             } else {
                 // Corner-drag resize, uniform scale (no distortion) — width
-                // follows horizontal mouse travel, height follows via the
-                // image's own aspect ratio.
-                const newW = Math.max(20, s.natW * s.startScale + dx);
+                // follows mouse travel along the overlay's own width, height
+                // follows via the image's own aspect ratio. "Along its own
+                // width" is plain horizontal travel until an asset is turned;
+                // after that, dragging the corner outward still has to mean
+                // bigger, wherever outward now points.
+                const a = (s.logo.angle || 0) * Math.PI / 180;
+                const along = dx * Math.cos(a) + dy * Math.sin(a);
+                const newW = Math.max(20, s.natW * s.startScale + along);
                 s.logo.scale = Math.max(0.02, newW / s.natW);
             }
             updatePreview();
@@ -788,6 +817,7 @@ export function setupReframeInteraction() {
             }
             dragCanvas.classList.toggle("hover-move", hit === "move");
             dragCanvas.classList.toggle("hover-resize", hit === "resize");
+            dragCanvas.classList.toggle("hover-rotate", hit === "rotate");
             return;
         }
 

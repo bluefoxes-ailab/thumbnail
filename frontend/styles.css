@@ -522,6 +522,9 @@ input[type="text"]::-moz-selection { background: #fffa00; color: #1b2fea; }
    start clears these first), so cascade order doesn't matter. */
 #thumbCanvas.hover-move { cursor: move; }
 #thumbCanvas.hover-resize { cursor: nwse-resize; }
+/* Over an asset's rotate handle. CSS has no "rotate" cursor, and the
+   grabbing hand is what a turning knob is held with. */
+#thumbCanvas.hover-rotate { cursor: grab; }
 
 .reframe-hint { text-align: center; font-size: 12px; color: #fff; margin-bottom: 18px; }
 
@@ -847,6 +850,70 @@ body.mask-open { overflow: hidden; }
 .mask-zoom .zoom-cap { border: none; padding: 0; font-family: inherit; }
 .mask-actions { margin-top: 6px; }
 .mask-actions .btn { flex: 1; }
+/* ── The asset step (js/assets.js) ────────────────────────────────────
+   The mask step's card holding two views. Each view restates the card's
+   own column and gap, because wrapping them in a box is what took the
+   card's gap away from the things inside. Written against :not(.hidden)
+   so the plain .hidden rule still wins without a fight over order. */
+.asset-view:not(.hidden) { display: flex; flex-direction: column; gap: 14px; }
+/* The shelf: one tile per asset, the picture on the checkerboard that
+   means "transparent" in the mask step, its name underneath. Tiles are
+   the overlay chips' blue-edged boxes grown to be pressed, turning
+   yellow under the pointer like every other control on the page. */
+.asset-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+    gap: 10px; max-height: 340px; overflow-y: auto; padding: 2px;
+}
+.asset-tile {
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    padding: 8px; cursor: pointer;
+    border: 2px solid #1b2fea; border-radius: 8px;
+    background: #0b1533; color: #fff;
+    font-size: 12px; font-weight: 700;
+    transition: border-color 0.12s ease, transform 0.12s ease;
+}
+.asset-tile:hover, .asset-tile:focus-visible { border-color: #fffa00; outline: none; transform: translateY(-1px); }
+.asset-tile img {
+    width: 100%; aspect-ratio: 1 / 1; object-fit: contain; display: block;
+    border-radius: 6px;
+    background: repeating-conic-gradient(#141833 0% 25%, #0d1026 0% 50%) 50% / 14px 14px;
+}
+/* The preview. The canvas is sized to the asset's shape in assets.js;
+   the checkerboard is behind the stage rather than the canvas so a tall
+   or wide asset still sits in the same square every time.
+
+   A LIGHT checkerboard, unlike the mask stage's dark one: the Drop shadow
+   switch draws a dark shadow, and on the page's navy that switch would
+   look as if it did nothing. Mid-light greys show the shadow and still
+   let a white asset be told from the field. */
+.asset-stage {
+    display: flex; align-items: center; justify-content: center;
+    width: 100%; max-width: 360px; aspect-ratio: 1 / 1; margin: 0 auto;
+    padding: 20px; box-sizing: border-box;
+    border: 2px solid #026dff; border-radius: 8px;
+    background: repeating-conic-gradient(#c9ccd8 0% 25%, #b3b7c6 0% 50%) 50% / 20px 20px;
+}
+.asset-canvas { display: block; max-width: 100%; max-height: 100%; height: auto; }
+/* The browser's own colour well, made the size of a swatch and stripped
+   of the grey frame it is drawn in. Shared by the asset step and the mask
+   step's contour, which ask the same question. */
+.asset-color-row { display: flex; align-items: center; gap: 10px; }
+.color-well {
+    flex: 0 0 auto; width: 48px; height: 42px; padding: 0;
+    border: 2px solid #026dff; border-radius: 8px; background: none; cursor: pointer;
+}
+.color-well:hover { border-color: #fffa00; }
+.color-well::-webkit-color-swatch-wrapper { padding: 3px; }
+.color-well::-webkit-color-swatch { border: none; border-radius: 5px; }
+.color-well::-moz-color-swatch { border: none; border-radius: 5px; }
+/* The contour's switch and its colour, side by side: the colour is a
+   property of the contour, not a setting of its own. Dimmed while the
+   contour is off, but still pressable — picking a colour turns it on. */
+.mask-contour-row { display: flex; align-items: center; gap: 10px; }
+.mask-contour-row .btn { flex: 1; }
+.mask-contour-row:not(.on) .color-well { opacity: 0.45; }
+.asset-toggle-row .btn { flex: 1; padding-left: 8px; padding-right: 8px; }
+.asset-hex { flex: 1 1 auto; text-transform: uppercase; font-family: Consolas, "Courier New", monospace; }
 /* The "video ready" notice (see js/notify.js): a message, not a tool, so
    the card is narrower and its few lines centred. */
 .ready-card { width: 380px; text-align: center; }

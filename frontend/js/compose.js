@@ -85,9 +85,14 @@ export function loadLogoImage(logo) {
  */
 export function addLogoOverlay(canvas, logo, img, interactive, shadow = null) {
     const w = logo.natW * logo.scale, h = logo.natH * logo.scale;
-    const left = logo.x - w / 2, top = logo.y - h / 2;
+    // Placed by its CENTRE, which is what logo.x/y has always been, so that
+    // a rotation (assets only, see the rotate handle below) turns it in place
+    // instead of swinging it round its top-left corner. At angle 0 this is
+    // the same rectangle the top-left placement drew.
+    const angle = logo.angle || 0;
     canvas.add(new fabric.Image(img, {
-        left, top, width: logo.natW, height: logo.natH,
+        left: logo.x, top: logo.y, originX: "center", originY: "center", angle,
+        width: logo.natW, height: logo.natH,
         scaleX: logo.scale, scaleY: logo.scale,
         // Mirrored HERE rather than by the backend, for the one overlay that
         // is ever mirrored: a flipped figure is the same cutout drawn the
@@ -100,30 +105,105 @@ export function addLogoOverlay(canvas, logo, img, interactive, shadow = null) {
         selectable: false, evented: false,
     }));
     if (!interactive) return;
+    // The chrome turns with the picture: a dashed box left square round a
+    // tilted arrow would be a box round mostly nothing, and the handles have
+    // to sit on the corners the user can see.
     canvas.add(new fabric.Rect({
-        left, top, width: w, height: h, fill: "transparent",
+        left: logo.x, top: logo.y, originX: "center", originY: "center", angle,
+        width: w, height: h, fill: "transparent",
         stroke: "#1b2fea", strokeWidth: 2, strokeDashArray: [6, 4],
         selectable: false, evented: false,
     }));
     const hs = HANDLE_SIZE;
+    const [rx, ry] = logoCorner(logo, 1, 1);
     canvas.add(new fabric.Rect({
-        left: left + w - hs / 2, top: top + h - hs / 2, width: hs, height: hs,
+        left: rx, top: ry, originX: "center", originY: "center", angle,
+        width: hs, height: hs,
         fill: "#1b2fea", stroke: "#fff", strokeWidth: 2, rx: 3, ry: 3,
         selectable: false, evented: false,
     }));
+    if (logo.asset) addRotateHandle(canvas, ...logoCorner(logo, 1, -1));
 }
 
 /**
- * Hit-tests a canvas-space point against a logo's bounding box and resize
- * handle — shared by the drag-start and hover-cursor handlers so both agree
- * on exactly the same regions.
+ * Where one corner of an overlay's box is on the canvas, rotation included:
+ * (sx, sy) = (1, 1) is its bottom-right as drawn unrotated, (1, -1) its
+ * top-right. The one place the corners are worked out, so the drawn handles
+ * and the hit test cannot drift apart.
+ */
+function logoCorner(logo, sx, sy) {
+    const w = logo.natW * logo.scale, h = logo.natH * logo.scale;
+    const a = (logo.angle || 0) * Math.PI / 180;
+    const lx = sx * w / 2, ly = sy * h / 2;
+    return [logo.x + lx * Math.cos(a) - ly * Math.sin(a), logo.y + lx * Math.sin(a) + ly * Math.cos(a)];
+}
+
+/**
+ * The rotate handle: two circling arrows on a round button in the resize
+ * handle's blue, on the box's top-right corner — the corner diagonally
+ * clear of the resize handle, so the two are never mistaken for each other
+ * and a small asset still has room for both.
+ *
+ * Round where the resize handle is square, because the gesture is round.
+ * Never turned with the asset: an icon lying on its side is harder to
+ * recognise, and the circle has no "up" to show the angle anyway.
+ *
+ * The glyph is built here from two arcs and two arrowheads rather than taken
+ * from an icon font, for the reason the title font is guarded: a glyph from
+ * a face that failed to load is a box, and a box on a handle says nothing.
+ */
+function addRotateHandle(canvas, cx, cy) {
+    const r = HANDLE_SIZE * 0.6;
+    canvas.add(new fabric.Circle({
+        left: cx, top: cy, originX: "center", originY: "center", radius: r,
+        fill: "#1b2fea", stroke: "#fff", strokeWidth: 2,
+        selectable: false, evented: false,
+    }));
+    // Two clockwise arcs on a circle of radius `ar`, each ending in an
+    // arrowhead pointing along its travel.
+    const ar = r * 0.52, head = r * 0.3;
+    const at = (deg, rad = ar) => {
+        const t = deg * Math.PI / 180;
+        return [cx + rad * Math.cos(t), cy + rad * Math.sin(t)];
+    };
+    for (const [from, to] of [[200, 335], [20, 155]]) {
+        const [x0, y0] = at(from), [x1, y1] = at(to);
+        canvas.add(new fabric.Path(`M ${x0} ${y0} A ${ar} ${ar} 0 0 1 ${x1} ${y1}`, {
+            fill: "", stroke: "#fff", strokeWidth: Math.max(1.5, r * 0.16), strokeLineCap: "round",
+            objectCaching: false, selectable: false, evented: false,
+        }));
+        // The head: tip ahead along the tangent, base across the arc.
+        const t = to * Math.PI / 180;
+        const tx = -Math.sin(t), ty = Math.cos(t);   // clockwise tangent (y points down)
+        const nx = Math.cos(t), ny = Math.sin(t);    // outward normal
+        canvas.add(new fabric.Polygon([
+            { x: x1 + tx * head * 1.3, y: y1 + ty * head * 1.3 },
+            { x: x1 + nx * head, y: y1 + ny * head },
+            { x: x1 - nx * head, y: y1 - ny * head },
+        ], { fill: "#fff", selectable: false, evented: false, objectCaching: false }));
+    }
+}
+
+/**
+ * Hit-tests a canvas-space point against a logo's box, its resize handle
+ * and, for an asset, its rotate handle — shared by the drag-start and
+ * hover-cursor handlers so both agree on exactly the same regions.
+ *
+ * The point is turned back by the overlay's angle first, so every region is
+ * tested in the overlay's own unrotated frame, where they are rectangles.
  */
 export function logoHitTest(logo, cx, cy) {
     const w = logo.natW * logo.scale, h = logo.natH * logo.scale;
-    const left = logo.x - w / 2, top = logo.y - h / 2;
     const hs = HANDLE_SIZE;
-    if (cx >= left + w - hs && cx <= left + w + hs / 2 && cy >= top + h - hs && cy <= top + h + hs / 2) return "resize";
-    if (cx >= left && cx <= left + w && cy >= top && cy <= top + h) return "move";
+    if (logo.asset) {
+        const [rx, ry] = logoCorner(logo, 1, -1);
+        if (Math.hypot(cx - rx, cy - ry) <= hs * 0.75) return "rotate";
+    }
+    const a = (logo.angle || 0) * Math.PI / 180;
+    const dx = cx - logo.x, dy = cy - logo.y;
+    const lx = dx * Math.cos(a) + dy * Math.sin(a), ly = -dx * Math.sin(a) + dy * Math.cos(a);
+    if (lx >= w / 2 - hs && lx <= w / 2 + hs / 2 && ly >= h / 2 - hs && ly <= h / 2 + hs / 2) return "resize";
+    if (Math.abs(lx) <= w / 2 && Math.abs(ly) <= h / 2) return "move";
     return null;
 }
 
@@ -1568,7 +1648,7 @@ function thumbSignature(i) {
         // Every overlay, in order. Which one is ACTIVE is deliberately absent:
         // selection chrome is never baked into a composite, so a change of
         // selection cannot change one.
-        logosFor(i).map(l => `${l.src.length}:${l.x}:${l.y}:${l.scale}`).join(";"),
+        logosFor(i).map(l => `${l.src.length}:${l.x}:${l.y}:${l.scale}:${l.angle || 0}`).join(";"),
         // Which way the title is set, when the user has overruled the channel.
         titleAlignFor(i) || "",
         // ...and which of the channel's colours it is set in, which its

@@ -1,4 +1,7 @@
-import { CW, CH, LINE_IDS, BLOCK_ID, TITLE_FIELD_IDS, FIDELITY, DEFAULT_PRESET, NO_PANEL, el } from "./config.js";
+import {
+    CW, CH, LINE_IDS, BLOCK_ID, TITLE_FIELD_IDS, FIDELITY, DEFAULT_PRESET, NO_PANEL,
+    OVERLAY_DEFAULT_WIDTH, el,
+} from "./config.js";
 import {
     frames, current, selectedIndex, linesFor, hlFor, logosFor,
     backendPresentation, setFrameImage, clearCutout, channelFor,
@@ -22,6 +25,7 @@ import { invalidate as invalidateWide, prefetchWide } from "./wide.js";
 import { syncZoomSliderFor } from "./reframe.js";
 import { captureMode } from "./capture.js";
 import { openMaskStep } from "./mask.js";
+import { openAssetStep } from "./assets.js";
 
 /**
  * Records a usage event. Never throws, whatever goes wrong inside it.
@@ -2107,18 +2111,55 @@ export async function handleLogoFile(file) {
     const src = await openMaskStep(picked, dataUrl);
     if (!src || current() !== f) return;   // cancelled, or the user moved to another frame meanwhile
     const img = src === dataUrl ? picked : await loadImage(src);
-    const targetW = CW * 0.28;                        // default on-canvas width
+    placeLogo(f, src, img);
+}
+
+/**
+ * The image overlay's Assets button: a ready-made picture from
+ * frontend/assets/, in the colour the user picks (see assets.js), placed
+ * exactly as an upload is — so it drags, resizes and deletes like one.
+ */
+export async function handleAssetPick() {
+    trackEvent("open_overlay_assets");
+    const f = current();
+    if (!f) return;
+    const picked = await openAssetStep();
+    if (!picked || current() !== f) return;   // cancelled, or the user moved to another frame meanwhile
+    trackEvent("add_overlay_asset", { asset: picked.name, color: picked.color });
+    placeLogo(f, picked.src, await loadImage(picked.src), { asset: true });
+}
+
+/**
+ * Adds the picture `src` (decoded as `img`) to frame `f`'s overlays.
+ *
+ * Assets always stack above the user's own images. They are marks drawn ON
+ * something — a ring around a face, an arrow at it — and a photo uploaded
+ * after the ring would otherwise land on top and cover the very thing the
+ * ring was put there to point at. So an asset goes on top of everything,
+ * and an upload goes on top of the uploads but under the first asset.
+ *
+ * The rule is kept by where things are inserted, not by sorting at draw
+ * time: array order IS stacking order (see state.logosFor) for the canvas,
+ * the hit test, the composite and the carry-over alike, so an array that is
+ * already in the right order is right for all of them at once. Nothing
+ * reorders the array after insertion, so it stays that way.
+ */
+function placeLogo(f, src, img, { asset = false } = {}) {
+    const targetW = CW * OVERLAY_DEFAULT_WIDTH;       // default on-canvas width
     const scale = Math.min(1, targetW / img.width);   // never upscale past the upload's own resolution
     f.edited = true;
-    // Appended, not assigned: a frame carries as many overlays as the user
-    // adds, and the newest goes on top of the stack.
-    f.logos.push({
+    const firstAsset = f.logos.findIndex(l => l.asset);
+    const at = asset || firstAsset < 0 ? f.logos.length : firstAsset;
+    // Inserted, not assigned: a frame carries as many overlays as the user
+    // adds, and the newest goes on top of its own kind.
+    f.logos.splice(at, 0, {
         src, _img: img,
         natW: img.width, natH: img.height,
         x: CW / 2, y: CH / 2,   // centered, per spec
         scale,
+        asset,
     });
-    f.activeLogo = f.logos.length - 1;   // the one just added is the one you want to place
+    f.activeLogo = at;   // the one just added is the one you want to place
     syncLogoControls();
     updatePreview();
     refreshThumb(selectedIndex());
