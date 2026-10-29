@@ -428,6 +428,8 @@ input[type="text"]::-moz-selection { background: #fffa00; color: #1b2fea; }
    switch the width of the link box under it rather than as two
    buttons of different lengths that happen to sit together. */
 .output-mode-toggle .btn { flex: 1; }
+/* "Add more images" and "Start a new set", side by side (main.syncSourceFields). */
+.image-source-row .btn { flex: 1; }
 #frameCountRow { display: flex; flex-direction: column; gap: 10px; }
 #frameCountRow.hidden { display: none; }
 /* Max characters per frame, for "Frames with text" — the frame

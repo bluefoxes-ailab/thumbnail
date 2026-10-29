@@ -83,9 +83,14 @@
              and yellow held on the one that is chosen. No styling of their
              own beyond sharing the row equally, because a second button
              system on the same page reads as a different app. -->
+        <!-- The third, "Upload my own images", has no video at all: the link
+             box and the video upload give way to an image upload, and the
+             images become the grid a "Frames only" run would have produced
+             (see startImageSet in main.js). -->
         <div class="btn-row output-mode-toggle hidden" id="outputModeToggle">
             <button type="button" class="btn btn-active" id="btnModeText" aria-pressed="true">Frames with text</button>
             <button type="button" class="btn" id="btnModeFramesOnly" aria-pressed="false">Frames only</button>
+            <button type="button" class="btn" id="btnModeOwnImages" aria-pressed="false">Upload my own images</button>
         </div>
         <!-- The ceiling on a frame's caption, for a "Frames with text" run
              (see syncCaptionCharsField and runPipeline in main.js). The same
@@ -111,10 +116,24 @@
              the two apart. The <input> is hidden because a bare file input
              can't be styled into the rest of the UI — the button in front of
              it is what the user sees, and it forwards the click. -->
-        <div class="source-or"><span>or</span></div>
+        <div class="source-or" id="sourceOr"><span>or</span></div>
         <input type="file" id="videoFileInput" class="hidden"
                accept="video/*,.mp4,.m4v,.mov,.mkv,.webm,.avi,.mpg,.mpeg,.wmv,.flv,.ts,.m2ts,.3gp">
         <button class="btn" style="width:100%" id="uploadVideoBtn">Upload video from computer</button>
+        <!-- In place of everything above, on "Upload my own images" (see
+             syncSourceFields in main.js). One dialog takes as many images as
+             the user selects, and the same button takes another batch onto
+             the set already on screen; "Start a new set" is the way to begin
+             again from nothing, so adding more can never cost what is there. -->
+        <input type="file" id="imagesFileInput" class="hidden" accept="image/*" multiple>
+        <!-- One row, sharing it equally once both are up; the upload alone
+             fills it. The row is what fitTitleToInputWidth measures here,
+             because it, not either button, spans the column. -->
+        <div class="btn-row image-source-row hidden" id="imageSourceRow">
+            <button class="btn" id="uploadImagesBtn">Upload images from computer</button>
+            <button class="btn hidden" id="newImageSetBtn">Start a new set</button>
+        </div>
+        <div class="panel-hint hidden" id="uploadImagesHint">Select as many images as you like, and add more at any time. They join the grid in file-name order, and can be dragged into any other.</div>
     </div>
 
     <div class="progress-section hidden" id="progressSection">
@@ -346,7 +365,10 @@
                         <button class="btn" id="presetNaturalBtn" data-preset="natural" title="The same restoration, with the color/tone grading eased back for a natural look">Natural</button>
                         <button class="btn" id="presetFullBtn" data-preset="full" title="The same restoration, with the color/tone grading at full strength">Heavy edit</button>
                     </div>
-                    <div class="panel-hint">Applies to this frame. Natural is the default look.</div>
+                    <!-- Its second sentence follows the frames on screen: a set
+                         of the user's own images starts on Restore only (see
+                         main.syncPresetHint). -->
+                    <div class="panel-hint" id="presetHint">Applies to this frame. Natural is the default look.</div>
                 </div>
 
                 <div class="panel-group">
@@ -459,6 +481,6 @@
     </div>
 </div>
 
-<script type="module" src="js/main.js?v=2.2"></script>
+<script type="module" src="js/main.js?v=2.3"></script>
 </body>
 </html>

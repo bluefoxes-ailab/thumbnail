@@ -1,29 +1,41 @@
 
-// --- Output Mode Toggle (Frames with text vs Frames only) ---
-let framesOnlyMode = false;
+// --- Output Mode Toggle (Frames with text / Frames only / My own images) ---
+//
+// "text", "framesOnly" or "images". The third is "Frames only" without the
+// video: the frames are images the user uploads (see startImageSet), and
+// everything after they land is that mode's — no transcript, the user's own
+// text split over them, and the whole edit.
+let outputMode = "text";
+
+const MODE_BUTTONS = [["btnModeText", "text"], ["btnModeFramesOnly", "framesOnly"],
+                      ["btnModeOwnImages", "images"]];
+
+/** Whether the frames carry no words from a video: "Frames only", and the user's own images. */
+const framesOnly = () => outputMode !== "text";
 
 // The chosen button is marked with .btn-active and nothing else — the look is
-// the stylesheet's, shared with every other one-of-two choice in the app, so
-// the colours are written down once rather than here. Outside initModeToggle
-// because a run picked back up after a reload sets the mode too.
+// the stylesheet's, shared with every other one-of-several choice in the app,
+// so the colours are written down once rather than here. Outside
+// initModeToggle because a run picked back up after a reload sets the mode too.
 function syncModeToggle() {
-    const btnText = document.getElementById("btnModeText");
-    const btnOnly = document.getElementById("btnModeFramesOnly");
-    if (!btnText || !btnOnly) return;
-    btnText.classList.toggle("btn-active", !framesOnlyMode);
-    btnOnly.classList.toggle("btn-active", framesOnlyMode);
-    btnText.setAttribute("aria-pressed", String(!framesOnlyMode));
-    btnOnly.setAttribute("aria-pressed", String(framesOnlyMode));
-    // "Max characters per frame" belongs to one of the two modes only.
+    for (const [id, mode] of MODE_BUTTONS) {
+        const btn = document.getElementById(id);
+        if (!btn) continue;
+        btn.classList.toggle("btn-active", outputMode === mode);
+        btn.setAttribute("aria-pressed", String(outputMode === mode));
+    }
+    // "Max characters per frame" belongs to one of the modes only, and the
+    // link box and the video upload to two of them.
     syncCaptionCharsField();
 }
 
 function initModeToggle() {
-    const btnText = document.getElementById("btnModeText");
-    const btnOnly = document.getElementById("btnModeFramesOnly");
-    if (!btnText || !btnOnly) return;
-    btnText.addEventListener("click", () => { framesOnlyMode = false; syncModeToggle(); });
-    btnOnly.addEventListener("click", () => { framesOnlyMode = true; syncModeToggle(); });
+    for (const [id, mode] of MODE_BUTTONS) {
+        document.getElementById(id)?.addEventListener("click", () => {
+            outputMode = mode;
+            syncModeToggle();
+        });
+    }
     syncModeToggle();
 }
 import { API, LINE_IDS, TITLE_FIELD_IDS, el } from "./config.js";
@@ -160,9 +172,14 @@ function base64ToObjectUrl(b64) {
 // being set going (see startFresh) — not while one processes. A click during
 // a run is how the user asks to drop it and start another, so it has to
 // reach startFresh, which asks before anything is lost.
+//
+// The image upload's buttons move with them, and are also off while a batch
+// of images is being added (see addImages): a second batch started on top of
+// the first would interleave the two in the grid.
 function setSourceBusy(busy) {
-    el("processBtn").disabled = busy;
-    el("uploadVideoBtn").disabled = busy;
+    for (const id of ["processBtn", "uploadVideoBtn", "uploadImagesBtn", "newImageSetBtn"]) {
+        el(id).disabled = busy;
+    }
 }
 
 // The run this browser started and has not collected yet, by the id it was
@@ -270,7 +287,9 @@ async function runInProgress(finished) {
  */
 function resumeSettings(client) {
     if (!client) return;
-    framesOnlyMode = !!client.framesOnly;
+    // Only the two video modes are ever picked up: a set of the user's own
+    // images is not a run, and a reload ends it (see startImageSet).
+    outputMode = client.framesOnly ? "framesOnly" : "text";
     syncModeToggle();
     // The tab before the channel: switching tab rebuilds the dropdowns from
     // that tab's list, and a channel set first would be dropped as not on it.
@@ -391,15 +410,15 @@ async function runPipeline(prepare,
         // in the video rather than the report the channel is built on. The
         // backend says which happened (see api._capture_frames_sync) and this
         // is the only place the user would ever find out.
-        const framesOnly = !!(run.client && run.client.framesOnly);
-        const spoken = run.capture && run.capture.rewrite && !framesOnly && data.rewritten === false;
+        const runFramesOnly = !!(run.client && run.client.framesOnly);
+        const spoken = run.capture && run.capture.rewrite && !runFramesOnly && data.rewritten === false;
         // The captions dealt out again under the ceiling the user typed for
         // this run, before anything is broken into lines or drawn. The run's
         // own number, from its record: a page that picked the run up after a
         // reload has an empty field, and the user's figure is still the one
         // owed. A run started before the field existed has none, and keeps
         // its captions as they came.
-        const ceiling = !framesOnly && run.capture && run.capture.captions
+        const ceiling = !runFramesOnly && run.capture && run.capture.captions
                         && run.client && run.client.captionChars;
         const leftover = ceiling ? respreadOverGrid(ceiling) : 0;
         status(isCapture()
@@ -410,62 +429,10 @@ async function runPipeline(prepare,
               + (spoken ? " — captions are the transcript as spoken: the narration "
                         + "model did not load, so they were not rewritten as report" : "")
             : `${data.count} frames — select one and give it a title`);
-        setSelectedIndex(0);
-        el("resultSection").classList.remove("hidden");
-
-        // The title font is self-hosted and may still be downloading at this
-        // point — without waiting, the first canvas render/measurement could
-        // briefly use the Impact fallback and bake its metrics into the layout.
-        // A face that never arrives at all is a broken install rather than a
-        // slow one, and is called out rather than silently drawn around.
-        if (!(await titleFontReady()).ok) reportMissingTitleFont();
-
-        // ...and only now are the captions of a run that has any broken into
-        // lines, because every break is chosen by measuring the words — in
-        // the run's OWN channel's face, which is a second thing to wait for
-        // and which applyCaptions waits for itself. Before the panel is
-        // loaded and before the grid is drawn, so the first thing the user
-        // sees already has the words on it.
-        //
-        // The mode the run was started in, not the toggle's position now, for
-        // the reason the capture block above is the run's: the backend was
-        // told then whether to transcribe.
-        if (!framesOnly) { await applyCaptions(); }
-
-        initCanvas(setupReframeInteraction);
-        renderGrid();
-        // The moment the frames start going onto the grid is the moment a
-        // user in another tab wants to hear about (see notify.js).
-        announceReady(store.frames.length);
-        loadTextPanel();
-        syncFlipButtons();
-        syncGradientButton();
-        syncBackgroundButton();
-        syncFigureGlowButton();
-        syncVaryButton();
-        syncLogoControls();
-        syncBatchButton();
-        updateZoomFill();
-        updatePreview();
-        enhanceFrame(selectedIndex());
-        // A frame fetch edits the whole grid up front, because there the edit
-        // IS the deliverable and the user may never open a frame at all (see
-        // editor.applyEditToAll). A thumbnail run fills in every card's figures
-        // instead, so the grid is twenty comparable options rather than twenty
-        // identical backdrops waiting to be clicked (see warmCutouts).
-        //
-        // Neither is awaited: the first frame is already being worked on above,
-        // and this is the rest of them.
-        //
-        // The end of the edit pass is the end of loading — the last grey card
-        // has turned — so it is what unlocks "Split the text". Only when the
-        // pass reached the end of THIS grid: one cut short by a newer run
-        // answers false, and that run has locked the button for itself.
-        if (isCapture()) {
-            applyEditToAll().then((done) => { if (done && ownTextRun) lockSplit(false); });
-        } else {
-            warmCutouts();
-        }
+        // A video's frames, whatever was on screen before them.
+        imageSet = false;
+        syncSourceFields();
+        await presentGrid({ captions: !runFramesOnly, announce: true });
     } catch (e) {
         // Nothing arrived for the text to go on. A run being followed from
         // another tab shows the box again as it starts, if it wants one.
@@ -482,6 +449,80 @@ async function runPipeline(prepare,
     if (followPending) {
         followPending = false;
         runPipeline(null, "Following the video started in another tab...");
+    }
+}
+
+/**
+ * Puts the frames in store.frames on screen: the grid, the canvas, the panel,
+ * the first frame's edit, and the edit pass (or the cutouts) over the rest.
+ *
+ * The landing of a video's frames, and of the first image of a set of the
+ * user's own (see startImageSet) — one path, so the two grids cannot come to
+ * differ in anything but where their frames came from. The caller has already
+ * entered the run's mode (capture.enterMode) and filled store.frames.
+ *
+ * `captions` breaks the frames' captions into lines first; `announce` tells a
+ * user in another tab that their video is ready, which a set of images they
+ * are uploading in this one has no need of.
+ */
+async function presentGrid({ captions = false, announce = false } = {}) {
+    syncPresetHint();
+    setSelectedIndex(0);
+    el("resultSection").classList.remove("hidden");
+
+    // The title font is self-hosted and may still be downloading at this
+    // point — without waiting, the first canvas render/measurement could
+    // briefly use the Impact fallback and bake its metrics into the layout.
+    // A face that never arrives at all is a broken install rather than a
+    // slow one, and is called out rather than silently drawn around.
+    const grid = frames();
+    if (!(await titleFontReady()).ok) reportMissingTitleFont();
+
+    // ...and only now are the captions of a run that has any broken into
+    // lines, because every break is chosen by measuring the words — in
+    // the run's OWN channel's face, which is a second thing to wait for
+    // and which applyCaptions waits for itself. Before the panel is
+    // loaded and before the grid is drawn, so the first thing the user
+    // sees already has the words on it.
+    //
+    // The mode the run was started in, not the toggle's position now, for
+    // the reason the capture block is the run's: the backend was told then
+    // whether to transcribe.
+    if (captions) { await applyCaptions(); }
+    // Replaced while the faces loaded — the newer frames draw themselves.
+    if (frames() !== grid) return;
+
+    initCanvas(setupReframeInteraction);
+    renderGrid();
+    // The moment the frames start going onto the grid is the moment a
+    // user in another tab wants to hear about (see notify.js).
+    if (announce) announceReady(store.frames.length);
+    loadTextPanel();
+    syncFlipButtons();
+    syncGradientButton();
+    syncBackgroundButton();
+    syncFigureGlowButton();
+    syncVaryButton();
+    syncLogoControls();
+    syncBatchButton();
+    updateZoomFill();
+    updatePreview();
+    enhanceFrame(selectedIndex());
+    // A frame fetch edits the whole grid up front, because there the edit
+    // IS the deliverable and the user may never open a frame at all (see
+    // editor.applyEditToAll). A thumbnail run fills in every card's figures
+    // instead, so the grid is twenty comparable options rather than twenty
+    // identical backdrops waiting to be clicked (see warmCutouts).
+    //
+    // Neither is awaited: the first frame is already being worked on above,
+    // and this is the rest of them.
+    //
+    // The end of the edit pass is the end of loading — the last grey card
+    // has turned — so it is what unlocks "Split the text" (see runEditPass).
+    if (isCapture()) {
+        runEditPass();
+    } else {
+        warmCutouts();
     }
 }
 
@@ -502,6 +543,57 @@ let ownTextRun = false;
 // The latest frame fetch's video size, [width, height], or null — see
 // runPipeline and addOwnFrame.
 let runSourceSize = null;
+// Whether the frames on screen are a set of the user's own images rather than
+// a video's (see startImageSet), and whether a batch of them is still being
+// added (see addImages).
+let imageSet = false;
+let addingImages = false;
+// The edit pass over the grid, while one is going, and whether frames joined
+// the grid after it had already looked for its last one (see runEditPass).
+let editPass = null;
+let editPassAgain = false;
+// What the last batch of images could not add, waiting to be said once the
+// edit pass has finished talking (see runEditPass and addImages).
+let skippedImages = "";
+
+/** Whether a set of the user's own images is on screen to add to. */
+const imageSetOpen = () => imageSet && frames().length > 0;
+
+/**
+ * The edit over every frame in the grid (editor.applyEditToAll), and the end
+ * of it unlocking "Split the text" on a run the user's own text goes on.
+ *
+ * Never two at once. The pass asks the grid's order afresh before every frame,
+ * so a frame added while it runs is reached by it without anything being
+ * said; the one gap is a frame added in the moment after the pass found
+ * nothing left, which `editPassAgain` closes by going round once more.
+ *
+ * Not while a batch of images is still arriving: the split deals the text
+ * over the frames that are there, and until the last image is in, that number
+ * is still growing. addImages runs this again once the batch is done.
+ */
+function runEditPass() {
+    if (editPass) {
+        editPassAgain = true;
+        return;
+    }
+    editPassAgain = false;
+    editPass = applyEditToAll().then((done) => {
+        editPass = null;
+        // Asked first, whether or not this pass finished: one that a newer
+        // grid cut short (done is false) is also how that grid's own request
+        // for a pass ended up waiting here.
+        if (editPassAgain) return runEditPass();
+        if (!done) return;
+        if (ownTextRun && !addingImages) lockSplit(false);
+        // The images a batch could not add, said after the pass's own last
+        // word rather than before it, where that word would replace it.
+        if (skippedImages && !addingImages) {
+            status(`${el("status").textContent} ${skippedImages}`);
+            skippedImages = "";
+        }
+    }, () => { editPass = null; });
+}
 
 /**
  * "Split the text": the user's text, broken at its sentences and clauses into
@@ -568,7 +660,8 @@ async function splitMyText() {
     status(`Your text is split into ${placed} ${placed === 1 ? "piece" : "pieces"} of up to `
          + `${max} characters, ${where}`
          + (leftover ? ` — ${leftover} more ${leftover === 1 ? "piece does" : "pieces do"} not fit. `
-                     + "Raise the max characters per frame or fetch more frames." : ""));
+                     + "Raise the max characters per frame or "
+                     + (imageSet ? "add more images." : "fetch more frames.") : ""));
 }
 
 // Every tab of this browser shares one session, so one backend, so one run:
@@ -642,8 +735,8 @@ function runCapture() {
             // transcription nothing will draw or a rewrite nothing will read.
             request: {
                 count: requestedCount(id),
-                captions: framesOnlyMode ? false : !!capture.captions,
-                rewrite: framesOnlyMode ? false : !!capture.rewrite,
+                captions: framesOnly() ? false : !!capture.captions,
+                rewrite: framesOnly() ? false : !!capture.rewrite,
             },
         }
         : null;
@@ -656,7 +749,7 @@ function runCapture() {
  */
 function captionsRun() {
     const capture = captureFor(activeChannelId());
-    return !framesOnlyMode && !!(capture && capture.captions);
+    return !framesOnly() && !!(capture && capture.captions);
 }
 
 /**
@@ -667,6 +760,50 @@ function captionsRun() {
  */
 function syncCaptionCharsField() {
     el("captionCharsRow").classList.toggle("hidden", !captionsRun());
+    // Asked from every one of the same places, for the same reason: which
+    // source the page offers answers the tab and the mode too.
+    syncSourceFields();
+}
+
+/** Whether the page is asking for the user's own images rather than a video. */
+const imagesSource = () => currentMode === "static" && outputMode === "images";
+
+/**
+ * The link box and the video upload, or the image upload, whichever the page
+ * is set for — and "Frames to fetch" with the video, since a set of images is
+ * however many images there are.
+ *
+ * Each control is hidden in place rather than the two sources being wrapped
+ * in blocks of their own, so the section keeps the spacing it has always had
+ * between every one of them.
+ */
+function syncSourceFields() {
+    const images = imagesSource();
+    for (const id of ["driveUrl", "processBtn", "sourceOr", "uploadVideoBtn"]) {
+        el(id).classList.toggle("hidden", images);
+    }
+    el("imageSourceRow").classList.toggle("hidden", !images);
+    el("uploadImagesHint").classList.toggle("hidden", !images);
+    // Adding to a set is only "more" when there is one on screen to add to.
+    const open = imageSetOpen();
+    el("uploadImagesBtn").textContent = open ? "Add more images" : "Upload images from computer";
+    el("newImageSetBtn").classList.toggle("hidden", !(images && open));
+    // The slider answers to the channel (see capture.syncCaptureFields), and
+    // is put back to that answer whenever the page leaves this source.
+    syncCaptureFields(activeChannelId());
+    if (images) el("frameCountRow").classList.add("hidden");
+    syncPresetHint();
+}
+
+/**
+ * The edit preset panel's note on which look a frame starts on — the frames
+ * on screen, not the toggle: a video's grid stays on "Natural" whichever mode
+ * button is pressed after it landed. See IMAGE_SET_PRESET.
+ */
+function syncPresetHint() {
+    el("presetHint").textContent = imageSet
+        ? "Applies to this frame. Your own images start on Restore only."
+        : "Applies to this frame. Natural is the default look.";
 }
 
 /**
@@ -695,7 +832,7 @@ function missingCaptionChars() {
  * the run up after a reload still apply the number the user typed.
  */
 const runClient = () => ({
-    channel: activeChannelId(), tab: currentMode, framesOnly: framesOnlyMode,
+    channel: activeChannelId(), tab: currentMode, framesOnly: framesOnly(),
     captionChars: captionsRun() ? captionChars() : null,
 });
 
@@ -846,6 +983,9 @@ function clearWork() {
     el("framesGrid").innerHTML = "";
     el("resultSection").classList.add("hidden");
     showMyText(false);
+    imageSet = false;
+    skippedImages = "";
+    syncSourceFields();
 }
 
 function processVideo() {
@@ -897,6 +1037,266 @@ function processUploadedFile(file) {
             client,
         };
     });
+}
+
+// ── A set of the user's own images ────────────────────────────────────────
+//
+// Static Studio's "Upload my own images": "Frames only" with the video taken
+// out. The user uploads images instead — as many as they select, and more
+// batches whenever they like — and each becomes a frame of the grid exactly as
+// a moment of a video would have: the text box and its split, the ceiling per
+// frame, dragging, discarding, every channel's title, the canvas's reframe and
+// zoom, the image overlay, the edit presets, and the downloads.
+//
+// None of that is written again here. The backend opens an empty grid (see
+// /start-images) and makes each image an ordinary capture slot through the
+// same /add-frame the "Add image" tile uses; this side gives the first image
+// the landing a video's frames get (presentGrid) and every later one the card
+// the tile gives its image. The one thing a set has fewer of is Variation —
+// there is no video either side of an image to look for another moment in.
+//
+// A set is not a run. Nothing takes minutes and nothing is processed in the
+// background, so there is nothing for a reload or another tab to pick up:
+// like a video's frames, a set lasts as long as the page that made it.
+
+// The longest side an image is sent at — api.MAX_UPLOADED_FRAME_SIDE, which
+// the backend shrinks anything larger to anyway. Shrunk here first, so a batch
+// of phone photos is not sent at three times the size that will be kept.
+const MAX_IMAGE_SIDE = 4096;
+
+// The edit preset every image of a set starts on: "Restore only", where a
+// video's frames start on "Natural" (editor.DEFAULT_PRESET). A video's frames
+// are footage, and the grade is part of what turns a moment of it into a
+// still worth posting; the user's own images have usually been shot or graded
+// the way they want already, and a second grade over them is a change they
+// did not ask for. The restoration itself runs at every preset, so nothing is
+// given up — and the other two are one click away per frame, as always.
+const IMAGE_SET_PRESET = "none";
+
+// Which of the two the image dialog was opened for: more images onto the set
+// on screen, or a new set in its place. Set by whatever opened the dialog,
+// since a dialog the user cancels says nothing at all.
+let imagesIntent = "add";
+
+/** File-name order, numbers compared as numbers, so "2.jpg" comes before "10.jpg". */
+const byFileName = (a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" });
+
+/**
+ * The image as the JPEG it is sent as, no longer on its longest side than
+ * MAX_IMAGE_SIDE, or null when the browser cannot read it as an image at all.
+ *
+ * Decoded by the browser rather than sent as it is, for two reasons besides
+ * the size: what the user sees in the grid is then what their browser shows
+ * for the file — a phone photo turned the way its EXIF says, as every browser
+ * draws it — and any format the browser opens reaches the backend as one it
+ * can read.
+ */
+async function imageAsJpeg(file) {
+    let img;
+    const local = URL.createObjectURL(file);
+    try {
+        img = await loadImage(local);
+    } catch (_) {
+        return null;
+    } finally {
+        URL.revokeObjectURL(local);
+    }
+    const w = img.naturalWidth, h = img.naturalHeight;
+    if (!w || !h) return null;
+    const k = Math.min(1, MAX_IMAGE_SIDE / Math.max(w, h));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(w * k);
+    canvas.height = Math.round(h * k);
+    const ctx = canvas.getContext("2d");
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    return new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.95));
+}
+
+/**
+ * Refuses to open the image dialog with no channel picked, and says why. True
+ * when it refused. Before the dialog rather than after it, for the reason
+ * missingCaptionChars is: the user is not sent to choose forty images only to
+ * be told afterwards that a field was empty.
+ *
+ * A Static Studio channel and nothing less, because it is the channel that
+ * says what a frame IS here — the canvas it is cut to, and whether it takes
+ * text (see `capture` in channels.js). Every channel on the tab is one.
+ */
+function missingImageChannel() {
+    if (captureFor(activeChannelId())) return false;
+    status("Pick a channel before uploading your images");
+    el("runChannelSelect").focus();
+    return true;
+}
+
+/**
+ * A new set of the user's own images in place of whatever is on screen, made
+ * of `files`.
+ *
+ * As a new video does (see startFresh): a video still processing is stopped
+ * only once the user has said yes, and the page is cleared first, because the
+ * backend drops the last grid's frames the moment the set begins.
+ */
+async function startImageSet(files) {
+    if (missingImageChannel()) return;
+    const capture = captureFor(activeChannelId());
+    if (starting || addingImages) return;
+    starting = true;
+    setSourceBusy(true);
+    try {
+        if (pipelineBusy || await backendRunning()) {
+            if (!(await askRestart())) return;
+            restarting = true;
+            if (!(await stopCurrentRun())) return;   // the status line says why
+            hideProgress();
+        }
+        clearWork();
+        status("");
+        try {
+            await postJson("/start-images", { framing: runFraming() });
+        } catch (e) {
+            // A backend older than this file answers with FastAPI's own
+            // "Not Found", as for /add-frame.
+            const stale = (e.status === 404 && e.message === "Not Found") || e.status === 405;
+            return status(stale ? "Backend is out of date (no /start-images)" : e.message);
+        }
+        // Before anything is drawn, as for a video's frames: the canvas's
+        // shape and the controls that exist are the channel's (see
+        // capture.enterMode), taken now so that moving the picker while the
+        // images upload cannot change what this set is.
+        enterMode(capture);
+        store.frames = [];
+        runSourceSize = null;
+        imageSet = true;
+        // The text box, on a channel that writes on its frames — up now, so
+        // the text can be written while the images upload, and locked until
+        // every one of them has loaded (see runEditPass).
+        ownTextRun = !!capture.captions;
+        showMyText(ownTextRun);
+    } finally {
+        restarting = false;
+        starting = false;
+        setSourceBusy(false);
+    }
+    await addImages(files);
+}
+
+/**
+ * Adds `files` to the set on screen, one after another, in file-name order,
+ * at the end of the grid.
+ *
+ * One at a time, for the reason the edit pass is: the backend frames them one
+ * at a time anyway, and a card appearing as each lands is a grid filling in
+ * rather than a bar sitting still. The first image of a new set lands as a
+ * video's frames do (presentGrid) and starts the edit pass, which reaches every
+ * later image by itself as it joins the grid.
+ *
+ * An image that cannot be read, or that the backend refuses, is skipped and
+ * named at the end; the rest still go in.
+ */
+async function addImages(files) {
+    if (!imageSet || addingImages) return;
+    const list = Array.from(files).sort(byFileName);
+    if (!list.length) return;
+    const grid = frames();
+    // The set the batch is for: replaced, by a video another tab started or
+    // by a new set, and the batch stops — what is left of it belongs to a grid
+    // that is gone.
+    const replaced = () => frames() !== grid || !imageSet;
+
+    addingImages = true;
+    setSourceBusy(true);
+    syncAddTile();
+    if (ownTextRun) lockSplit(true);
+    const failed = [];
+    let added = 0;
+    let stale = false;
+    try {
+        for (const [n, file] of list.entries()) {
+            if (replaced()) return;
+            showProgress(`Adding image ${n + 1} of ${list.length}...`,
+                         Math.round(100 * n / list.length));
+            const jpeg = await imageAsJpeg(file);
+            if (!jpeg) { failed.push(file.name); continue; }
+            let res;
+            try {
+                res = await postBlobJson("/add-frame", jpeg);
+            } catch (e) {
+                stale = (e.status === 404 && e.message === "Not Found") || e.status === 405;
+                if (stale) break;
+                failed.push(file.name);
+                continue;
+            }
+            if (replaced()) return;
+            await placeImage(res);
+            added++;
+        }
+    } finally {
+        addingImages = false;
+        // The buttons whatever happened, unless a new video or set is being
+        // set going — that owns them until it is under way (see startFresh).
+        if (!starting) setSourceBusy(false);
+        syncAddTile();
+        // The bar only for a batch that was not replaced: what replaced it
+        // may be a video another tab started, whose bar this one would hide.
+        if (!replaced()) {
+            hideProgress();
+            syncSourceFields();
+        }
+    }
+    if (replaced()) return;
+
+    const total = gridOrder().length;
+    if (stale) status("Backend is out of date (no /add-frame)");
+    else if (!total) {
+        // Not one image of a new set went in: nothing for the text to go on.
+        showMyText(false);
+        status(`None of the images could be added (${failed.join(", ")}). Try other files.`);
+    } else {
+        status(`${added} ${added === 1 ? "image" : "images"} added — ${total} `
+             + `${total === 1 ? "frame" : "frames"} in the set`);
+        skippedImages = failed.length ? `Could not be read as images: ${failed.join(", ")}.` : "";
+    }
+    // Round once more, for the frames that landed after the pass found its
+    // last one — and to unlock the split, which waited for the batch.
+    if (total) runEditPass();
+}
+
+/**
+ * One image the backend has made a slot of (see /add-frame), onto the grid:
+ * a frame record and a card built as the tile's are (see addOwnFrame), under
+ * the channel of the frame it lands beside — or, for the first image of a
+ * set, the landing a video's frames get.
+ */
+async function placeImage(res) {
+    const frame = makeFrame(res.frame_id, base64ToObjectUrl(res.frame));
+    frame.uploaded = true;
+    // Before the edit pass reaches it, which is what sends the preset (see
+    // IMAGE_SET_PRESET). Every image of every batch, whatever a neighbour has
+    // been switched to since: the user asked for that on that frame.
+    frame.editPreset = IMAGE_SET_PRESET;
+    const order = gridOrder();
+    const neighbour = frames()[order[order.length - 1]];
+    if (neighbour) {
+        frame.channel = neighbour.channel;
+        frame.channelTouched = neighbour.channelTouched;
+    }
+    const i = addFrame(frame);
+    if (!neighbour) {
+        status("Your images are being added...");
+        return presentGrid();
+    }
+    const card = frameCard(i, gridOrder().length - 1);
+    el("framesGrid").insertBefore(card, el("addFrameTile"));
+    refreshThumb(i);
+    syncFrameNav();   // the frame on screen may have stopped being the last
+}
+
+/** Off while a batch of images is being added, so a second cannot start on top of it. */
+function syncAddTile() {
+    const tile = el("addFrameTile");
+    if (tile) tile.disabled = addingImages;
 }
 
 // Laid out in the grid's order (see state.gridOrder), and numbered by place
@@ -973,16 +1373,30 @@ function frameCard(i, position) {
     return d;
 }
 
-/** The "Add image" tile that ends a frame fetch's grid (see addOwnFrame). */
+/**
+ * The "Add image" tile that ends a frame fetch's grid (see addOwnFrame).
+ *
+ * On a set of the user's own images it takes a batch instead, the way the
+ * button above the grid does (see addImages): there is no video for the
+ * framing step to shape a picture to, and every image of the set went in
+ * without one.
+ */
 function addFrameTile() {
     const tile = document.createElement("button");
     tile.type = "button";
     tile.className = "frame-add";
     tile.id = "addFrameTile";
-    tile.title = "Add an image from your computer as a frame";
+    tile.title = imageSet ? "Add more images from your computer to the set"
+                          : "Add an image from your computer as a frame";
     tile.draggable = false;
-    tile.innerHTML = `<span class="frame-add-plus" aria-hidden="true">+</span><span>Add image</span>`;
-    tile.onclick = () => el("addFrameFileInput").click();
+    tile.disabled = addingImages;
+    tile.innerHTML = `<span class="frame-add-plus" aria-hidden="true">+</span>`
+                   + `<span>${imageSet ? "Add images" : "Add image"}</span>`;
+    tile.onclick = () => {
+        if (!imageSet) return el("addFrameFileInput").click();
+        imagesIntent = "add";
+        el("imagesFileInput").click();
+    };
     return tile;
 }
 
@@ -1181,7 +1595,10 @@ const TITLE_BASE_PX = 32;
 let _titleFitTimer = null;
 
 function fitTitleToInputWidth() {
-    const input = el("driveUrl");
+    // The link box, or on "Upload my own images" the row of buttons that
+    // stands in its place — the same full width of the same column, and the
+    // one of the two that is on screen to be measured.
+    const input = imagesSource() ? el("imageSourceRow") : el("driveUrl");
     const h1 = document.querySelector(".app-header h1");
     if (!input || !h1) return;
     const targetWidth = input.getBoundingClientRect().width;
@@ -1219,6 +1636,28 @@ el("videoFileInput").addEventListener("change", (e) => {
     const file = e.target.files[0];
     e.target.value = "";   // so re-picking the same file still fires `change`
     if (file) processUploadedFile(file);
+});
+
+// "Upload my own images" (see startImageSet). The button above the grid adds
+// to the set on screen when there is one and starts one when there is not;
+// "Start a new set" always starts one. Both open the same dialog, and say
+// first which of the two the files that come back are for.
+el("uploadImagesBtn").addEventListener("click", () => {
+    if (missingImageChannel()) return;
+    imagesIntent = imageSetOpen() ? "add" : "new";
+    el("imagesFileInput").click();
+});
+el("newImageSetBtn").addEventListener("click", () => {
+    if (missingImageChannel()) return;
+    imagesIntent = "new";
+    el("imagesFileInput").click();
+});
+el("imagesFileInput").addEventListener("change", (e) => {
+    const files = Array.from(e.target.files);
+    e.target.value = "";   // so re-picking the same files still fires `change`
+    if (!files.length) return;
+    if (imagesIntent === "add" && imageSetOpen()) addImages(files);
+    else startImageSet(files);
 });
 
 initChannelPicker();

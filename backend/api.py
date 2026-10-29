@@ -1900,7 +1900,9 @@ def _add_frame_sync(data: bytes) -> dict:
     # video's slots under an id that run is about to hand out itself.
     if _process_lock.locked():
         raise HTTPException(409, "A video is being processed — add your image once it has finished")
-    if not session.frames:
+    # A set of the user's own images starts empty (see /start-images), and
+    # its first frame comes through here like every later one.
+    if not session.frames and not session.own_images:
         raise HTTPException(404, "No frames to add to — process a video first")
 
     image = cv2.imdecode(np.frombuffer(data, np.uint8), cv2.IMREAD_COLOR)
@@ -1916,7 +1918,7 @@ def _add_frame_sync(data: bytes) -> dict:
         # user discarded keeps its record (the frontend still addresses it by
         # id while anything for it is in flight), so ids are not contiguous
         # once anything has been thrown out.
-        frame_id = max(session.frames) + 1
+        frame_id = max(session.frames, default=-1) + 1
         os.makedirs(TEMP_DIR, exist_ok=True)
         path = os.path.join(TEMP_DIR, f"added_frame_{frame_id}.jpg")
         imwrite(path, image, [cv2.IMWRITE_JPEG_QUALITY, 95])
@@ -1927,6 +1929,12 @@ def _add_frame_sync(data: bytes) -> dict:
         # centred rather than framed around a face. The one difference is
         # `uploaded`, which is what stops Variation searching the video for
         # moments either side of a picture that never was in it.
+        #
+        # On a set of the user's own images (see /start-images) the picture
+        # arrives as it is, in whatever shape it was taken, and is centred all
+        # the same: a whole batch is added at once, so nobody is asked to frame
+        # each one first, and the canvas's reframe and zoom are where any of
+        # them is moved afterwards — the same as a frame of a video.
         best_face, face_count = _centred_subject(image)
         record = FrameRecord(
             source_path=path,
@@ -1939,7 +1947,12 @@ def _add_frame_sync(data: bytes) -> dict:
             source_is_cropped=False,
             source_raw_path=path,
             geometry=compute_geometry(image.shape, best_face, face_count),
-            edit_preset=DEFAULT_EDIT_PRESET,
+            # "Restore only" on a set of the user's own images, as the page
+            # starts them (see main.IMAGE_SET_PRESET). The page sends the preset
+            # with every enhance and that is what decides it; this is only so
+            # that anything reaching the slot before its first enhance builds
+            # the same base, rather than a "Natural" one nobody will look at.
+            edit_preset="none" if session.own_images else DEFAULT_EDIT_PRESET,
             uploaded=True,
         )
         canvas = build_initial_crop(image, record)
@@ -1973,6 +1986,64 @@ async def add_frame(request: Request):
     if not data:
         raise HTTPException(400, "No image was uploaded")
     return await asyncio.to_thread(_add_frame_sync, data)
+
+
+# -- /start-images ----------------------------------------------------------
+
+class StartImagesRequest(BaseModel):
+    # The selected channel's framing, exactly as /process-video takes it: the
+    # canvas size and the anchors every slot of the set is cropped by.
+    framing: FramingRequest | None = None
+
+
+@app.post("/start-images")
+async def start_images(req: StartImagesRequest):
+    """
+    Opens an empty grid for a set of the user's own images — Static Studio's
+    "Upload my own images" — which the page then fills through /add-frame, one
+    image at a time.
+
+    No video, so no run: nothing here takes minutes, and every image is framed
+    the moment it arrives. What a video run does before its first frame exists
+    is still done, and for the same reasons — the last video's frames and
+    files are dropped (an image added now would otherwise land beside them, and
+    ids would carry on from theirs), and the channel's framing is made the
+    active profile, which is what every crop of every slot is measured against
+    (see /process-video).
+
+    From the first image on, the set is an ordinary frame fetch whose frames
+    all happen to be uploaded: edited, reframed, zoomed, captioned and
+    downloaded through the same endpoints, with Variation off on all of them
+    because there is no video either side of any of them to search.
+    """
+    global _process_result
+    # The lock is taken rather than only looked at, so a video cannot start
+    # between the check and the reset and have its session wiped from under
+    # it. Released before answering: the images that follow are short requests
+    # of their own, and /add-frame refuses while the lock is held.
+    if not _process_lock.acquire(blocking=False):
+        raise HTTPException(409, "A video is being processed — wait for it to finish.")
+    try:
+        session.reset()
+        session.own_images = True
+        framing.set_active(framing.FramingProfile.from_request(
+            req.framing.model_dump(exclude_none=True) if req.framing else None))
+        vram.release(force=True)
+        if os.path.exists(TEMP_DIR):
+            shutil.rmtree(TEMP_DIR, ignore_errors=True)
+        os.makedirs(TEMP_DIR, exist_ok=True)
+        # The last video's run, if any, is over and its frames are gone, so a
+        # page opened now must not be told there is one to pick up.
+        _process_result = None
+        with _progress_lock:
+            _progress["run"] = None
+            _progress["collected"] = True
+        _write_progress("", 0)
+        _set_status("idle")
+    finally:
+        _process_lock.release()
+    log.info("images: a new set of the user's own images was started")
+    return {"status": "ok"}
 
 
 @app.post("/cleanup")
