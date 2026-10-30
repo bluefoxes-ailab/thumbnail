@@ -75,7 +75,7 @@
 //
 // ## The same rules on a "Frames with text" run
 //
-// That mode asks for a ceiling too, above the link box and before the video
+// That mode asks for a ceiling too, under the link box and before the video
 // is processed, and deals the captions the video came back with through
 // exactly this machinery (see respreadCaptions). One set of rules for where
 // text is broken and where it lands, whoever wrote the text.
@@ -322,7 +322,7 @@ function wholeNumberIn(id) {
 export const maxChars = () => wholeNumberIn("maxCharsInput");
 
 /**
- * "Max characters per frame" above the link box, for a "Frames with text"
+ * "Max characters per frame" under the link box, for a "Frames with text"
  * run, or null — and null there stops the run before it starts (see
  * main.missingCaptionChars).
  */
@@ -362,7 +362,7 @@ for (const id of ["maxCharsInput", "captionCharsInput"]) {
 }
 // An emptied field goes back to the default when the user leaves it, so the
 // number on screen is always the one the next split will use. Not the field
-// above the link box: that one is empty until the user fills it, on purpose.
+// under the link box: that one is empty until the user fills it, on purpose.
 el("maxCharsInput").addEventListener("blur", (e) => {
     if (maxChars() === null) e.target.value = String(CAPTION_CHARS);
 });

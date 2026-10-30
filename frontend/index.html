@@ -71,12 +71,20 @@
             <button type="button" class="btn" id="btnModeFramesOnly" aria-pressed="false">Frames only</button>
             <button type="button" class="btn" id="btnModeOwnImages" aria-pressed="false">Upload my own images</button>
         </div>
+        <!-- The link box straight under the mode buttons, ahead of the
+             settings for the run: the video is what the user came with, so
+             it is asked for first, and the frame count and the caption
+             ceiling below it are then read as settings of that video. The
+             Process button stays at the end of them, where a form's
+             submit button is looked for once everything above it is filled
+             in. -->
+        <input type="text" id="driveUrl" placeholder="Paste Google Drive, Dropbox, or YouTube link here">
         <!-- How many frames a FRAME-FETCHING channel should return (see
              `capture` in js/channels.js). Hidden for every channel that makes
              thumbnails, where the grid's size is the pipeline's answer and not
              a question anybody is asked.
 
-             Here, above the link box, because it belongs to the same moment
+             Here, before Process, because it belongs to the same moment
              the channel does: how many frames to cut is decided before the
              video is read and cannot be revisited once the grid exists.
 
@@ -115,14 +123,18 @@
              have agreed to without typing it, and a figure already in the box
              is a figure nobody reads. A text field rather than type="number"
              so it wears the link box's look, and whole numbers only (see
-             mytext.js). -->
+             mytext.js).
+
+             Label and box on one line, with no hint under them: it is one
+             number, and a row of its own reads as a setting rather than as a
+             second form. The placeholder is short for the same reason - the
+             box gets what the label leaves of the line, and a longer one was
+             cut off in it. -->
         <div class="hidden" id="captionCharsRow">
             <label class="field-label" for="captionCharsInput">Max characters per frame</label>
             <input type="text" id="captionCharsInput" inputmode="numeric" autocomplete="off"
-                   placeholder="Required: a whole number, e.g. 80">
-            <div class="panel-hint" id="captionCharsHint">The most text any one frame's caption may hold. The captions are cut at sentences and clauses to fit under it, and spread over the frames in order.</div>
+                   placeholder="Required, e.g. 80">
         </div>
-        <input type="text" id="driveUrl" placeholder="Paste Google Drive, Dropbox, or YouTube link here">
         <button class="btn" style="width:100%" id="processBtn">Process Video</button>
         <!-- A video already on this machine takes the same route as a linked
              one: the file is uploaded, and from there the backend cannot tell

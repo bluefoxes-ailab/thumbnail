@@ -106,7 +106,7 @@ export function syncCaptureFields(channelId) {
     syncCountValue();
 
     // The range and nothing more: the readout beside the slider already says
-    // where it opens, and the rest was more than anyone reads above a link box.
+    // where it opens, and the rest was more than anyone reads beside a slider.
     el("frameCountHint").textContent =
         `How many frames to cut from the video — drag the handle, or click the track. `
         + `${min} to ${max}.`;

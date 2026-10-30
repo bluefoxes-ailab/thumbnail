@@ -429,11 +429,15 @@ input[type="text"]::-moz-selection { background: #fffa00; color: #1b2fea; }
 .image-source-row .btn { flex: 1; }
 #frameCountRow { display: flex; flex-direction: column; gap: 10px; }
 #frameCountRow.hidden { display: none; }
-/* Max characters per frame, for "Frames with text" — the frame
-   count's column, for the same reason: label, box, hint. */
-#captionCharsRow { display: flex; flex-direction: column; gap: 10px; }
+/* Max characters per frame, for "Frames with text" — the label and
+   its box on one line (see index.html for why). The label keeps its
+   one line and the box takes the rest; the label's negative margin,
+   which pulls a label down onto a field under it, has nothing to pull
+   onto here. */
+#captionCharsRow { display: flex; align-items: center; gap: 12px; }
 #captionCharsRow.hidden { display: none; }
-#captionCharsRow #captionCharsHint { margin: -4px 0 0; opacity: 0.75; }
+#captionCharsRow .field-label { margin: 0; white-space: nowrap; flex-shrink: 0; }
+#captionCharsRow input { flex: 1; min-width: 0; }
 /* Slider and its readout on one row, the readout wide enough for
    three digits so the track does not resize as the number changes. */
 .count-control { display: flex; align-items: center; gap: 12px; }

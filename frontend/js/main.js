@@ -753,7 +753,7 @@ function captionsRun() {
 }
 
 /**
- * Shows "Max characters per frame" above the link box exactly when the run it
+ * Shows "Max characters per frame" under the link box exactly when the run it
  * is required for would be the one started — so it answers the channel, the
  * mode and the tab, from wherever each of them is changed. A function
  * declaration, so syncModeToggle can call it from the top of the file.
