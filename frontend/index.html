@@ -24,16 +24,22 @@
             <img src="BLUEROOM.png" alt="Fox Logo" class="brand-fox">
             
         </div>
+        <!-- The two apps, as the app's own .btn buttons (see .tab-btn in
+             styles.css). The platform icons are drawn as masks rather than
+             <img>s so they take the button's text colour: white on the blue
+             at rest, blue on the yellow of the chosen one and of a hover,
+             where a white picture would vanish. Decorative, since the words
+             beside them already name the button. -->
         <div class="mode-tabs">
-    <button type="button" class="tab-btn active" id="tabThumbnail">
-        <img src="youtube.png" alt="YouTube" class="tab-icon">
-        <span>Thumbnail Maker</span>
-    </button>
-    <button type="button" class="tab-btn" id="tabStatic">
-        <img src="snapchat.png" alt="Snapchat" class="tab-icon">
-        <span>Static Studio</span>
-    </button>
-</div>
+            <button type="button" class="btn tab-btn active" id="tabThumbnail">
+                <span class="tab-icon tab-icon-youtube" aria-hidden="true"></span>
+                <span>Thumbnail Maker</span>
+            </button>
+            <button type="button" class="btn tab-btn" id="tabStatic">
+                <span class="tab-icon tab-icon-snapchat" aria-hidden="true"></span>
+                <span>Static Studio</span>
+            </button>
+        </div>
     </div>
 
     <div class="app-header">
@@ -45,33 +51,6 @@
         <select class="channel-select" id="runChannelSelect">
             <option value="">-</option>
         </select>
-        <div class="panel-hint" id="runChannelHint">Optional. Some channels pick their frames differently, and that choice is made before processing.</div>
-        <!-- How many frames a FRAME-FETCHING channel should return (see
-             `capture` in js/channels.js). Hidden for every channel that makes
-             thumbnails, where the grid's size is the pipeline's answer and not
-             a question anybody is asked.
-
-             Here, above the link box, because it belongs to the same moment
-             the channel does: how many frames to cut is decided before the
-             video is read and cannot be revisited once the grid exists. -->
-        <div class="hidden" id="frameCountRow">
-            <label class="field-label" for="frameCount">Frames to fetch</label>
-            <!-- A slider rather than a typed number, because the count is a
-                 quantity being chosen and not a value being entered: the
-                 useful answers are a range and the user is picking a point in
-                 it, not recalling a figure. It also answers both ways of
-                 reaching for one \u2014 a click anywhere on the track jumps
-                 straight there, and the handle can be dragged \u2014 where a
-                 number box answers neither without the keyboard.
-
-                 The readout beside it is the exact number, live, so nothing
-                 about the choice is left to be judged by eye. -->
-            <div class="count-control">
-                <input type="range" id="frameCount" class="count-slider" min="1" max="200" step="1" value="40">
-                <output class="count-value" id="frameCountValue" for="frameCount">40</output>
-            </div>
-            <div class="panel-hint" id="frameCountHint"></div>
-        </div>
         <!-- Output mode, Static Studio only (see setAppMode in main.js):
              frames with their captions, or the bare frames with no
              transcription at all — onto which the user can then split a
@@ -91,6 +70,40 @@
             <button type="button" class="btn btn-active" id="btnModeText" aria-pressed="true">Frames with text</button>
             <button type="button" class="btn" id="btnModeFramesOnly" aria-pressed="false">Frames only</button>
             <button type="button" class="btn" id="btnModeOwnImages" aria-pressed="false">Upload my own images</button>
+        </div>
+        <!-- How many frames a FRAME-FETCHING channel should return (see
+             `capture` in js/channels.js). Hidden for every channel that makes
+             thumbnails, where the grid's size is the pipeline's answer and not
+             a question anybody is asked.
+
+             Here, above the link box, because it belongs to the same moment
+             the channel does: how many frames to cut is decided before the
+             video is read and cannot be revisited once the grid exists.
+
+             Under the output mode buttons rather than above them: the mode
+             decides whether there is anything to fetch at all ("Upload my
+             own images" hides this row, see syncSourceFields in main.js), so
+             the count is the answer to a question the mode asks first. Above
+             them, the row would vanish from between the channel and the
+             buttons the moment a mode was pressed, and the buttons would
+             jump up under the pointer that pressed them. -->
+        <div class="hidden" id="frameCountRow">
+            <label class="field-label" for="frameCount">Frames to fetch</label>
+            <!-- A slider rather than a typed number, because the count is a
+                 quantity being chosen and not a value being entered: the
+                 useful answers are a range and the user is picking a point in
+                 it, not recalling a figure. It also answers both ways of
+                 reaching for one \u2014 a click anywhere on the track jumps
+                 straight there, and the handle can be dragged \u2014 where a
+                 number box answers neither without the keyboard.
+
+                 The readout beside it is the exact number, live, so nothing
+                 about the choice is left to be judged by eye. -->
+            <div class="count-control">
+                <input type="range" id="frameCount" class="count-slider" min="1" max="200" step="1" value="40">
+                <output class="count-value" id="frameCountValue" for="frameCount">40</output>
+            </div>
+            <div class="panel-hint" id="frameCountHint"></div>
         </div>
         <!-- The ceiling on a frame's caption, for a "Frames with text" run
              (see syncCaptionCharsField and runPipeline in main.js). The same
@@ -154,8 +167,14 @@
     <div class="my-text-section hidden" id="myTextSection">
         <!-- Beside the box, the ceiling on how much of it one frame gets.
              Whole numbers only (see mytext.js for why type="number" is not
-             enough on its own); 80 is transcriber.CAPTION_CHARS. -->
+             enough on its own); 80 is transcriber.CAPTION_CHARS.
+
+             The box has a label of its own for the reason the number does:
+             a field whose only name is its placeholder loses that name the
+             moment anything is typed into it, and the two labels side by
+             side make the pair read as one setting and its value. -->
         <div class="my-text-row">
+            <label class="field-label my-text-label" for="myTextInput">Your text</label>
             <textarea class="line-block my-text-input" id="myTextInput" rows="5"
                       placeholder="Add your text here"></textarea>
             <div class="max-chars-field">
