@@ -1,9 +1,12 @@
-import { CW, CH, LINE_IDS, BLOCK_ID, TITLE_FIELD_IDS, FIDELITY, DEFAULT_PRESET, NO_PANEL, el } from "./config.js";
+import {
+    CW, CH, LINE_IDS, BLOCK_ID, TITLE_FIELD_IDS, FIDELITY, DEFAULT_PRESET, NO_PANEL,
+    OVERLAY_DEFAULT_WIDTH, el,
+} from "./config.js";
 import {
     frames, current, selectedIndex, linesFor, hlFor, logosFor,
     backendPresentation, setFrameImage, clearCutout, channelFor,
     titleAlignFor, layersFor, activeLayerFor, backgroundFor, figureGlowFor, cutoutModeFor,
-    textColorFor, panelColorFor, highlightColorFor,
+    textColorFor, panelColorFor, highlightColorFor, positionOf, gridOrder,
 } from "./state.js";
 import {
     channels, activeChannelId, setActiveChannel, hasChannel, titleStyle, branding,
@@ -21,7 +24,32 @@ import {
 import { invalidate as invalidateWide, prefetchWide } from "./wide.js";
 import { syncZoomSliderFor } from "./reframe.js";
 import { captureMode } from "./capture.js";
+import { openMaskStep } from "./mask.js";
+import { openAssetStep } from "./assets.js";
+
+/**
+ * Records a usage event. Never throws, whatever goes wrong inside it.
+ *
+ * Every caller invokes it on its FIRST line — picking a channel, the edit
+ * pass, picking a frame, both uploads — so an exception here is not a lost
+ * log line, it is the feature itself abandoned before it starts. That is
+ * exactly what happened in a browser with no prompt() (the Claude app's
+ * preview pane): the channel dropdown moved, selectChannel died on its first
+ * line, the page went on believing no channel was picked, and a Static
+ * Studio run went out as a plain thumbnail run — 1280x720, the three-line
+ * template, no frame-count slider. localStorage can throw too (blocked site
+ * data, some private windows). A usage counter is never worth any of that,
+ * so a failure anywhere in here costs the event and nothing else.
+ */
 function trackEvent(action, details = {}) {
+    try {
+        sendTrackEvent(action, details);
+    } catch (e) {
+        console.warn(`Usage event "${action}" was not recorded:`, e);
+    }
+}
+
+function sendTrackEvent(action, details) {
     // 1. Identify which tool this page represents
     const toolName = window.location.pathname.includes("static") ? "static_studio" : "thumbnail_maker";
 
@@ -416,9 +444,20 @@ export async function selectChannel(id) {
  * against whatever metrics have arrived, and drawn again once the real ones
  * have.
  */
-export async function syncChannelToFrame() {
+export function syncChannelToFrame() {
     const f = current();
-    const changed = setActiveChannel((f && f.channel) || NO_CHANNEL);
+    return showChannel((f && f.channel) || NO_CHANNEL);
+}
+
+/**
+ * Points the page at a channel the user did not just pick — the body of
+ * syncChannelToFrame, and also how a run picked back up after a reload puts
+ * the page back on the channel it was started with (see main.resumeSettings).
+ * Same contract: nothing is written to any frame, and the caller need not
+ * wait for the face.
+ */
+export async function showChannel(id) {
+    const changed = setActiveChannel(id);
     syncChannelPickers();
     syncChannelFields();
     renderHlButtons();
@@ -582,7 +621,7 @@ export function loadTextPanel() {
     // the user looking for a title they never wrote (see capture.js).
     const capture = captureMode();
     const kind = capture && capture.captions ? "Caption" : "Title";
-    el("textPanelLabel").textContent = `${kind} — Frame ${selectedIndex() + 1}`;
+    el("textPanelLabel").textContent = `${kind} — Frame ${positionOf(selectedIndex()) + 1}`;
     renderHlButtons();
     syncAlignButtons();  // ...as does the alignment
     renderColorButtons();   // ...and the two colours, which are the frame's as well
@@ -1959,17 +1998,36 @@ export async function warmCutouts() {
  * So it is reported rather than done quietly. This is minutes of work on a
  * grid of forty, and a status line counting them off is the difference between
  * a machine that is busy and one that looks broken.
+ *
+ * Worked through in the grid's order, asked afresh before each frame: the user
+ * may rearrange the grid while this runs (see reorder.js), and the frames they
+ * have just dragged to the front are the ones they want to see turn first.
+ *
+ * The same question is what skips a frame the user has thrown out (see
+ * state.discardFrame): it is no longer in the grid's order, so it is never
+ * the next one. The pass ends when every frame still IN the order is done,
+ * and the count it shows is of those — a discard shortens it on the spot.
  */
 export async function applyEditToAll() {
     trackEvent("batch_edit_all_frames", { total_frames: frames().length });
     const grid = frames();
-    for (let i = 0; i < grid.length; i++) {
-        if (frames() !== grid) return;
-        status(`Applying the edit — frame ${i + 1} of ${grid.length}`);
+    const done = new Set();
+    for (;;) {
+        if (frames() !== grid) return false;
+        const order = gridOrder();
+        const i = order.find(k => !done.has(k));
+        if (i === undefined) break;
+        done.add(i);
+        const finished = order.filter(k => done.has(k)).length;
+        status(`Applying the edit — frame ${finished} of ${order.length}`);
         await ensureEnhanced(i);
     }
-    if (frames() !== grid) return;
-    status(`${grid.length} frames ready. Download all, or pick the ones you want.`);
+    if (frames() !== grid) return false;
+    status(`${gridOrder().length} frames ready. Download all, or pick the ones you want.`);
+    // Whether the pass reached the end of the grid it started on — the moment
+    // every frame has loaded, which is what unlocks "Split the text" (see
+    // main.runPipeline). False when a newer run's frames replaced these.
+    return true;
 }
 
 // ── Image overlay ─────────────────────────────────────────────────────────
@@ -2044,19 +2102,64 @@ export async function handleLogoFile(file) {
         reader.onerror = () => reject(new Error("could not read file"));
         reader.readAsDataURL(file);
     });
-    const img = await loadImage(dataUrl);
-    const targetW = CW * 0.28;                        // default on-canvas width
+    const picked = await loadImage(dataUrl);
+    // The mask step sits between the file dialog and the canvas (see
+    // mask.js). It answers with the picture to place — the masked crop, or
+    // the upload itself when the user keeps it whole — or null for cancel,
+    // which adds nothing. Asked before the frame is touched, so a cancel
+    // leaves it exactly as it was, `edited` flag included.
+    const src = await openMaskStep(picked, dataUrl);
+    if (!src || current() !== f) return;   // cancelled, or the user moved to another frame meanwhile
+    const img = src === dataUrl ? picked : await loadImage(src);
+    placeLogo(f, src, img);
+}
+
+/**
+ * The image overlay's Assets button: a ready-made picture from
+ * frontend/assets/, in the colour the user picks (see assets.js), placed
+ * exactly as an upload is — so it drags, resizes and deletes like one.
+ */
+export async function handleAssetPick() {
+    trackEvent("open_overlay_assets");
+    const f = current();
+    if (!f) return;
+    const picked = await openAssetStep();
+    if (!picked || current() !== f) return;   // cancelled, or the user moved to another frame meanwhile
+    trackEvent("add_overlay_asset", { asset: picked.name, color: picked.color });
+    placeLogo(f, picked.src, await loadImage(picked.src), { asset: true });
+}
+
+/**
+ * Adds the picture `src` (decoded as `img`) to frame `f`'s overlays.
+ *
+ * Assets always stack above the user's own images. They are marks drawn ON
+ * something — a ring around a face, an arrow at it — and a photo uploaded
+ * after the ring would otherwise land on top and cover the very thing the
+ * ring was put there to point at. So an asset goes on top of everything,
+ * and an upload goes on top of the uploads but under the first asset.
+ *
+ * The rule is kept by where things are inserted, not by sorting at draw
+ * time: array order IS stacking order (see state.logosFor) for the canvas,
+ * the hit test, the composite and the carry-over alike, so an array that is
+ * already in the right order is right for all of them at once. Nothing
+ * reorders the array after insertion, so it stays that way.
+ */
+function placeLogo(f, src, img, { asset = false } = {}) {
+    const targetW = CW * OVERLAY_DEFAULT_WIDTH;       // default on-canvas width
     const scale = Math.min(1, targetW / img.width);   // never upscale past the upload's own resolution
     f.edited = true;
-    // Appended, not assigned: a frame carries as many overlays as the user
-    // adds, and the newest goes on top of the stack.
-    f.logos.push({
-        src: dataUrl, _img: img,
+    const firstAsset = f.logos.findIndex(l => l.asset);
+    const at = asset || firstAsset < 0 ? f.logos.length : firstAsset;
+    // Inserted, not assigned: a frame carries as many overlays as the user
+    // adds, and the newest goes on top of its own kind.
+    f.logos.splice(at, 0, {
+        src, _img: img,
         natW: img.width, natH: img.height,
         x: CW / 2, y: CH / 2,   // centered, per spec
         scale,
+        asset,
     });
-    f.activeLogo = f.logos.length - 1;   // the one just added is the one you want to place
+    f.activeLogo = at;   // the one just added is the one you want to place
     syncLogoControls();
     updatePreview();
     refreshThumb(selectedIndex());

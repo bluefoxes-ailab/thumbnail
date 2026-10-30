@@ -11,12 +11,102 @@ import { branding, activeChannelId, styleFor, captureFor, decorFor } from "./cha
 export const store = {
     frames: [],
     selected: 0,
+    // The order the grid SHOWS the frames in — see gridOrder — and the frames
+    // array it was built for, so an order outlives no run.
+    order: null,
+    orderOf: null,
 };
 
 export const frames = () => store.frames;
 export const current = () => store.frames[store.selected];
 export const selectedIndex = () => store.selected;
 export const setSelectedIndex = (i) => { store.selected = i; };
+
+/**
+ * The frames in the order the grid shows them, as indices into store.frames.
+ *
+ * A frame fetch's grid can be rearranged by dragging (see reorder.js), and
+ * that is done HERE rather than by reordering store.frames itself. Everything
+ * that works on a frame in the background — the edit pass, a Variation, a
+ * cutout — holds on to the frame's index across its awaits and writes its
+ * answer back to that index when it lands. A drag in the middle of the edit
+ * pass is exactly what the user is allowed to do, and moving the records
+ * under those calls would hand each answer to whatever frame had slid into
+ * the old place. So a frame's index never changes for the life of a run, and
+ * the user's arrangement is a separate list laid over it.
+ *
+ * What reads it is everything where the ORDER is the point: the grid and its
+ * numbers, the arrows beside the canvas, the file names and the order of a
+ * zip, and the split of the user's own text. Starts as the order the frames
+ * arrived in, which is the order they happen in the video.
+ *
+ * A frame the user has DISCARDED (see discardFrame) is not in it, and that
+ * one omission is the whole of how a discard reaches all of those: none of
+ * them has to learn what a discarded frame is, because none of them is ever
+ * shown one. So this list is not always every index — read its length, not
+ * store.frames', wherever the question is "how many frames are there".
+ */
+export function gridOrder() {
+    if (!store.order || store.orderOf !== store.frames) {
+        store.order = [...store.frames.keys()].filter(i => !store.frames[i].discarded);
+        store.orderOf = store.frames;
+    }
+    return store.order;
+}
+
+/** Where frame `i` sits in the grid, counting from 0. */
+export const positionOf = (i) => gridOrder().indexOf(i);
+
+/** Replaces the grid's order with `order`, a rearrangement of the frames in it. */
+export function setGridOrder(order) {
+    const now = gridOrder();
+    const valid = order.length === now.length && new Set(order).size === now.length
+        && order.every(i => now.includes(i));
+    if (valid) store.order = [...order];
+}
+
+/**
+ * Puts a frame the user added (see main.addOwnFrame) on the end of the grid,
+ * and returns its index.
+ *
+ * Appended to store.frames rather than placed into it, for the reason a drag
+ * never moves a record (see gridOrder): every index already handed out has to
+ * go on naming the frame it named. Where it SITS is the order's business, and
+ * the order is written here because the cache in gridOrder would not notice —
+ * the frames array is the same array, one longer.
+ */
+export function addFrame(frame) {
+    const order = gridOrder();
+    store.frames.push(frame);
+    const i = store.frames.length - 1;
+    store.order = [...order, i];
+    return i;
+}
+
+/**
+ * Takes frame `i` out of the run for good: off the grid, out of the edit
+ * pass if it has not been reached, out of "Split the text", the downloads and
+ * the arrows — and whatever text it carried goes with it rather than to any
+ * other frame.
+ *
+ * The record itself stays where it is in store.frames, for the reason the
+ * grid's order is a separate list at all (see gridOrder): an edit or a cutout
+ * in flight for this frame is holding its index, and must land on this record
+ * — harmlessly, unseen — and not on whichever frame would have slid into its
+ * place. What makes it gone is its absence from the order.
+ *
+ * The text is cleared rather than left on a record nobody sees, so that
+ * nothing that walks every frame (capture.applyCaptions) can bring it back.
+ */
+export function discardFrame(i) {
+    const f = store.frames[i];
+    if (!f || f.discarded) return;
+    f.discarded = true;
+    f.picked = false;
+    f.caption = "";
+    f.lines = f.lines.map(() => "");
+    store.order = gridOrder().filter(k => k !== i);
+}
 
 /**
  * The lines of frame `i`'s title, as the renderer will set them.
@@ -408,6 +498,8 @@ export function releaseFrames() {
         clearCutout(f);
     }
     store.frames = [];
+    store.order = null;   // an arrangement of frames that no longer exist
+    store.orderOf = null;
 }
 
 /**
@@ -541,6 +633,9 @@ export function makeFrame(frame_id, plainUrl, moment = null, caption = "") {
         // carried over to other frames: it describes which picture this one
         // holds, which is the one thing a carry-over must never copy.
         uploaded: false,
+        // Set once the user throws this frame out of the run with the X on
+        // its card — see discardFrame. Never unset: there is no undo.
+        discarded: false,
         picked: false,
         edited: false,                  // flips true on the user's first real edit — see carryOverSettings
         version: 0,
@@ -579,11 +674,18 @@ function contentSource(i) {
     // meant. The `edited` scan stays as the fallback, because the other things
     // carried over — the edit preset above all — are worth taking from a
     // worked-on neighbour even when nobody has typed anything yet.
+    //
+    // "Before" and "after" are places in the GRID, which the user may have
+    // rearranged (see gridOrder): the neighbour is the card beside this one
+    // on screen, not the one that happened to arrive next to it.
     const has = (f) => f && ((f.lines && f.lines.some(Boolean)) || (f.logos && f.logos.length));
-    for (let k = i - 1; k >= 0; k--) if (has(store.frames[k])) return store.frames[k];
-    for (let k = i + 1; k < store.frames.length; k++) if (has(store.frames[k])) return store.frames[k];
-    for (let k = i - 1; k >= 0; k--) if (store.frames[k] && store.frames[k].edited) return store.frames[k];
-    for (let k = i + 1; k < store.frames.length; k++) if (store.frames[k] && store.frames[k].edited) return store.frames[k];
+    const order = gridOrder();
+    const p = order.indexOf(i);
+    const at = (q) => store.frames[order[q]];
+    for (let q = p - 1; q >= 0; q--) if (has(at(q))) return at(q);
+    for (let q = p + 1; q < order.length; q++) if (has(at(q))) return at(q);
+    for (let q = p - 1; q >= 0; q--) if (at(q) && at(q).edited) return at(q);
+    for (let q = p + 1; q < order.length; q++) if (at(q) && at(q).edited) return at(q);
     return null;
 }
 
@@ -600,7 +702,8 @@ function contentSource(i) {
  * typed something.
  */
 function channelSource(i) {
-    return store.frames[i - 1] || contentSource(i);
+    const order = gridOrder();
+    return store.frames[order[order.indexOf(i) - 1]] || contentSource(i);
 }
 
 /**

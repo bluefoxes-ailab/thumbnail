@@ -77,6 +77,12 @@ export const TITLE_FIELD_IDS = [...LINE_IDS, BLOCK_ID];
 // make the same handle harder to hit in one of the two places.
 export const HANDLE_SIZE = 26;
 
+// How wide a new image overlay lands, as a share of the canvas width (see
+// editor.placeLogo). Shared because the mask step's contour is sized against
+// it: a contour of "4 pixels" means 4 on the thumbnail the overlay first
+// lands on, so the PNG has to carry it at whatever width that takes.
+export const OVERLAY_DEFAULT_WIDTH = 0.28;
+
 // YouTube rejects thumbnail files over 2MB, so every export is capped.
 export const MAX_EXPORT_BYTES = 2 * 1024 * 1024;
 

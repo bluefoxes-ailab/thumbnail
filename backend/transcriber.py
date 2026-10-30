@@ -717,10 +717,21 @@ def captions_for(sentences: list[Sentence], moments: list[float]) -> list[str]:
     ## In order, when there is a caption for every still
 
     narrator.py is told how many stills the run is about to deliver and writes
-    that many captions (see `_group` there). When it has — when there are no
-    more captions than there are frames — they are dealt out in order: the
-    first caption to the first still, the second to the second, a caption that
-    needs two screens taking two of them.
+    the account inside that many screens of CAPTION_CHARS (see `_group` and
+    `_screens` there) — as many lines as the story needs, never more screens
+    than there are stills. When it has — when there are no more captions than
+    there are frames — they are dealt out in order: the first caption to the
+    first still, the second to the second, a caption that needs two screens
+    taking two of them.
+
+    Taking two only while the grid can spare them. Every caption is owed one
+    still, so the stills beyond one per caption are the spare, and a caption
+    over CAPTION_CHARS spends one of them to be split — in order, until there
+    are none left. After that a long caption is set whole on one still and
+    wraps. The rewrite is written so that this does not happen (its long lines
+    are the ones it was given two screens for), and this is what makes sure of
+    it: before, a split that ran the grid out of stills pushed the last
+    captions of the account off the end, where nobody ever saw them.
 
     That is the arrangement the whole pipeline is pointed at. Every still
     carries a line, every line the model wrote is seen, and the account reads
@@ -750,6 +761,11 @@ def captions_for(sentences: list[Sentence], moments: list[float]) -> list[str]:
 
     ## Both ways
 
+    A grid matched by time can come back with bare frames between captioned
+    ones; this does not close them, because the grid it is handed is not yet
+    the grid the user gets — close_gaps does that, once the frames that failed
+    to load have been dropped.
+
     No two frames ever carry the same text. A caption over CAPTION_CHARS is
     split across two consecutive stills rather than repeated on both, and one
     with nowhere to come apart is left whole on a single still (see
@@ -765,12 +781,11 @@ def captions_for(sentences: list[Sentence], moments: list[float]) -> list[str]:
 
     # Written for this grid: deal the account out over it, in order.
     if len(sentences) <= len(moments):
+        spare = len(order) - len(sentences)
         frame = 0
         for sentence in sentences:
-            if frame >= len(order):
-                break
-            pieces = split_caption(sentence.text, CAPTION_CHARS,
-                                   min(2, len(order) - frame))
+            pieces = split_caption(sentence.text, CAPTION_CHARS, 2 if spare > 0 else 1)
+            spare -= len(pieces) - 1
             for piece in pieces:
                 captions[order[frame]] = piece
                 frame += 1
@@ -788,3 +803,50 @@ def captions_for(sentences: list[Sentence], moments: list[float]) -> list[str]:
         for frame, piece in zip(frames, pieces):
             captions[frame] = piece
     return captions
+
+
+def close_gaps(captions: list[str]) -> list[str]:
+    """
+    The captions of a grid, with no frame left bare ahead of a captioned one.
+
+    The rule, checked frame by frame in the grid's order: a frame is given its
+    text only when the frame BEFORE it already has text. The first frame has
+    no frame before it and is given its text regardless. A frame whose
+    predecessor is bare does not keep its text where it is — the text moves
+    back onto the earliest bare frame, and everything after it moves back with
+    it, so the account reads from frame 1 onwards with nothing skipped and
+    nothing lost. The frames left bare are all at the end.
+
+    That is the same promise the user's own text is dealt out under (see
+    mytext.dealOut, and the check main.splitMyText makes as it sets the
+    pieces), and for the same reason: a bare still between two captioned ones
+    reads as a frame the text missed, and the user finds it in the folder,
+    after exporting, rather than on screen.
+
+    There are three ways a gap gets in, and this closes all of them in one
+    place rather than three:
+
+      * a frame matched BY TIME (see captions_for) that fell on a silence too
+        wide to be called the same moment;
+      * a grab that failed to decode or to crop after its caption was decided
+        (see api._capture_frames_sync) — the caption is indexed by the grab,
+        so its slot goes missing from the grid and its words with it;
+      * a caption that came back empty.
+
+    What it costs, and it is a cost knowingly taken: on a grid matched by time
+    every caption after the first gap no longer sits over the moment its words
+    were spoken, but a few frames earlier. The order is kept, which is what a
+    reader of the grid follows; the timing was the one thing a gap was
+    protecting, and a hole in the middle of the story is the worse of the two.
+    """
+    out = [""] * len(captions)
+    filled = 0
+    for text in captions:
+        if not text.strip():
+            continue
+        # The check itself: frame `filled` is the first one not yet given
+        # text, so it is either the first frame or one whose predecessor has
+        # text — never a frame after a bare one.
+        out[filled] = text
+        filled += 1
+    return out

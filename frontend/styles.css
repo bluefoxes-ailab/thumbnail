@@ -410,11 +410,8 @@ input[type="text"]::-moz-selection { background: #fffa00; color: #1b2fea; }
 /* The same picker above the link box, where the column's gap is
    10px rather than the panel's 14px — so the label's negative
    margin, which is tuned to sit ON its field, has to be eased off
-   by the difference or it climbs into the field itself. The hint
-   under it is pulled up for the same reason: it explains the
-   select, so it belongs to it rather than to the link box below. */
+   by the difference or it climbs into the field itself. */
 .input-section .field-label { margin-bottom: -4px; }
-.input-section #runChannelHint { margin: -4px 0 6px; opacity: 0.75; }
 
 /* How many frames to fetch — shown only for a channel that fetches
    them (see capture.syncCaptureFields). Same field as the link box
@@ -428,8 +425,19 @@ input[type="text"]::-moz-selection { background: #fffa00; color: #1b2fea; }
    switch the width of the link box under it rather than as two
    buttons of different lengths that happen to sit together. */
 .output-mode-toggle .btn { flex: 1; }
+/* "Add more images" and "Start a new set", side by side (main.syncSourceFields). */
+.image-source-row .btn { flex: 1; }
 #frameCountRow { display: flex; flex-direction: column; gap: 10px; }
 #frameCountRow.hidden { display: none; }
+/* Max characters per frame, for "Frames with text" — the label and
+   its box on one line (see index.html for why). The label keeps its
+   one line and the box takes the rest; the label's negative margin,
+   which pulls a label down onto a field under it, has nothing to pull
+   onto here. */
+#captionCharsRow { display: flex; align-items: center; gap: 12px; }
+#captionCharsRow.hidden { display: none; }
+#captionCharsRow .field-label { margin: 0; white-space: nowrap; flex-shrink: 0; }
+#captionCharsRow input { flex: 1; min-width: 0; }
 /* Slider and its readout on one row, the readout wide enough for
    three digits so the track does not resize as the number changes. */
 .count-control { display: flex; align-items: center; gap: 12px; }
@@ -515,6 +523,9 @@ input[type="text"]::-moz-selection { background: #fffa00; color: #1b2fea; }
    start clears these first), so cascade order doesn't matter. */
 #thumbCanvas.hover-move { cursor: move; }
 #thumbCanvas.hover-resize { cursor: nwse-resize; }
+/* Over an asset's rotate handle. CSS has no "rotate" cursor, and the
+   grabbing hand is what a turning knob is held with. */
+#thumbCanvas.hover-rotate { cursor: grab; }
 
 .reframe-hint { text-align: center; font-size: 12px; color: #fff; margin-bottom: 18px; }
 
@@ -745,6 +756,263 @@ input[type="text"]::-moz-selection { background: #fffa00; color: #1b2fea; }
 }
 .logo-chip-del:hover { background: #fffa00; color: #FF070C; }
 
+/* ── The mask step (js/mask.js) ───────────────────────────────────────
+   Built out of parts the page already has, on purpose: the .btn pair
+   with .btn-active held on the chosen shape, exactly as the edit
+   presets and the output mode show theirs; the frame-count slider for
+   zoom, with the canvas zoom bar's round caps either side of it; the
+   side panel's blue-edged card for the box everything sits in. A step
+   that looked designed for some other app would read as one.
+
+   The backdrop is the page's own navy, translucent and blurred, so the
+   frame the overlay is going onto stays faintly visible behind — the
+   step is a moment in that frame's editing, not a separate place. */
+.mask-step {
+    position: fixed; inset: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: center;
+    padding: 16px;
+    background: rgba(6, 6, 16, 0.78);
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+}
+.mask-step.hidden { display: none; }
+/* Nothing behind the step scrolls while it is up; the wheel over the
+   stage zooms, and a page sliding underneath at the same time would
+   be two things answering one gesture. */
+body.mask-open { overflow: hidden; }
+/* Opaque where the side panel is translucent: the panel sits on the
+   page's own field, this sits on a photo, and a blue tint over a busy
+   picture is a card nobody can read. The tint is kept as a gradient
+   over the navy so it is still recognisably the panel's colour. */
+.mask-card {
+    width: 500px; max-width: 100%; max-height: 100%; overflow-y: auto;
+    display: flex; flex-direction: column; gap: 14px;
+    background: linear-gradient(rgba(27, 47, 234, 0.18), rgba(27, 47, 234, 0.18)), #080b1e;
+    border: 1px solid rgba(2, 109, 255, 0.5); border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 250, 0, 0.04);
+}
+.mask-card h2 { margin: 0; }
+.mask-hint { text-align: center; opacity: 0.75; margin-top: -6px; }
+.mask-shape-row .btn { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+/* The shape, drawn on its own button, so the choice is legible before
+   the word is read. currentColor, so it turns blue with the label when
+   the button turns yellow. */
+.mask-glyph { width: 12px; height: 12px; border: 2px solid currentColor; display: inline-block; flex: 0 0 auto; }
+.mask-glyph-square { border-radius: 2px; }
+.mask-glyph-round { border-radius: 50%; }
+/* The stage is sized in mask.js (its drawing buffer follows the
+   screen's density). The checkerboard behind it is the usual sign for
+   "transparent": past fill, or outside the circle, that is what the
+   exported picture will have there. The canvas paints over it
+   everywhere the image is. */
+.mask-canvas {
+    display: block; margin: 0 auto; max-width: 100%; height: auto !important;
+    aspect-ratio: 1 / 1;
+    border-radius: 8px; cursor: grab; touch-action: none;
+    background:
+        repeating-conic-gradient(#141833 0% 25%, #0d1026 0% 50%) 50% / 20px 20px;
+    border: 2px solid #026dff;
+}
+.mask-canvas.dragging { cursor: grabbing; }
+/* The stage with the blur control standing to its left. min-width: 0 on
+   the canvas lets it give up width on a narrow window instead of pushing
+   the slider out of the card. */
+.mask-stage-row { display: flex; align-items: stretch; gap: 12px; }
+.mask-stage-row .mask-canvas { min-width: 0; flex: 1 1 auto; margin: 0; }
+.mask-blur {
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    flex: 0 0 auto;
+}
+.mask-blur .field-label { margin: 0; }
+.mask-blur .zoom-cap { border: none; padding: 0; font-family: inherit; }
+/* The frame-count slider turned upright. writing-mode is what makes a
+   range input vertical with its own keyboard and pointer handling intact
+   (a rotate() would leave its hit box lying on its side), and rtl puts the
+   minimum at the bottom, where "less" is everywhere else. Every rule of
+   .count-slider that names a direction is restated for the other axis. */
+.mask-blur .count-slider {
+    writing-mode: vertical-lr; direction: rtl;
+    flex: 1 1 auto; width: 22px; height: auto; min-height: 120px;
+}
+.mask-blur .count-slider::-webkit-slider-runnable-track {
+    width: 8px; height: auto;
+    background: linear-gradient(to top, #fffa00 calc(var(--count-fill) * 100%),
+                                        #1b2fea calc(var(--count-fill) * 100%));
+}
+.mask-blur .count-slider::-moz-range-track {
+    width: 8px; height: auto;
+    background: linear-gradient(to top, #fffa00 calc(var(--count-fill) * 100%),
+                                        #1b2fea calc(var(--count-fill) * 100%));
+}
+.mask-blur .count-slider::-webkit-slider-thumb { margin-top: 0; margin-left: -7px; }
+.mask-zoom { display: flex; align-items: center; gap: 12px; }
+/* The canvas zoom bar's caps are divs; these are real buttons, so the
+   browser's own border and padding have to be taken off them first. */
+.mask-zoom .zoom-cap { border: none; padding: 0; font-family: inherit; }
+.mask-actions { margin-top: 6px; }
+.mask-actions .btn { flex: 1; }
+/* ── The asset step (js/assets.js) ────────────────────────────────────
+   The mask step's card holding two views. Each view restates the card's
+   own column and gap, because wrapping them in a box is what took the
+   card's gap away from the things inside. Written against :not(.hidden)
+   so the plain .hidden rule still wins without a fight over order. */
+.asset-view:not(.hidden) { display: flex; flex-direction: column; gap: 14px; }
+/* The shelf: one tile per asset, the picture on the checkerboard that
+   means "transparent" in the mask step, its name underneath. Tiles are
+   the overlay chips' blue-edged boxes grown to be pressed, turning
+   yellow under the pointer like every other control on the page. */
+.asset-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+    gap: 10px; max-height: 340px; overflow-y: auto; padding: 2px;
+}
+.asset-tile {
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    padding: 8px; cursor: pointer;
+    border: 2px solid #1b2fea; border-radius: 8px;
+    background: #0b1533; color: #fff;
+    font-size: 12px; font-weight: 700;
+    transition: border-color 0.12s ease, transform 0.12s ease;
+}
+.asset-tile:hover, .asset-tile:focus-visible { border-color: #fffa00; outline: none; transform: translateY(-1px); }
+.asset-tile img {
+    width: 100%; aspect-ratio: 1 / 1; object-fit: contain; display: block;
+    border-radius: 6px;
+    background: repeating-conic-gradient(#141833 0% 25%, #0d1026 0% 50%) 50% / 14px 14px;
+}
+/* The preview. The canvas is sized to the asset's shape in assets.js;
+   the checkerboard is behind the stage rather than the canvas so a tall
+   or wide asset still sits in the same square every time.
+
+   A LIGHT checkerboard, unlike the mask stage's dark one: the Drop shadow
+   switch draws a dark shadow, and on the page's navy that switch would
+   look as if it did nothing. Mid-light greys show the shadow and still
+   let a white asset be told from the field. */
+.asset-stage {
+    display: flex; align-items: center; justify-content: center;
+    width: 100%; max-width: 360px; aspect-ratio: 1 / 1; margin: 0 auto;
+    padding: 20px; box-sizing: border-box;
+    border: 2px solid #026dff; border-radius: 8px;
+    background: repeating-conic-gradient(#c9ccd8 0% 25%, #b3b7c6 0% 50%) 50% / 20px 20px;
+}
+.asset-canvas { display: block; max-width: 100%; max-height: 100%; height: auto; }
+/* The browser's own colour well, made the size of a swatch and stripped
+   of the grey frame it is drawn in. Shared by the asset step and the mask
+   step's contour, which ask the same question. */
+.asset-color-row { display: flex; align-items: center; gap: 10px; }
+.color-well {
+    flex: 0 0 auto; width: 48px; height: 42px; padding: 0;
+    border: 2px solid #026dff; border-radius: 8px; background: none; cursor: pointer;
+}
+.color-well:hover { border-color: #fffa00; }
+.color-well::-webkit-color-swatch-wrapper { padding: 3px; }
+.color-well::-webkit-color-swatch { border: none; border-radius: 5px; }
+.color-well::-moz-color-swatch { border: none; border-radius: 5px; }
+/* The contour's switch and its colour, side by side: the colour is a
+   property of the contour, not a setting of its own. Dimmed while the
+   contour is off, but still pressable — picking a colour turns it on. */
+.mask-contour-row { display: flex; align-items: center; gap: 10px; }
+.mask-contour-row .btn { flex: 1; }
+.mask-contour-row:not(.on) .color-well { opacity: 0.45; }
+.asset-toggle-row .btn { flex: 1; padding-left: 8px; padding-right: 8px; }
+.asset-hex { flex: 1 1 auto; text-transform: uppercase; font-family: Consolas, "Courier New", monospace; }
+/* The "video ready" notice (see js/notify.js): a message, not a tool, so
+   the card is narrower and its few lines centred. */
+.ready-card { width: 380px; text-align: center; }
+/* The framing step's stage (js/framecrop.js): the mask stage's look, with
+   the shape left to the script — it is the video's, not a square. No
+   checkerboard behind it, because nothing in this window is ever
+   transparent: the picture always covers it. */
+.frame-crop-canvas {
+    display: block; margin: 0 auto; max-width: 100%; height: auto;
+    border-radius: 8px; cursor: grab; touch-action: none;
+    background: #0d1026;
+    border: 2px solid #026dff;
+}
+.frame-crop-canvas.dragging { cursor: grabbing; }
+
+/* ── The user's own text, on a "Frames only" run (js/mytext.js) ──────
+   The width of the link box above it and stacked the same way, so it
+   reads as the next step of the same column. The box is the title
+   block's own field: the text typed here ends up as titles, and it
+   looks like the field it will later be edited in.
+
+   Unlike that field it does not grow to fit — a pasted script can run
+   to pages — so it scrolls, and the user can drag it taller. */
+.my-text-section {
+    display: flex; flex-direction: column; gap: 10px;
+    max-width: 500px; margin: 0 auto 24px;
+}
+.my-text-section.hidden { display: none; }
+.my-text-input {
+    min-height: 120px; max-height: 40vh;
+    overflow-y: auto; resize: vertical;
+}
+/* The box and "Max characters per frame" side by side: the number is a
+   setting OF the box, and beside it is where it reads as one. The box
+   takes whatever width is left; on a phone there is too little for both
+   and the field drops under it.
+
+   A grid rather than two flex columns because of the labels. "Your
+   text" is one line and "Max characters per frame" wraps to two in
+   110px, so two columns that each stack label-then-field start their
+   fields at different heights and the box and the number no longer
+   line up. Here the labels share the first row, sit on its bottom
+   edge, and both fields start together on the second. The number's
+   wrapper steps aside (display: contents) so its label and input can
+   be placed in that grid directly; nothing in the JS looks it up. */
+.my-text-row {
+    display: grid; grid-template-columns: minmax(0, 1fr) 110px;
+    grid-template-areas: "text-label chars-label" "text chars";
+    column-gap: 10px; row-gap: 6px; align-items: end;
+}
+.max-chars-field { display: contents; }
+.my-text-row .field-label { margin-bottom: 0; line-height: 1.3; }
+.my-text-label { grid-area: text-label; }
+.my-text-row .my-text-input { grid-area: text; align-self: start; }
+.max-chars-field .field-label { grid-area: chars-label; }
+.max-chars-input { grid-area: chars; align-self: start; width: 100%; text-align: center; }
+@media (max-width: 480px) {
+    .my-text-row {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-areas: "text-label" "text" "chars-label" "chars";
+    }
+    /* The 6px that holds a label onto its field is too little between
+       the box and the next field's label, which would then read as a
+       caption of the box above it. */
+    .max-chars-field .field-label { margin-top: 6px; }
+}
+/* The Split button and the bubble that explains it while it is locked.
+   The wrapper is what the pointer is over: a disabled button takes no
+   pointer events in every browser, so it is made transparent to them
+   and the wrapper answers the hover and shows the not-allowed cursor
+   the button would have shown. */
+.split-wrap { position: relative; }
+.split-wrap .btn { width: 100%; }
+.split-wrap.locked { cursor: not-allowed; }
+.split-wrap.locked .btn { pointer-events: none; }
+/* The bubble: the mask card's navy and blue edge, with a point aimed
+   at the button. Above it rather than below, so it never lands on the
+   status line or the grid the button is about. */
+.split-tip {
+    position: absolute; left: 50%; bottom: calc(100% + 10px);
+    transform: translateX(-50%) translateY(4px);
+    width: max-content; max-width: min(320px, 90vw);
+    padding: 8px 12px; border-radius: 8px;
+    background: #080b1e; border: 1px solid #026dff; color: #fff;
+    font-size: 12px; line-height: 1.4; text-align: center;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);
+    opacity: 0; visibility: hidden; pointer-events: none;
+    transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s;
+    z-index: 20;
+}
+.split-tip::after {
+    content: ""; position: absolute; top: 100%; left: 50%;
+    margin-left: -6px; border: 6px solid transparent; border-top-color: #026dff;
+}
+.split-wrap.locked:hover .split-tip {
+    opacity: 1; visibility: visible; transform: translateX(-50%) translateY(0);
+}
+
 
 /* ── Frame-fetch mode ─────────────────────────────────────────────
 
@@ -825,6 +1093,15 @@ body.capture-mode .frames-grid {
 }
 body.capture-mode .frame-card img { aspect-ratio: 9 / 16; }
 
+/* Rearranging the grid (js/reorder.js). The grab cursor says a card
+   can be picked up; the card being held is dimmed where it sits, so
+   the gap it will drop into reads as a gap while the pointer carries
+   the card's own picture. */
+body.capture-mode .frame-card { cursor: grab; }
+body.capture-mode .frame-card.dragging { opacity: 0.3; border-color: #fffa00; border-style: dashed; }
+.reorder-hint { text-align: center; margin-top: -8px; }
+body:not(.capture-mode) .reorder-hint { display: none; }
+
 /* A frame the edit has not reached yet. Grey and inert, turning to
    its own colours the moment its pixels are the finished ones (see
    ui.markFrameReady) — so the grid fills in visibly, left to right,
@@ -836,13 +1113,15 @@ body.capture-mode .frame-card img { aspect-ratio: 9 / 16; }
    moment is "which of these can I open", and colour answers it
    across the whole grid at a glance.
 
-   pointer-events, not a JavaScript guard, for the click: the card is
-   not a control yet, and saying so once in the stylesheet beats
-   every handler on it having to remember. (main.renderGrid guards
-   as well, for the case where a stylesheet fails to load and the
-   cards would otherwise be silently clickable.) */
-body.capture-mode .frame-card.pending {
-    pointer-events: none;
+   It used to take no pointer at all (pointer-events: none), which
+   was the simplest way to say "not a control yet". It has to take
+   one now, because a card can be dragged into a new place at any
+   point of the run, grey or not (see js/reorder.js). So the click is
+   refused in main.renderGrid instead, and the card here only stops
+   looking like something to open: no highlight on hover, and the
+   grab cursor every card of a frame fetch wears. */
+body.capture-mode .frame-card.pending,
+body.capture-mode .frame-card.pending:hover {
     border-color: transparent;
 }
 body.capture-mode .frame-card.pending img {
@@ -856,6 +1135,51 @@ body.capture-mode .frame-card.pending img {
    waiting to be able to use. */
 body.capture-mode .frame-card.pending .badge { opacity: 0.55; }
 body.capture-mode .frame-card.pending .pick { display: none; }
+
+/* The X that discards a frame (main.discardFromGrid). Top right, where
+   the eye goes to close something, and at full strength on a grey card
+   as on a finished one — throwing a frame out before the edit reaches
+   it is the point of having it there early. The batch tick, which used
+   to own that corner, moves to the bottom one on a frame fetch: a
+   mark-for-download beside a throw-away is two very different clicks a
+   few pixels apart. */
+.frame-card .discard {
+    position: absolute; top: 3px; right: 3px;
+    width: 20px; height: 20px; padding: 0;
+    border: none; border-radius: 4px;
+    background: #e0201b; color: #fff;
+    cursor: pointer; z-index: 1;
+    display: flex; align-items: center; justify-content: center;
+}
+.frame-card .discard::before,
+.frame-card .discard::after {
+    content: ""; position: absolute;
+    width: 12px; height: 2px; border-radius: 1px; background: currentColor;
+}
+.frame-card .discard::before { transform: rotate(45deg); }
+.frame-card .discard::after { transform: rotate(-45deg); }
+.frame-card .discard:hover { background: #ff3b30; }
+.frame-card .discard:focus-visible { outline: 2px solid #fffa00; outline-offset: 1px; }
+body.capture-mode .frame-card .pick { top: auto; bottom: 3px; }
+
+/* The "Add image" tile at the end of a frame fetch's grid
+   (main.addOwnFrame). The shape of a card, so it reads as the place the
+   next frame goes, and dashed, so it does not read as a frame already
+   there. Not a .frame-card: reorder.js rearranges exactly those, and a
+   tile that could be dragged into the middle of the set would be a frame
+   numbered among the others that is not one. */
+.frame-add {
+    aspect-ratio: 9 / 16; width: 100%;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+    border: 2px dashed rgba(2, 109, 255, 0.7); border-radius: 4px;
+    background: rgba(27, 47, 234, 0.12); color: #fff;
+    font-family: inherit; font-size: 12px; font-weight: 700;
+    cursor: pointer; padding: 6px; text-align: center;
+}
+.frame-add:hover:not(:disabled) { border-color: #fffa00; color: #fffa00; }
+.frame-add:focus-visible { outline: 2px solid #fffa00; outline-offset: 1px; }
+.frame-add:disabled { opacity: 0.5; cursor: progress; }
+.frame-add-plus { font-size: 30px; line-height: 1; font-weight: 400; }
 
 /* ── The caption panel, turned on its side ────────────────────────
 
@@ -912,81 +1236,74 @@ body.captions-mode .panel-group:not(:first-child) > h2 {
 /* The caption is the reason this channel has a panel at all, so it
    gets the height the other two do not need. */
 body.captions-mode #lineBlock { flex: 1 1 auto; min-height: 96px; resize: none; }
-/* Top Nav Layout */
-/* Top Nav Layout */
+/* ── Top bar: the logo on the left, the two apps on the right ─────────
+   Centred on each other, which only means something once the logo's
+   box IS the logo. BLUEROOM.png is a 6144px square with the artwork in
+   a band across the middle - measured, rows 2374-3376 and columns
+   544-5579 - so at 250px the box is mostly transparent, and centring
+   or top-aligning that box against the buttons lines them up with
+   empty space instead of with the word. The negative margins below
+   are those measurements as fractions of the image, cutting the
+   layout box down to the artwork while the picture still draws whole
+   (nothing is clipped, so the glow around the fox survives). Derived
+   from --logo-size, so resizing the logo cannot quietly undo it; a
+   new logo file needs the fractions measured again.
+
+   The left cut also puts the artwork's left edge on the column's,
+   matching the buttons' right edge on the other side.
+
+   The bar's bottom margin keeps the page title where it stood when
+   the full 250px box was what pushed it down. */
 .top-nav {
+    --logo-size: 250px;
     display: flex;
     justify-content: space-between;
-    align-items: flex-start; /* Aligns both logo and buttons directly to the ceiling */
+    align-items: center;
+    gap: 16px;
     width: 100%;
-    margin-top: -20px;       /* Pulls the navbar right up against the top edge */
-    margin-bottom: 0;
-    padding-top: 0;
+    padding-top: 18px;
+    margin-bottom: 126px;
 }
 
-/* Brand Section */
-.brand {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
+.brand { display: flex; align-items: center; flex-shrink: 0; }
 
 .brand-fox {
-    height: 250px;
-    max-height: none;
+    height: var(--logo-size);
     width: auto;
-    object-fit: contain;
+    max-height: none;
     display: block;
-    margin-top: -45px; /* Pulls the visible artwork up to eliminate top whitespace */
+    margin: calc(var(--logo-size) * -0.3864) calc(var(--logo-size) * -0.0919)
+            calc(var(--logo-size) * -0.4505) calc(var(--logo-size) * -0.0885);
 }
 
+/* The two apps, as the app's own buttons: the blue .btn at rest, the
+   yellow of .btn-active on the one that is open, yellow on hover - the
+   same one-of-several switch the output mode buttons under the title
+   are, rather than a second button system of its own at the top of the
+   page. The JS marks the open one with .active (setAppMode in main.js),
+   so that is the class that wears the yellow here. */
+.mode-tabs { display: flex; gap: 8px; }
 
-
-/* Mode Switch Tabs */
-.mode-tabs {
-    display: flex;
-    gap: 6px;
-    background: rgba(255, 255, 255, 0.08);
-    padding: 4px;
-    border-radius: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    margin-top: 35px; /* Adjust between 10px-20px to match where you want them relative to the ceiling */
-}
-
-/* Align tab buttons with their icons */
 .tab-btn {
     display: inline-flex;
     align-items: center;
-    gap: 8px; /* Spacing between the logo and text */
-    background: transparent;
-    color: #94a3b8;
-    border: none;
-    padding: 8px 16px;
-    font-size: 0.95rem;
-    font-weight: 600;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: all 0.2s ease-in-out;
+    gap: 8px;
 }
+.tab-btn.active { background: #fffa00; color: #1b2fea; }
 
-/* Tab icon dimensions */
+/* The platform logos, kept as they are drawn in their files but painted
+   in the button's own text colour through a mask - see the comment on
+   .mode-tabs in index.html for why not an <img>. */
 .tab-icon {
-    width: 25px;
-    height: 20px;
-    object-fit: contain;
-    display: block;
+    width: 18px;
+    height: 18px;
     flex-shrink: 0;
+    background: currentColor;
+    -webkit-mask: var(--icon) center / contain no-repeat;
+    mask: var(--icon) center / contain no-repeat;
 }
-
-.tab-btn:hover {
-    color: #ffffff;
-}
-
-.tab-btn.active {
-    background: #2563eb;
-    color: #ffffff;
-    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.4);
-}
+.tab-icon-youtube { --icon: url("youtube.png"); }
+.tab-icon-snapchat { --icon: url("snapchat.png"); }
 /* The edit presets stay a column, which is worth writing down because
    the obvious move here is to lay them across. Measured, they do not
    go: "Restore only", "Natural" and "Heavy edit" are 136, 98 and 113

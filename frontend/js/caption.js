@@ -1,28 +1,53 @@
 /**
  * caption.js — one sentence, broken into the lines it will be set on.
  *
- * Two channels' worth of behaviour live here, and which one runs is decided by
- * whether the channel states a `fontSize`. A channel that does not is fitted,
- * and the long note below on choosing the number of lines by height is about
- * that case. A channel that does wants the fewest lines the sentence fits on,
- * which is ordinary wrapping — see the top of captionLines.
+ * ## Who comes through here
  *
- * The backend hands each captured frame the sentence that was being said over
- * it (see backend/transcriber.py). That is a single string, and the title
- * renderer does not wrap: it sets the lines it is given, one per row, each
- * fitted to the block's width. So something has to decide where the sentence
- * breaks, and this is it.
+ * Static Studio only. The one caller is capture.applyCaptions, which runs on a
+ * frame fetch and never on a thumbnail run: a Thumbnail Maker title is typed
+ * by the user into the line fields, one beat per field, and nothing here ever
+ * sees it. What does come through is a single string per still — the sentence
+ * that was being said over it (see backend/transcriber.py), or a piece of the
+ * user's own text (see mytext.js) — and the title renderer does not wrap: it
+ * sets the lines it is given, one per row. So something has to decide where
+ * the sentence breaks, and this is it.
  *
- * The breaks it makes are only a STARTING point. The Snapchat pack's titles
- * are freeform (see `freeform` in channels.js), which means the line breaks
+ * The breaks it makes are only a STARTING point. The Snapchat titles are
+ * freeform (see `freeform` in channels.js), which means the line breaks
  * belong to the user — they get the caption pre-filled in the text box and
  * every break in it is theirs to move. Nothing here runs again after that.
  *
- * ## Why the number of lines is chosen by height
+ * ## Two models, chosen by whether the channel states a `fontSize`
  *
- * This channel sets each line to the full width of the block at its own size
- * (`uniformSize: false`), so the two edges of the block are straight and a
- * line's size is decided by how much text is on it: four words across 540px
+ * STATED SIZE — every caption channel there is today. The Snapchat heading's
+ * preset (content/presets/snapchat-caption.json) and laugh-society-snapchat,
+ * which writes the same numbers out itself, set every line at one fixed size
+ * (40px) and ask for the FEWEST lines the sentence fits on, under two
+ * ceilings: the block's width, and `maxChars` per line (twenty, what a viewer
+ * reads at a glance). That is ordinary wrapping, and it is the first branch of
+ * captionLines. It is not capped at `layout.lines`: a long sentence takes more
+ * lines, and the block grows upward off its bottom margin rather than off the
+ * edge of the frame. The pack's `"lines": 4` is a count of slots, and a
+ * freeform channel has none.
+ *
+ * Four lines of twenty is eighty characters, which is the length a rewritten
+ * caption is written to (transcriber.CAPTION_CHARS) and the length mytext.js
+ * breaks the user's text toward. The numbers agree on purpose — one caption
+ * fills one card — but nothing here depends on it: a caption that runs to six
+ * lines is set on six.
+ *
+ * FITTED — no channel today; kept for a caption channel that states no size.
+ * Each line is stretched to the full width of the block at its own size, and
+ * the number of lines is chosen by height. This is the model the captions
+ * were built on before the Snapchat pack moved to a stated size, and the rest
+ * of this header is about it — the reasoning is the reason the branch exists,
+ * so it stays with it.
+ *
+ * ## Fitted: why the number of lines is chosen by height
+ *
+ * A fitted channel sets each line to the full width of the block at its own
+ * size (`uniformSize: false`), so the two edges of the block are straight and
+ * a line's size is decided by how much text is on it: four words across 540px
  * are large, eleven words across the same 540px are small.
  *
  * That inverts the usual wrapping question. Fitting as many words as possible

@@ -172,6 +172,11 @@ class VideoSession:
     """The current video and everything derived from it."""
     video_path: str | None = None
     extract_interval: float | None = None
+    # Whether this session is a set of the user's own images rather than a
+    # video (see api./start-images). Such a session starts with no frames at
+    # all, and this is what lets /add-frame give it its first one instead of
+    # refusing a grid that has nothing to add to.
+    own_images: bool = False
 
     # Every burned-in logo overlay this video carries (a video can change its
     # channel bug partway through — see logo_remover), in full-frame and in
@@ -223,6 +228,7 @@ class VideoSession:
     def reset(self) -> None:
         self.video_path = None
         self.extract_interval = None
+        self.own_images = False
         self.logo_overlays_full = []
         self.logo_overlays_cropped = []
         self.subtitle_bands = []

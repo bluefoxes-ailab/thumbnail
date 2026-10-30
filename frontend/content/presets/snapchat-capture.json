@@ -29,10 +29,12 @@
         "Two hundred is the upper end, which is a long video's worth at this",
         "spacing and well inside what the up-front edit pass can get through.",
         "",
-        "The count is not only a number of pictures. The rewrite is told how",
-        "many stills it is writing for and produces that many captions, so",
-        "forty is an account in forty lines and two hundred is the same account",
-        "in two hundred - see narrator._group."
+        "The count is not only a number of pictures. It is the room the rewrite",
+        "has, in characters - one screen of 80 per still - so forty is the",
+        "account in up to 40 x 80 characters and two hundred is the same",
+        "account in up to 200 x 80. How many lines that comes out in is the",
+        "text's decision, not the slider's: a thought takes one screen or two",
+        "by what it has to say - see narrator._group and narrator._screens."
     ],
     "frames": { "default": 40, "min": 1, "max": 200 },
 

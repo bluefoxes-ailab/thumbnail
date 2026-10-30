@@ -39,8 +39,30 @@ DROP_RESPONSE = {"transfer-encoding", "connection", "content-encoding", "content
 
 
 class Handler(http.server.SimpleHTTPRequestHandler):
+    # Set per request by do_GET/do_HEAD: whether the response being written is
+    # a file from this checkout rather than one relayed from the remote.
+    _serving_local = False
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(FRONTEND), **kwargs)
+
+    def end_headers(self):
+        # Local files go out with "no-cache", which means "ask again every
+        # time", not "never store". Without it the only freshness hint is
+        # Last-Modified, and browsers turn that into a guess of their own (a
+        # tenth of the file's age) and reuse the copy without asking. The JS
+        # is a tree of ES modules, so a reload after an edit can then run a
+        # new main.js against a cached state.js that lacks an export it now
+        # imports - the module graph fails to link, nothing on the page runs,
+        # and it looks like the backend sent no channels and the Static
+        # Studio tab is dead. Asking every time costs a 304 per file, since
+        # SimpleHTTPRequestHandler answers If-Modified-Since.
+        #
+        # Relayed responses are left alone: their caching is the remote's
+        # call, and _forward copies its headers through.
+        if self._serving_local:
+            self.send_header("Cache-Control", "no-cache")
+        super().end_headers()
 
     def _local_file(self):
         path = urlparse(self.path).path
@@ -72,13 +94,15 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self.wfile.write(data)
 
     def do_GET(self):
-        if self._local_file():
+        self._serving_local = self._local_file()
+        if self._serving_local:
             super().do_GET()
         else:
             self._forward("GET")
 
     def do_HEAD(self):
-        if self._local_file():
+        self._serving_local = self._local_file()
+        if self._serving_local:
             super().do_HEAD()
         else:
             self._forward("HEAD")

@@ -1,9 +1,11 @@
 import functools
-import gdown
+import glob
 import hashlib
 import os
 import re
 import shutil
+import subprocess
+import sys
 import sysconfig
 import time
 import urllib.request
@@ -11,6 +13,7 @@ import uuid
 from urllib.parse import urlparse, urlunparse, parse_qsl, urlencode
 import imageio_ffmpeg
 from yt_dlp import YoutubeDL
+import cancel
 from yt_dlp.utils import DownloadError
 
 # Private module, so its absence is survivable: with no way to ask about
@@ -29,11 +32,21 @@ TEMP_DIR = os.path.join(os.path.dirname(__file__), "temp")
 
 YOUTUBE_PATTERN = re.compile(r"(youtube\.com/watch\?v=|youtube\.com/shorts/|youtu\.be/)")
 DROPBOX_PATTERN = re.compile(r"dropbox\.com")
+# Any Instagram link at all, not just the shapes that name a video — so that a
+# profile or a story link gets a sentence about Instagram rather than falling
+# through to the Google Drive path and failing there as "Could not extract
+# file ID", which would send the user looking in the wrong place entirely.
+INSTAGRAM_PATTERN = re.compile(r"(?:^|[/.])(?:instagram\.com|instagr\.am)/", re.IGNORECASE)
 
 YOUTUBE_MAX_RETRIES = 3   # yt-dlp's signed format URLs intermittently 403 without a JS runtime
                           # (deno) to solve YouTube's signature challenge — a fresh extraction
                           # attempt almost always succeeds on retry
 YOUTUBE_RETRY_DELAY = 2.0  # seconds between retries
+
+# How often a Drive download checks whether its run has been stopped (see
+# _gdown), and the size each Dropbox read takes before checking again.
+GDOWN_POLL_SECONDS = 0.5
+DOWNLOAD_CHUNK = 1024 * 1024
 
 
 # ── JavaScript runtime ────────────────────────────────────────────────────
@@ -105,6 +118,130 @@ def _no_js_runtime_message():
     )
 
 
+# ── Logging in to YouTube ─────────────────────────────────────────────────
+#
+# YouTube answers a download from a datacenter address — a cloud VM, which is
+# where the shared server runs — with:
+#
+#     Sign in to confirm you're not a bot. Use --cookies-from-browser or
+#     --cookies for the authentication.
+#
+# It is a judgement about the ADDRESS, not about the video or about yt-dlp: the
+# same link downloads fine from a home connection and fails every time from the
+# VM. The one remedy that does not involve moving the server is to download as
+# a logged-in user, which yt-dlp does from a cookies file in Netscape format
+# exported from a browser where somebody is signed in to YouTube.
+#
+# Where the file is looked for, first match wins:
+#
+#   THUMBNAIL_MAKER_YT_COOKIES   a full path, for a server that keeps its
+#                                secrets somewhere of its own. Set and wrong is
+#                                an error rather than a silent fallback — a
+#                                typo in it would otherwise look exactly like
+#                                YouTube refusing the cookies.
+#   backend/secrets/youtube-cookies.txt
+#                                the default. backend/secrets/ is in .gitignore,
+#                                and has to stay there: this file IS the login.
+#
+# With neither, downloads run anonymously exactly as they always did, which is
+# still what a machine on a home connection wants.
+#
+# Use a Google account made for this, not anybody's own. YouTube can flag an
+# account whose cookies are used from a server, and the export goes stale on
+# its own schedule — the error below says so when it does.
+
+YOUTUBE_COOKIES_ENV = "THUMBNAIL_MAKER_YT_COOKIES"
+YOUTUBE_COOKIES_DEFAULT = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "secrets", "youtube-cookies.txt")
+
+# How yt-dlp words the refusal. Matched loosely because the apostrophe in
+# "you're" arrives as a typographic one, and the sentence around it has been
+# reworded before.
+YOUTUBE_BOT_CHECK = re.compile(r"not a bot|sign in to confirm", re.IGNORECASE)
+
+
+def _youtube_cookies():
+    """The cookies file to download with, or None to download anonymously."""
+    configured = (os.environ.get(YOUTUBE_COOKIES_ENV) or "").strip()
+    if configured:
+        if not os.path.isfile(configured):
+            raise RuntimeError(
+                f"{YOUTUBE_COOKIES_ENV} is set to {configured}, but there is no "
+                "file there. Fix the path, or unset it to use "
+                f"{YOUTUBE_COOKIES_DEFAULT}."
+            )
+        return configured
+    return YOUTUBE_COOKIES_DEFAULT if os.path.isfile(YOUTUBE_COOKIES_DEFAULT) else None
+
+
+def _working_copy(cookies: str) -> str:
+    """
+    A private copy of the cookies file for one download to read and rewrite.
+
+    yt-dlp writes the cookie jar back to its file when it finishes, which is
+    how a session YouTube keeps refreshing stays alive — but the server runs
+    several backends side by side, and two of them rewriting one file at once
+    can leave it truncated. Each download therefore works on its own copy, in
+    the same folder so that handing the refreshed jar back is a single atomic
+    rename (see _keep_refreshed_cookies) rather than a write another process
+    can catch halfway.
+
+    A folder that cannot be written to — secrets mounted read-only — gets the
+    copy in TEMP_DIR instead. Downloads work the same; the refreshed jar just
+    cannot be handed back, which is what read-only was asking for.
+    """
+    name = f".cookies-{uuid.uuid4().hex}.txt"
+    try:
+        copy = os.path.join(os.path.dirname(cookies), name)
+        shutil.copyfile(cookies, copy)
+    except OSError:
+        copy = os.path.join(TEMP_DIR, name)
+        shutil.copyfile(cookies, copy)
+    return copy
+
+
+def _keep_refreshed_cookies(copy: str, cookies: str) -> None:
+    """
+    Puts a successful download's refreshed jar back as THE cookies file.
+
+    Only after a success: a refused download can come back with the session
+    cookies cleared, and writing that over the file would turn one bad attempt
+    into every later one. Best effort — a secrets folder mounted read-only, or
+    a copy that had to be made in TEMP_DIR on another filesystem, simply keeps
+    the file it was given.
+    """
+    try:
+        os.replace(copy, cookies)
+    except OSError:
+        _discard(copy)
+
+
+def _discard(path: str) -> None:
+    try:
+        os.remove(path)
+    except OSError:
+        pass
+
+
+def _bot_check_message(cookies: str | None) -> str:
+    if cookies:
+        return (
+            "YouTube refused the login in " + cookies + " and asked this server "
+            "to prove it is not a bot. The cookies have most likely expired or "
+            "been signed out: export them again from a browser signed in to "
+            "YouTube and replace that file. Google Drive and Dropbox links, and "
+            "uploaded videos, are unaffected."
+        )
+    return (
+        "YouTube is refusing this server without a login (\"confirm you're not "
+        "a bot\"), which it does to cloud addresses. Export YouTube cookies from "
+        "a browser signed in to a Google account kept for this, in Netscape "
+        "format, and save them as " + YOUTUBE_COOKIES_DEFAULT + " (or set " +
+        YOUTUBE_COOKIES_ENV + " to their path). Until then, upload the video or "
+        "use a Google Drive or Dropbox link."
+    )
+
+
 # The video id inside a YouTube URL. yt-dlp's outtmpl below is "%(id)s.%(ext)s"
 # and this IS that id, so the downloaded file's stem is knowable from the URL
 # alone — no network round trip — which is what lets the temp cache be pruned
@@ -112,6 +249,21 @@ def _no_js_runtime_message():
 YOUTUBE_ID_PATTERN = re.compile(
     r"(?:youtube\.com/watch\?(?:.*&)?v=|youtube\.com/shorts/|youtu\.be/)([A-Za-z0-9_-]+)"
 )
+
+
+# The shortcode of an Instagram post or reel — the part of the link that names
+# the media itself. The optional segment before the type is the account name,
+# which Instagram now puts in links shared from a profile
+# (instagram.com/<user>/reel/<code>/) as well as the bare form.
+INSTAGRAM_SHORTCODE_PATTERN = re.compile(
+    r"(?:instagram\.com|instagr\.am)/(?:[A-Za-z0-9_.]+/)?(?:p|reels?|tv)/([A-Za-z0-9_-]+)",
+    re.IGNORECASE,
+)
+
+
+def _instagram_shortcode(url: str) -> str | None:
+    match = INSTAGRAM_SHORTCODE_PATTERN.search(url)
+    return match.group(1) if match else None
 
 
 def expected_stem(url: str) -> str | None:
@@ -129,6 +281,9 @@ def expected_stem(url: str) -> str | None:
     if YOUTUBE_PATTERN.search(url):
         match = YOUTUBE_ID_PATTERN.search(url)
         return match.group(1) if match else None
+    if INSTAGRAM_PATTERN.search(url):
+        shortcode = _instagram_shortcode(url)
+        return f"instagram_{shortcode}" if shortcode else None
     if DROPBOX_PATTERN.search(url):
         return f"dropbox_{_dropbox_file_id(url)}"
     try:
@@ -150,6 +305,17 @@ def extract_file_id(url: str) -> str:
     raise ValueError(f"Could not extract file ID from: {url}")
 
 
+def _stop_if_cancelled(_progress: dict) -> None:
+    """
+    yt-dlp calls this for every chunk it writes, which makes it the download's
+    checkpoint: a run whose user has left stops mid-file rather than fetching
+    the rest of a video nobody will see (see cancel.py). The exception is a
+    BaseException, so it passes through yt-dlp's own error handling and this
+    module's retries instead of being taken for a failed download.
+    """
+    cancel.check()
+
+
 def _download_youtube(url: str) -> str:
     os.makedirs(TEMP_DIR, exist_ok=True)
     ydl_opts = {
@@ -163,6 +329,7 @@ def _download_youtube(url: str) -> str:
         "ffmpeg_location": imageio_ffmpeg.get_ffmpeg_exe(),
         "noplaylist": True,
         "quiet": False,
+        "progress_hooks": [_stop_if_cancelled],
         "extractor_args": {
             "youtube": {
                 "player_client": ["default", "web_embedded", "android"]
@@ -184,21 +351,137 @@ def _download_youtube(url: str) -> str:
         name, path = runtime
         ydl_opts["js_runtimes"] = {name: {"path": path}}
 
+    # Resolved once per download, before the first attempt, for the reason the
+    # runtime is: a path set wrong is a fixed fact and gets its own message.
+    cookies = _youtube_cookies()
+
     last_error = None
     for attempt in range(1, YOUTUBE_MAX_RETRIES + 1):
+        cancel.check()
+        # A fresh copy per attempt, so an attempt that failed never hands its
+        # jar to the next one (see _keep_refreshed_cookies). Removed however
+        # the attempt ends — a success has already renamed it away, so the
+        # removal is a no-op there.
+        jar = _working_copy(cookies) if cookies else None
+        if jar:
+            ydl_opts["cookiefile"] = jar
         try:
             with YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=True)
                 output_path = ydl.prepare_filename(info)
             if os.path.exists(output_path):
+                if jar:
+                    _keep_refreshed_cookies(jar, cookies)
                 return output_path
             last_error = RuntimeError("Download failed")
         except DownloadError as e:
             last_error = e
+            # The bot check is a verdict on the server's address (or on the
+            # cookies), and asking again two seconds later gets the same
+            # verdict. Stopping here saves the user the retries' wait and
+            # replaces yt-dlp's advice about command-line flags — which nobody
+            # using this app can act on — with what to actually do.
+            if YOUTUBE_BOT_CHECK.search(str(e)):
+                raise RuntimeError(_bot_check_message(cookies)) from e
+        finally:
+            if jar:
+                _discard(jar)
         if attempt < YOUTUBE_MAX_RETRIES:
-            time.sleep(YOUTUBE_RETRY_DELAY)
+            cancel.wait(YOUTUBE_RETRY_DELAY)   # woken early by a stop, and the loop checks
 
     raise last_error
+
+
+# ── Instagram ─────────────────────────────────────────────────────────────
+#
+# Through yt-dlp, like YouTube, but with none of YouTube's machinery: Instagram
+# does not sign its media URLs with JavaScript, so no runtime is needed, and
+# the failures it does have are not the intermittent kind a retry fixes.
+#
+# What it has instead is a login wall. Public reels usually download
+# anonymously, but Instagram decides per request — a private account always
+# refuses, and a busy IP gets refused for a while even on public posts. A
+# retry from the same machine a second later gets the same answer, so there
+# is one attempt and, when it is refused, a message that says what would help.
+#
+# The help is the same cookies.txt the YouTube path already reads. A Netscape
+# cookie file holds cookies for any number of sites and yt-dlp only sends each
+# site its own, so instagram.com cookies exported into that file sit beside the
+# YouTube ones without either path needing to know about the other.
+
+COOKIE_FILE = os.path.join(os.path.dirname(__file__), "cookies.txt")
+
+# Phrases yt-dlp's Instagram extractor uses when the refusal is about being
+# signed in rather than about the link. Matched loosely and in lowercase, since
+# the exact wording moves between yt-dlp releases — "--cookies" is the most
+# stable of them, because every raise_login_required ends with yt-dlp's own
+# hint to pass one.
+INSTAGRAM_LOGIN_HINTS = ("login", "log in", "rate-limit", "registered users", "--cookies")
+
+
+def _instagram_login_message(error: Exception) -> str:
+    return (
+        "Instagram refused to hand over this video without a signed-in "
+        "session. Either the account is private, or Instagram is limiting "
+        "anonymous requests from this machine. Sign in to instagram.com in a "
+        "browser, export its cookies in Netscape format, and add them to "
+        f"{COOKIE_FILE}, then try the link again. (Instagram said: {error})"
+    )
+
+
+def _download_instagram(url: str) -> str:
+    shortcode = _instagram_shortcode(url)
+    if not shortcode:
+        raise ValueError(
+            "That Instagram link does not point at a post or a reel. Open the "
+            "video itself and copy its link (it contains /reel/ or /p/)."
+        )
+
+    os.makedirs(TEMP_DIR, exist_ok=True)
+    ydl_opts = {
+        # Same reasoning as the YouTube path: only frames are extracted, so
+        # the best video stream on its own beats a lower-resolution file that
+        # happens to have audio muxed in.
+        "format": "bestvideo/best",
+        # Named from the shortcode in the URL rather than from yt-dlp's own
+        # id, so the stem is known before anything is fetched — that is what
+        # expected_stem relies on. yt-dlp's id for a reel is the same
+        # shortcode today, but a carousel's entries carry numeric media ids,
+        # and nothing here should depend on which one it chooses.
+        "outtmpl": os.path.join(TEMP_DIR, f"instagram_{shortcode}.%(ext)s"),
+        "ffmpeg_location": imageio_ffmpeg.get_ffmpeg_exe(),
+        # A carousel post is a playlist of its slides, and a photo slide
+        # comes back with no formats at all — which yt-dlp would otherwise
+        # treat as the whole post failing. Tolerated here so the slides can
+        # be looked at and the video among them picked out below.
+        "ignore_no_formats_error": True,
+        "quiet": False,
+        "progress_hooks": [_stop_if_cancelled],
+        "cookiefile": COOKIE_FILE if os.path.exists(COOKIE_FILE) else None,
+    }
+
+    try:
+        with YoutubeDL(ydl_opts) as ydl:
+            # Looked at first and fetched second, because what to fetch
+            # depends on what the post turns out to be. Of a carousel, only
+            # the first slide that is a video: every slide would be written
+            # to the same name, one over the other, and the run reads one
+            # video anyway.
+            info = ydl.extract_info(url, download=False)
+            if info and info.get("_type") == "playlist":
+                info = next((e for e in info.get("entries") or [] if e and e.get("formats")), None)
+            if not info or not info.get("formats"):
+                raise RuntimeError("That Instagram post has no video in it, only photos")
+            info = ydl.process_ie_result(info, download=True)
+            output_path = ydl.prepare_filename(info)
+    except DownloadError as e:
+        if any(hint in str(e).lower() for hint in INSTAGRAM_LOGIN_HINTS):
+            raise RuntimeError(_instagram_login_message(e)) from e
+        raise
+
+    if not os.path.exists(output_path):
+        raise RuntimeError("Download failed")
+    return output_path
 
 
 def _dropbox_file_id(url: str) -> str:
@@ -226,10 +509,17 @@ def _download_dropbox(url: str) -> str:
     request = urllib.request.Request(
         _dropbox_direct_url(url), headers={"User-Agent": "Mozilla/5.0"}
     )
+    # Chunk by chunk rather than shutil.copyfileobj, so a stop is noticed
+    # between chunks (see cancel.py). BaseException in the cleanup, not
+    # Exception: a stop leaves a half-written file under the final name just
+    # as a failure does, and the early return above would hand it to the next
+    # run of the same link as if it were the whole video.
     try:
         with urllib.request.urlopen(request) as response, open(output_path, "wb") as f:
-            shutil.copyfileobj(response, f)
-    except Exception:
+            while chunk := response.read(DOWNLOAD_CHUNK):
+                cancel.check()
+                f.write(chunk)
+    except BaseException:
         if os.path.exists(output_path):
             os.remove(output_path)
         raise
@@ -242,6 +532,8 @@ def _download_dropbox(url: str) -> str:
 def download_video(url: str) -> str:
     if YOUTUBE_PATTERN.search(url):
         return _download_youtube(url)
+    if INSTAGRAM_PATTERN.search(url):
+        return _download_instagram(url)
     if DROPBOX_PATTERN.search(url):
         return _download_dropbox(url)
 
@@ -250,10 +542,75 @@ def download_video(url: str) -> str:
     output_path = os.path.join(TEMP_DIR, f"{file_id}.mp4")
     if os.path.exists(output_path):
         return output_path
-    gdown.download(id=file_id, output=output_path, quiet=False)
+    _gdown(file_id, output_path)
     if not os.path.exists(output_path):
         raise RuntimeError("Download failed")
     return output_path
+
+
+def _remove_quietly(path: str) -> None:
+    # A leftover that cannot be removed - still held open by the process just
+    # ended, on Windows - is left for prune_temp rather than failing the run.
+    try:
+        os.remove(path)
+    except OSError:
+        pass
+
+
+def _gdown(file_id: str, output_path: str) -> None:
+    """
+    Fetches a Drive file through gdown, in a process of its own.
+
+    gdown used to be called in-process, and nothing in that call can be told
+    to stop: it has no progress hook and reads the whole file before it
+    returns. A run whose user has left (see cancel.py) would download every
+    remaining byte for nobody, holding the backend the next user was given. As
+    a separate process it can simply be ended. Same package, same version,
+    same options as the in-process call: only where it runs has changed.
+
+    gdown writes to `<output><random>.part` and renames at the very end, so a
+    process ended mid-download leaves no file under the final name — only the
+    part file, which is removed here.
+    """
+    # A file rather than a pipe for gdown's output: its progress bar writes
+    # continuously, and a pipe nobody reads until the end fills up and stalls
+    # the download.
+    log_path = output_path + ".log"
+    try:
+        with open(log_path, "w+", encoding="utf-8", errors="replace") as log_file:
+            proc = subprocess.Popen(
+                [sys.executable, "-m", "gdown", file_id, "-O", output_path],
+                stdout=log_file, stderr=subprocess.STDOUT,
+            )
+            try:
+                while proc.poll() is None:
+                    if cancel.wait(GDOWN_POLL_SECONDS):
+                        proc.terminate()
+                        try:
+                            proc.wait(timeout=5)
+                        except subprocess.TimeoutExpired:
+                            proc.kill()
+                            proc.wait()
+                        for part in glob.glob(glob.escape(output_path) + "*.part"):
+                            _remove_quietly(part)
+                        raise cancel.RunCancelled()
+            finally:
+                # Echoed into this process's own output, where gdown's
+                # progress and errors always went when it ran in-process.
+                log_file.seek(0)
+                output = log_file.read()
+                sys.stderr.write(output)
+    finally:
+        _remove_quietly(log_path)
+
+    if proc.returncode != 0:
+        # gdown's own explanation — usually that the file is not shared with
+        # "anyone with the link" — which is what the in-process call raised as
+        # its message, rather than a bare exit code. Without the progress bars
+        # printed before it.
+        lines = [l.strip() for l in output.replace("\r", "\n").splitlines()
+                 if l.strip() and "%|" not in l]
+        raise RuntimeError(" ".join(lines)[:500] or f"gdown exited with {proc.returncode}")
 
 
 # ── Local uploads ─────────────────────────────────────────────────────────

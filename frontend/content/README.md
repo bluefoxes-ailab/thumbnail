@@ -467,15 +467,22 @@ asked for a self-contained sentence inside 80 characters, and one that genuinely
 needs more may run to 160 — which is then split across two consecutive frames
 rather than repeated on both.
 
-How many captions there are is decided by `frames`, not by the transcript. The
-rewrite is told how many stills the run is about to deliver and writes that many
-lines, so forty frames of a long video is an account in forty captions and two
-hundred is the same account in two hundred. The count slider above the link box
-is therefore a control over the writing as much as over the pictures.
+How much room the account has is decided by `frames`, in characters: one screen
+of 80 per still. Forty frames is the story told in up to 40 × 80 characters and
+two hundred is the same story in up to 200 × 80. How that room is cut into lines
+is the text's decision — a thought that needs one screen takes one, a thought
+with more to say takes two, and a video with less to say than its room is told
+in fewer screens (`backend/narrator.py`, `_screens`). The only thing the count
+fixes outright is the ceiling: no account is cut into more lines than there are
+stills. The count slider above the link box is therefore a control over the
+writing as much as over the pictures.
 
-Nothing repeats a caption; a frame with nothing left to say comes back with an
-empty text box (`backend/transcriber.py`, `captions_for`). The long explanation
-of what the rewrite does and what it refuses to do lives in the preset itself.
+Nothing repeats a caption, and no frame is left bare ahead of a captioned one:
+a frame is given text only when the frame before it has some, the first frame
+regardless, so the stills with nothing to say are all at the end of the grid
+with empty text boxes (`backend/transcriber.py`, `captions_for` and
+`close_gaps`). The long explanation of what the rewrite does and what it
+refuses to do lives in the preset itself.
 
 `output` is the one number both halves of the app have to agree on, and
 neither holds a second copy of it: the backend is told it in the framing this
