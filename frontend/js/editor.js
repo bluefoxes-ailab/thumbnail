@@ -10,7 +10,7 @@ import {
 } from "./state.js";
 import {
     channels, activeChannelId, setActiveChannel, hasChannel, titleStyle, branding,
-    decorFor, usesCutout, NO_CHANNEL,
+    decorFor, usesCutout, NO_CHANNEL, captureFor, textEffects, setTextEffects,
 } from "./channels.js";
 import {
     prepareTitleFont, prepareTitleTexture, wordsOf, wordKey, recolored, highlightFollowsBlock,
@@ -261,6 +261,10 @@ export function syncTitlePanelMode() {
 
     const offersGlow = hasChannel() && !!style.glow && !!style.glow.toggle;
     el("glowRow").classList.toggle("hidden", !offersGlow);
+    // The shadow and outline belong to Static Studio, where every channel is
+    // a capture channel (see `capture` in channels.js); a thumbnail channel's
+    // type is the brand's and nothing here would be drawn on it.
+    el("textEffects").classList.toggle("hidden", !(hasChannel() && captureFor(activeChannelId())));
     el("titleMoveHint").classList.toggle("hidden", !(hasChannel() && style.movable));
     const cutout = usesCutout(activeChannelId());
     el("cutoutHint").classList.toggle("hidden", !cutout);
@@ -1135,6 +1139,46 @@ export function syncGlowButton() {
     const on = !!(f && f.glow);
     btn.className = "btn " + (on ? "btn-active" : "");
     btn.textContent = on ? "Glow On" : "Glow Off";
+}
+
+// ── The user's shadow and outline ─────────────────────────────────────────
+
+/**
+ * Applies a change to the page's text effects (see setTextEffects in
+ * channels.js) and redraws whatever it reaches: the preview, and every card
+ * in the grid, since every frame draws with the same setting.
+ *
+ * No guardChannel and no `edited` flag, unlike every per-frame control above:
+ * this is not an edit to the frame on screen, and a page with no channel
+ * picked yet is a page with nothing to redraw, not a mistake to warn about.
+ */
+export function changeTextEffects(patch) {
+    const changed = setTextEffects(patch);
+    syncTextEffects();
+    if (!changed) return;
+    updatePreview();
+    refreshAllThumbs();
+}
+
+/** Draws the controls from the settings, so they can never disagree. */
+export function syncTextEffects() {
+    const fx = textEffects();
+    for (const [part, btnId, colorId] of [
+        ["shadow", "shadowBtn", "shadowColor"], ["outline", "outlineBtn", "outlineColor"],
+    ]) {
+        const on = fx[part].on;
+        el(btnId).classList.toggle("btn-active", on);
+        el(btnId).setAttribute("aria-pressed", String(on));
+        el(btnId).closest(".mask-contour-row").classList.toggle("on", on);
+        // Not while the well is being dragged through: writing the value back
+        // into an open picker on every input event can make it stutter.
+        if (document.activeElement !== el(colorId)) el(colorId).value = fx[part].color;
+    }
+    const slider = el("outlineWidth");
+    slider.value = String(fx.outline.width);
+    const min = Number(slider.min), max = Number(slider.max);
+    slider.style.setProperty("--count-fill", max > min ? (fx.outline.width - min) / (max - min) : 0);
+    el("outlineWidthValue").textContent = `${fx.outline.width}px`;
 }
 
 // ── Edit presets ──────────────────────────────────────────────────────────

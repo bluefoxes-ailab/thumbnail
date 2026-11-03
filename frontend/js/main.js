@@ -56,6 +56,7 @@ import {
 } from "./reframe.js";
 import {
     enhanceFrame, loadTextPanel, updateLines, setEditPreset, toggleFlip, toggleGradient, toggleGlow,
+    changeTextEffects, syncTextEffects,
     varyFrame, syncFlipButtons, syncGradientButton, togglePick, handleLogoFile, handleAssetPick,
     initChannelPicker, selectChannel, syncChannelToFrame, guardChannel, warnChannelRequired,
     handleFrameFile, syncVaryButton, syncLogoControls, ensureCutout, setTitleAlign, showChannel,
@@ -63,7 +64,7 @@ import {
     warmCutouts, applyEditToAll,
 } from "./editor.js";
 import { hasChannel, activeChannelId, framingFor, captureFor, cleanupFor,
-         selectionFor, NO_CHANNEL } from "./channels.js";
+         selectionFor, NO_CHANNEL, textEffects } from "./channels.js";
 import {
     enterMode, isCapture, captureMode, syncCaptureFields, requestedCount, syncCountValue,
     applyCaptions,
@@ -1887,6 +1888,19 @@ el("figureGlowBtn").addEventListener("click", cycleFigureGlow);
 // listener on a hidden button costs nothing and a button whose handler
 // depends on the selected channel would be one more thing to keep in sync.
 el("glowBtn").addEventListener("click", toggleGlow);
+// The page's shadow and outline (see editor.changeTextEffects). Picking a
+// colour or a size switches its effect on, the way the mask step's contour
+// does: nobody picks a colour for a shadow they do not want. The "none"
+// swatch stands where the colour well is while an effect is off, and a click
+// on it is a click on the switch beside it.
+el("shadowBtn").addEventListener("click", () => changeTextEffects({ shadow: { on: !textEffects().shadow.on } }));
+el("outlineBtn").addEventListener("click", () => changeTextEffects({ outline: { on: !textEffects().outline.on } }));
+el("shadowNoneBtn").addEventListener("click", () => changeTextEffects({ shadow: { on: true } }));
+el("outlineNoneBtn").addEventListener("click", () => changeTextEffects({ outline: { on: true } }));
+el("shadowColor").addEventListener("input", (e) => changeTextEffects({ shadow: { on: true, color: e.target.value } }));
+el("outlineColor").addEventListener("input", (e) => changeTextEffects({ outline: { on: true, color: e.target.value } }));
+el("outlineWidth").addEventListener("input", (e) => changeTextEffects({ outline: { on: true, width: e.target.value } }));
+syncTextEffects();
 // Only ever visible for a channel whose block has slack to distribute (see
 // editor.alignable); bound unconditionally for the reason the glow button is.
 for (const [id, align] of [["alignLeftBtn", "left"], ["alignCenterBtn", "center"], ["alignRightBtn", "right"]]) {

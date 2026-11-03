@@ -5,7 +5,7 @@ import {
     layersFor, activeLayerFor, titleAlignFor, backgroundFor, figureGlowFor,
     textColorFor, panelColorFor, highlightColorFor,
 } from "./state.js";
-import { usingChannel, decorFor } from "./channels.js";
+import { usingChannel, decorFor, textEffectsKey } from "./channels.js";
 import { addTextOverlay } from "./text.js";
 import { loadImage } from "./net.js";
 import { hideReframeWait } from "./ui.js";
@@ -1688,6 +1688,10 @@ function thumbSignature(i) {
         // the grid keeps the picture it had before the button was pressed —
         // and keeps it until something else about the frame happens to change.
         backgroundFor(i), figureGlowFor(i),
+        // The user's shadow and outline. The page's rather than the frame's
+        // (see setTextEffects in channels.js), so nothing above changes when
+        // they do — and every card in the grid has to be redrawn.
+        textEffectsKey(),
     ].join("|");
 }
 

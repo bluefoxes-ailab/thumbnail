@@ -1459,7 +1459,126 @@ export const titleStyle = () => styleFor(_activeId);
  * skeleton, for the same reason titleStyle does: a caller measuring or
  * inspecting must never have to handle a null style.
  */
-export const styleFor = (id) => (CHANNELS.find(c => c.id === id) || { title: BASE_TITLE_STYLE }).title;
+export const styleFor = (id) => {
+    const c = CHANNELS.find(ch => ch.id === id);
+    if (!c) return BASE_TITLE_STYLE;
+    return c.capture ? withTextEffects(c) : c.title;
+};
+
+// ── The user's text effects ───────────────────────────────────────────────
+//
+// A drop shadow and an outline the USER puts on the type, on top of whatever
+// the channel says — Static Studio only, which is to say every channel that
+// fetches frames (see `capture` above). There, the pack's look is a slab
+// behind a caption and the photo under it changes every few seconds, so
+// whether the letters need lifting off it is a question about the footage,
+// which the brand cannot answer in advance.
+//
+// One setting for the whole page rather than one per frame, and that is the
+// point of it: a set of forty stills is read as one sequence, and a shadow
+// on some captions and not others reads as a mistake, not as a choice. Every
+// frame on every capture channel draws with it, including the ones that
+// arrive after it was set.
+//
+// Applied HERE, in the style itself, rather than handed to addTextOverlay as
+// one more option, because the outline is ink: it widens every line, and the
+// layout in text.js is measured through the same properties it is drawn
+// with (see textProps). An outline passed in only at the draw would put 3px
+// of stroke round letters that had been fitted without it. Done in the style,
+// every measurement, every composite and every download sees one answer.
+
+const HEX = /^#[0-9a-f]{6}$/i;
+
+// Off until asked for. Black and 3px are what switching one on gives the
+// first time, so that it is usable straight away.
+const DEFAULT_TEXT_EFFECTS = {
+    shadow: { on: false, color: "#000000" },
+    outline: { on: false, color: "#000000", width: 3 },
+};
+export const OUTLINE_RANGE = { min: 1, max: 12 };
+
+// The shadow's geometry is fixed and only its colour is the user's. Sized
+// for the 40px caption on a 540px-wide still: a lift you can see on a pale
+// photo without the letters looking doubled.
+const SHADOW_SHAPE = { blur: 8, offsetX: 3, offsetY: 3 };
+
+// Held for the life of the page and no longer. Every page opens with both
+// effects off, so a shadow switched on for one set is never quietly waiting
+// on the next; the colours and the size, though, are remembered across
+// switching off and on again, so turning a shadow back on brings back the
+// colour it had rather than black.
+let _textEffects = structuredClone(DEFAULT_TEXT_EFFECTS);
+// The styled copies handed out, one per channel, for the current settings.
+// styleFor is asked many times per keystroke, and a fresh object each time
+// would cost an allocation per call and give the same channel a different
+// identity from one call to the next.
+let _effectStyles = new Map();
+
+/** A copy of the current settings — what the controls are drawn from. */
+export const textEffects = () => structuredClone(_textEffects);
+
+/**
+ * One string that changes whenever the settings do, for anything that must
+ * notice: a composite drawn under one shadow is not the composite drawn
+ * under another (see compose.thumbSignature).
+ */
+export const textEffectsKey = () => {
+    const { shadow: s, outline: o } = _textEffects;
+    return `${s.on ? s.color : "-"}/${o.on ? `${o.color}:${o.width}` : "-"}`;
+};
+
+/**
+ * Merges `patch` ({shadow: {...}, outline: {...}}, either half optional) into
+ * the settings. Returns true when anything changed, so the caller can skip a
+ * redraw of every frame on a click that did nothing.
+ */
+export function setTextEffects(patch) {
+    const before = textEffectsKey();
+    const next = structuredClone(_textEffects);
+    for (const part of ["shadow", "outline"]) {
+        const p = patch[part];
+        if (!p) continue;
+        if (p.on !== undefined) next[part].on = !!p.on;
+        if (HEX.test(p.color || "")) next[part].color = p.color.toLowerCase();
+    }
+    if (patch.outline && patch.outline.width !== undefined) {
+        const w = Math.round(Number(patch.outline.width));
+        if (w >= OUTLINE_RANGE.min && w <= OUTLINE_RANGE.max) next.outline.width = w;
+    }
+    _textEffects = next;
+    if (textEffectsKey() === before) return false;
+    _effectStyles = new Map();
+    return true;
+}
+
+/**
+ * Channel `c`'s title style with the user's effects laid over it.
+ *
+ * With both switched off it is the channel's own style, untouched — not a
+ * copy with the shadow and outline set to null, because a capture pack is
+ * free to carry its own, and "off" means "not mine", not "none".
+ *
+ * The shadow goes on the picked words as well as the rest, through the
+ * highlight's own `shadow` — but only where the highlight is a recolour. A
+ * boxed highlight's shadow is the BOX's (see addBoxes in text.js), and the
+ * letters on a box are drawn without one on purpose.
+ */
+function withTextEffects(c) {
+    const { shadow, outline } = _textEffects;
+    if (!shadow.on && !outline.on) return c.title;
+    if (_effectStyles.has(c.id)) return _effectStyles.get(c.id);
+    const style = { ...c.title };
+    if (outline.on) style.outline = { width: outline.width, color: outline.color, opacity: 1 };
+    if (shadow.on) {
+        const spec = { ...SHADOW_SHAPE, color: shadow.color };
+        style.shadow = spec;
+        if (style.highlight && style.highlight.mode !== "box") {
+            style.highlight = { ...style.highlight, shadow: spec };
+        }
+    }
+    _effectStyles.set(c.id, style);
+    return style;
+}
 
 /** The active channel's non-type brand defaults (see BASE_BRANDING). */
 export const branding = () => (activeChannel() || { branding: BASE_BRANDING }).branding;

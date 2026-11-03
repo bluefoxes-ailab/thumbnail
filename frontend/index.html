@@ -381,6 +381,39 @@
                     <div class="btn-row hidden" id="glowRow">
                         <button class="btn" id="glowBtn" title="A soft halo behind the whole title">Glow Off</button>
                     </div>
+                    <!-- The user's own drop shadow and outline, Static Studio
+                         only (see setTextEffects in channels.js). One setting
+                         for the page, not for this frame: every caption on
+                         every frame takes it, including frames that arrive
+                         after it was set.
+
+                         The mask step's contour row, twice: a switch with its
+                         colour beside it. While the switch is off the colour
+                         well gives way to the "none" swatch the background
+                         row ends in, since there is no colour being drawn;
+                         switching it on, from either, brings the well back
+                         holding the last colour picked. The outline's size is
+                         the frame-count slider with a readout, and moving it
+                         switches the outline on: nobody sizes an outline they
+                         do not want. -->
+                    <div class="text-effects hidden" id="textEffects">
+                        <label class="field-label">Text effects (all frames)</label>
+                        <div class="mask-contour-row" id="shadowRow">
+                            <button type="button" class="btn" id="shadowBtn" aria-pressed="false" title="A drop shadow under every caption">Drop shadow</button>
+                            <input type="color" id="shadowColor" class="color-well" value="#000000" title="Shadow colour" aria-label="Shadow colour">
+                            <button type="button" class="btn-swatch btn-swatch-none color-well-off" id="shadowNoneBtn" title="No shadow - click to add one" aria-label="No shadow - click to add one"></button>
+                        </div>
+                        <div class="mask-contour-row" id="outlineRow">
+                            <button type="button" class="btn" id="outlineBtn" aria-pressed="false" title="An outline around every letter">Outline</button>
+                            <input type="color" id="outlineColor" class="color-well" value="#000000" title="Outline colour" aria-label="Outline colour">
+                            <button type="button" class="btn-swatch btn-swatch-none color-well-off" id="outlineNoneBtn" title="No outline - click to add one" aria-label="No outline - click to add one"></button>
+                        </div>
+                        <label class="field-label" for="outlineWidth">Outline size</label>
+                        <div class="count-control">
+                            <input type="range" id="outlineWidth" class="count-slider" min="1" max="12" step="1" value="3">
+                            <output class="count-value" id="outlineWidthValue" for="outlineWidth">3px</output>
+                        </div>
+                    </div>
                     <div class="panel-hint hidden" id="titleMoveHint">Drag the text on the canvas to move it; drag its corner handle to resize.</div>
                     <!-- Shown only for a channel that composes its thumbnails from
                          a cutout, because for every other one the zoom control

@@ -913,6 +913,22 @@ body.mask-open { overflow: hidden; }
 .mask-contour-row { display: flex; align-items: center; gap: 10px; }
 .mask-contour-row .btn { flex: 1; }
 .mask-contour-row:not(.on) .color-well { opacity: 0.45; }
+/* The title panel's shadow and outline (see #textEffects), built from the
+   contour row above and the frame-count slider. Its own column with a
+   tighter gap than the panel's, so the three rows read as one setting.
+   `:not(.hidden)` because .hidden is declared earlier in this file and a
+   plain display here would win over it. The readout is widened to fit
+   "12px", so the track does not jump as the number gains a digit. */
+.text-effects:not(.hidden) { display: flex; flex-direction: column; gap: 10px; }
+.text-effects .field-label { margin: 0; }
+.text-effects .count-value { min-width: 4ch; }
+/* Off, the well is swapped for the "none" swatch rather than dimmed the
+   way the mask step's is: a dimmed black well still reads as "black",
+   and nothing is being drawn in black. The swatch takes the well's size
+   so the row does not shift as the two trade places. */
+.text-effects .color-well-off { flex: 0 0 auto; width: 48px; height: 42px; }
+.text-effects .mask-contour-row:not(.on) .color-well,
+.text-effects .mask-contour-row.on .color-well-off { display: none; }
 .asset-toggle-row .btn { flex: 1; padding-left: 8px; padding-right: 8px; }
 .asset-hex { flex: 1 1 auto; text-transform: uppercase; font-family: Consolas, "Courier New", monospace; }
 /* The "video ready" notice (see js/notify.js): a message, not a tool, so
