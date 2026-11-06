@@ -74,20 +74,29 @@ the transcript as spoken on those frames, which is a caption that is merely
 plain rather than one that is wrong. There is no failure mode in here that
 produces a confident line under the wrong picture.
 
-## It is written for a grid of a known size
+## It is written to a budget of characters, not of lines
 
-How many captions the account comes out in is not the transcript's decision,
-it is the run's: the rewrite is told how many stills are about to be fetched
-and writes that many lines (see `_group`). Forty stills of a twenty-minute
-video is a caption per fifteen seconds of speech; two hundred of the same
-video is one per three, out of the same words.
+What the run gives the account is ROOM: one screen of CAPTION_CHARS per still
+it is about to fetch. Forty stills is forty times eighty characters to tell
+the story in, and two hundred is the same story in two hundred times eighty.
+How that room is cut into lines is the text's decision, not the grid's: a
+thought that needs one screen gets one, a thought that needs two gets two
+(see `_screens`), and a video with less to say than the room it was given is
+told in fewer screens, with the stills after it left bare.
 
-Which makes the frame-count slider a control over the WRITING as much as over
-the pictures, and that is worth saying out loud because nothing in the
-interface says it. Left to the transcript, a long video makes far more
-thoughts than a short run has frames, and the ones that miss out are not
-reported anywhere - they simply never reach a still, and the story on the grid
-has holes in it that the output cannot show.
+It used to be a number of LINES - forty stills, forty captions - and that was
+wrong in both directions. Short of material, a long sentence was cut in half
+just to reach the count, and the model, handed half a thought, padded it. Long
+on material, every caption was held to one line whatever it had to carry, and
+the ones that took two screens anyway ran the grid out of stills and pushed
+the end of the story off it.
+
+The count still bounds one thing, and has to: no account comes out in more
+captions than there are stills, because a caption is owed at least one. So a
+long video's thoughts are still joined until they fit (see `_group`), and the
+frame-count slider is still a control over the WRITING as much as over the
+pictures - it decides how much room the story has, which is how much of it
+gets said.
 
 ## Never fatal, for the reason transcriber.py is never fatal
 
@@ -167,11 +176,11 @@ GROUP_MAX_CHARS = MAX_CHARS * 3
 #
 # Both caps above are quality guards: they say how much material one caption
 # may honestly report. This is not one. When a run asks for forty stills of a
-# twenty-minute video it has asked for forty captions, and forty captions of
-# twenty minutes IS five-to-one compression — the decision was made at the
-# frame-count slider, and refusing it here would not undo it, it would leave
-# the story with holes in it instead. The extra sentences would simply never
-# reach a frame.
+# twenty-minute video it has given the story forty screens of room, and forty
+# screens of twenty minutes IS five-to-one compression — the decision was made
+# at the frame-count slider, and refusing it here would not undo it, it would
+# leave the story with holes in it instead. The extra sentences would simply
+# never reach a frame.
 #
 # So this bounds the PROMPT rather than the reporting: twelve captions' worth
 # of speech is far past the point where condensing to one line is useful, and
@@ -181,35 +190,21 @@ GROUP_MAX_CHARS = MAX_CHARS * 3
 # than frames, which costs the last of them their place on the grid.
 GROUP_TARGET_MAX_CHARS = CAPTION_CHARS * 12
 
-# ...and the least a piece of a divided sentence may be, in words and in
-# characters, for the division to be worth making.
+# How much speech an item has to carry before it is worth a second screen.
 #
-# Well above transcriber.MIN_WORDS, which is the floor for a run to be a
-# SENTENCE. This is a higher bar because it answers a harder question: not
-# "can this stand as a line" but "is there a second thought in here worth its
-# own photograph". Measured at MIN_WORDS it was not: "My name is Brian
-# Siever, son of Cassie Parton" divided into two halves of five words, and the
-# model, handed half a self-introduction with nothing in it to report, echoed
-# it back — putting a first-person fragment on a still, which is the one thing
-# this module exists to prevent.
+# One screen's worth. The model condenses — what it writes is shorter than
+# what it reads — so an item whose speech already fits in one screen has
+# nothing a second screen could hold except padding, which is the failure
+# _repeats exists to catch. Past it, the item has more to say than one line
+# can say whole, and that is the item the spare room is for (see _screens).
 #
-# At eight words and forty characters a half is a clause with a fact in it,
-# which is something a model can report. Both numbers were measured against
-# the two cases that matter: "My name is Brian Siever, son of Cassie Parton"
-# stays whole (neither half reaches forty characters), and "...songs in her
-# lifetime, won eleven Grammy awards, and sold over one hundred million
-# records" divides at its first comma into two halves that each say something.
-#
-# The cost is that fewer sentences divide, so a short video leaves more of a
-# long grid blank — and a blank still the user types into is a better outcome
-# than a caption in the wrong voice.
-SPLIT_MIN_WORDS = 8
-SPLIT_MIN_CHARS = 40
-
-# Where a spoken sentence may be divided: the speaker's own internal marks.
-# The terminal ones are not here, because a run that still contains one was
-# never a single sentence to begin with.
-SPLIT_BREAK = re.compile(r"[,;:\u2014\u2013](?=\s)")
+# There is deliberately no pass any more that CUTS a sentence finer to fill a
+# grid with more stills than the transcript has thoughts. It used to exist,
+# and it was a line count dressed as a budget: half a sentence handed to the
+# model has nothing in it to report, and the model reported it anyway. A video
+# with less to say than its room is told in fewer screens, and the stills
+# after the story are left bare for the user.
+TWO_SCREEN_MIN_CHARS = CAPTION_CHARS
 
 # What to call the language in the prompt, given the ISO code Whisper answers.
 #
@@ -501,20 +496,22 @@ SYSTEM = (
     "6. Never write two lines that say the same thing. If an item adds "
     "nothing the line before it did not already say, report the part that IS "
     "new, and keep it short.\n"
-    "7. WRITE IN BLOCKS OF {budget} CHARACTERS. A line is not a sentence you "
+    "7. WRITE IN SCREENS OF {budget} CHARACTERS. A line is not a sentence you "
     "then measure - it is one screen of caption, and {budget} characters is "
-    "what a screen holds. So choose how much of the item goes on this line by "
-    "what will FIT on it, and finish the thought inside that. Shorter is "
-    "better; an unfinished thought is not.\n"
-    "7b. A thought that genuinely will not go into {budget} may run to "
-    "{ceiling} and no further - and when it does, WRITE IT AS TWO COMPLETE "
-    "SENTENCES, each one under {budget} characters and each ending in a full "
-    "stop. A line that long is shown across two screens, split at the full "
-    "stop between them, and the second screen is seen on its own: it must "
-    "name who it is about rather than starting with 'and', 'who' or 'he'. "
-    "One long sentence with a comma in the middle is the thing to avoid - "
-    "cut in half it leaves a fragment on one still and a verb with no "
-    "subject on the next.\n"
+    "what a screen holds. Each item is given the screens it may use, and "
+    "below the transcript you are told which items have two; every other "
+    "item has ONE, so its line stays under {budget}. Choose how much of the "
+    "item goes on the line by what will FIT on it, and finish the thought "
+    "inside that. Shorter is better; an unfinished thought is not.\n"
+    "7b. An item given two screens may run to {ceiling} and no further - and "
+    "when it does, WRITE IT AS TWO COMPLETE SENTENCES, each one under "
+    "{budget} characters and each ending in a full stop. A line that long is "
+    "shown across two screens, split at the full stop between them, and the "
+    "second screen is seen on its own: it must name who it is about rather "
+    "than starting with 'and', 'who' or 'he'. One long sentence with a comma "
+    "in the middle is the thing to avoid - cut in half it leaves a fragment "
+    "on one still and a verb with no subject on the next. Two screens are "
+    "room, not a target: if the item says itself in one, use one.\n"
     "8. Report plainly. No commentary, no drama, and no hedging words unless "
     "the transcript hedged first.\n"
     "\n"
@@ -734,27 +731,28 @@ def _continues(previous: Sentence, following: Sentence) -> bool:
 
 def _group(sentences: list[Sentence], target: int | None = None) -> list[list[Sentence]]:
     """
-    The sentences gathered into the thoughts they belong to, in order — as
-    many of them as the grid has room for.
+    The sentences gathered into the thoughts they belong to, in order — never
+    more of them than the grid has stills for.
 
     Every sentence appears exactly once and none moves, so the groups tile the
     timeline the transcript already had. A sentence that continues nothing and
     is continued by nothing comes back as a group of one, which is what most
     narration is.
 
-    `target` is how many captions the run can actually show: one per still it
-    is about to fetch. It is not a nicety. The captions are matched to frames
-    by TIME (see transcriber.captions_for), so a transcript that makes ninety
-    thoughts on a run of forty stills does not produce ninety captions and
-    forty frames — it produces forty frames carrying whichever forty thoughts
-    happened to fall under them, and fifty that are never seen. The story on
-    the grid then has holes in it that nothing in the output shows. Written to
-    the grid instead, the same account comes out in forty lines that tile it.
+    `target` is how many stills the run is about to fetch, and so how many
+    screens of CAPTION_CHARS the account has to be told in. What it bounds
+    here is the number of captions, from above and only from above: a caption
+    is owed at least one still, so a transcript that makes ninety thoughts on
+    a run of forty stills cannot come out as ninety captions. It used to come
+    out as forty frames carrying whichever forty thoughts happened to fall
+    under them, and fifty that were never seen. Joined to the grid instead,
+    the same account comes out in at most forty lines that tile it.
 
-    Which means the frame-count slider is a decision about the WRITING and not
-    only about the pictures, and that is worth knowing before moving it: forty
-    stills of a long video is a caption per fifteen seconds of speech, and two
-    hundred is one per three.
+    What it does NOT do is set the number of captions from below. A video with
+    thirty thoughts on a run of forty stills comes out in thirty captions, and
+    how the forty screens are shared between them is `_screens`' answer, by
+    what each one has to say. See the module header for why the line count
+    used to be the target and was wrong in both directions.
 
     Two passes, and they answer different questions.
 
@@ -769,20 +767,7 @@ def _group(sentences: list[Sentence], target: int | None = None) -> list[list[Se
         stretched across a cut sits over pictures from both sides of it. The
         caps the first pass respects do not apply — see
         GROUP_TARGET_MAX_CHARS for why, and for the one bound that does.
-
-    A target LARGER than the number of sentences runs a third pass, which is
-    the second one in reverse: the transcript is coarser than the grid, so the
-    longest sentences are DIVIDED at their own internal punctuation until
-    there is a thought per still. That is still only the video's own words cut
-    finer — nothing is invented — and it stops as soon as no sentence can be
-    divided without leaving a fragment (see SPLIT_MIN_WORDS). A video with
-    less to say than the run has frames for still comes back with blank stills
-    at the end, and that is the honest answer: eight thoughts do not become
-    forty captions.
     """
-    if target is not None and target >= len(sentences):
-        return _divide([[sentence] for sentence in sentences], target)
-
     groups: list[list[Sentence]] = []
     for sentence in sentences:
         current = groups[-1] if groups else None
@@ -826,73 +811,43 @@ def _group(sentences: list[Sentence], target: int | None = None) -> list[list[Se
     return groups
 
 
-def _halve(sentence: Sentence) -> list[Sentence] | None:
+def _screens(blocks: list[Sentence], frames: int | None) -> list[int]:
     """
-    One spoken sentence cut in two at its own punctuation, or None when it has
-    nowhere to come apart.
+    How many screens of CAPTION_CHARS each item may use: one, or two.
 
-    The cut goes at the internal mark nearest the middle - a comma, a
-    semicolon, a dash - because that is where the speaker themselves paused,
-    and both halves have to be at least SPLIT_MIN_WORDS long or the cut is
-    refused. A sentence with no internal mark is not divided at all: guessing
-    a break inside a clause is how a caption ends up opening with "and".
+    The run's room is `frames` screens, and every item is owed one of them, so
+    what is left over — the spare — is what the text gets to share out by
+    need. It goes to the items with the most speech to report, longest first,
+    a second screen each, and only to an item with more speech than one
+    screen holds (TWO_SCREEN_MIN_CHARS). Never a third: a thought spread over
+    three stills is one nobody reads to the end of (see
+    transcriber.CAPTION_CHARS_MAX).
 
-    The span is divided in proportion to the characters on each side. That is
-    an estimate and it is allowed to be: what it decides is which still a
-    caption lands NEAR, and both halves stay inside the seconds the whole
-    sentence covered, so neither can drift onto a picture the sentence never
-    described.
+    So the sum of what this answers is never more than `frames`, and that is
+    the whole point of it: the account the model writes fits the grid it is
+    written for, two-screen lines included, with no caption pushed off the
+    end. A run with room to spare has every long thought in two screens and
+    stills left over; a run that is tight on room — as many items as stills,
+    after `_group` joined them to fit — has every item in one.
+
+    Asked by the longest SPEECH rather than by anything about the answer,
+    because the answer does not exist yet. That is an estimate of need and it
+    is allowed to be: an item given two screens that says itself in one uses
+    one, and what it leaves unused is a still at the end of the grid, bare.
+
+    `frames` of None — a caller that is not building a grid — gives every
+    item two, which is the old rule: one screen preferred, two allowed.
     """
-    text = sentence.text
-    middle = len(text) / 2
-    for cut in sorted((m.end() for m in SPLIT_BREAK.finditer(text)),
-                      key=lambda c: abs(c - middle)):
-        head, tail = text[:cut].strip(), text[cut:].strip()
-        if any(len(half) < SPLIT_MIN_CHARS
-               or len(re.findall(r"\S+", half)) < SPLIT_MIN_WORDS
-               for half in (head, tail)):
-            continue
-        span = sentence.end - sentence.start
-        at = sentence.start + span * (len(head) / max(1, len(text)))
-        return [Sentence(text=DANGLING.sub("", head), start=sentence.start, end=at),
-                Sentence(text=tail, start=at, end=sentence.end)]
-    return None
-
-
-def _divide(groups: list[list[Sentence]], target: int) -> list[list[Sentence]]:
-    """
-    Groups cut finer until there is one per still, for a video whose
-    transcript made fewer thoughts than the run has frames.
-
-    The longest group goes first, every time, because the longest is both the
-    one most likely to be holding two thoughts and the one whose halves are
-    most likely to stand on their own. A group that will not divide is set
-    aside rather than retried, so the loop ends when every remaining group has
-    refused - which is what leaves a short video's grid with blank stills at
-    the end rather than with forty fragments.
-
-    Only ever divides a group of ONE. A group of several was assembled by the
-    meaning pass, which had a reason for every sentence it joined, and taking
-    that apart here to reach a number would be this function arguing with that
-    one. It never comes up in practice either: a target above the sentence
-    count means nothing was ever joined.
-    """
-    refused: set[int] = set()
-    while len(groups) < target:
-        widest, at = 0, None
-        for i, group in enumerate(groups):
-            if len(group) != 1 or id(group[0]) in refused:
-                continue
-            if len(group[0].text) > widest:
-                widest, at = len(group[0].text), i
-        if at is None:
+    if frames is None:
+        return [2] * len(blocks)
+    allowed = [1] * len(blocks)
+    spare = frames - len(blocks)
+    for i in sorted(range(len(blocks)), key=lambda i: len(blocks[i].text), reverse=True):
+        if spare <= 0 or len(blocks[i].text) <= TWO_SCREEN_MIN_CHARS:
             break
-        halves = _halve(groups[at][0])
-        if halves is None:
-            refused.add(id(groups[at][0]))
-            continue
-        groups[at:at + 1] = [[halves[0]], [halves[1]]]
-    return groups
+        allowed[i] = 2
+        spare -= 1
+    return allowed
 
 
 def _block(group: list[Sentence]) -> Sentence:
@@ -1135,10 +1090,19 @@ def _parse(answer: str, first: int, last: int,
 
 def _apply(groups: list[list[Sentence]], blocks: list[Sentence],
            runs: dict[int, tuple[int, str]], first: int, last: int,
-           previous: str = "") -> list[Sentence]:
+           screens: list[int], previous: str = "") -> tuple[list[Sentence], list[int]]:
     """
     The chunk rebuilt from whatever the model got right, walked in id order so
-    the output is in the video's order whatever order the answer arrived in.
+    the output is in the video's order whatever order the answer arrived in —
+    and, beside it, the screens each line it emits may use (see _screens), so
+    the condensing pass can tell a line that is too long for its room from one
+    that was given two screens and is using them.
+
+    A rewritten line has the room its item was given; a run over several ids
+    has theirs together, and never more than two. A line that fell back to the
+    transcript as spoken is allowed two, which is what every line was allowed
+    before the room was shared out: it was not written to any budget, and is
+    condensed only if it will not divide into two screens at all.
 
     The span arithmetic is the whole reason the timestamps survive: a run's
     Sentence starts when its FIRST block started and ends when its LAST one
@@ -1162,6 +1126,7 @@ def _apply(groups: list[list[Sentence]], blocks: list[Sentence],
     `last_text` is whatever was actually emitted, rewritten or fallen back.
     """
     out: list[Sentence] = []
+    allowed: list[int] = []
     last_text = previous
     i = first
     while i < last:
@@ -1170,30 +1135,35 @@ def _apply(groups: list[list[Sentence]], blocks: list[Sentence],
             end, text = run
             if not (last_text and _repeats(text, last_text)):
                 out.append(Sentence(text=text, start=blocks[i].start, end=blocks[end].end))
+                allowed.append(min(2, sum(screens[i:end + 1])))
                 last_text = text
                 i = end + 1
                 continue
         # Rejected by the parser, or a repeat of the line before it: the
         # group's own sentences, as spoken.
         out.extend(groups[i])
+        allowed.extend([2] * len(groups[i]))
         last_text = groups[i][-1].text
         i += 1
-    return out
+    return out, allowed
 
 
-def _needs_condensing(text: str) -> bool:
+def _needs_condensing(text: str, screens: int = 2) -> bool:
     """
-    Whether a finished caption is too long for the grid to show.
+    Whether a finished caption is too long for the room it was given.
 
-    Over one screen is not automatically too long: a caption up to
-    CAPTION_CHARS_MAX is allowed to take TWO stills, and one that divides
-    cleanly into two readable halves is the sanctioned exception rather than a
-    fault (see transcriber.split_caption). What this catches is the line that
-    is over a screen and will not divide - the one that lands whole on a
-    single card and wraps to eight lines of type inside a box built for four.
+    Over one screen is not automatically too long: a caption given two
+    screens may run to CAPTION_CHARS_MAX, and one that divides cleanly into
+    two readable halves is using its room rather than overflowing it (see
+    transcriber.split_caption). What this catches is the line over its room —
+    one screen's worth of item that came back longer than a screen, which
+    would take a still the account was not given, or a two-screen line that
+    will not divide, the one that lands whole on a single card and wraps to
+    eight lines of type inside a box built for four.
     """
-    return (len(text) > CAPTION_CHARS
-            and len(split_caption(text, CAPTION_CHARS)) == 1)
+    if len(text) <= CAPTION_CHARS:
+        return False
+    return screens < 2 or len(split_caption(text, CAPTION_CHARS)) == 1
 
 
 def _condense(texts: dict[int, str], language: str | None) -> dict[int, str]:
@@ -1250,11 +1220,14 @@ def rewrite(sentences: list[Sentence], language: str | None = None,
     The transcript as third-person report, on the same timeline, in the same
     language, and in as many captions as the run has stills to put them on.
 
-    `frames` is how many stills this run is about to deliver, and it decides
-    how much of the transcript goes into one caption: forty of them is an
-    account in forty lines, two hundred is the same account in two hundred.
-    See `_group`, which is where it is spent, for why the frame-count slider
-    is a decision about the writing and not only about the pictures.
+    `frames` is how many stills this run is about to deliver, and it is a
+    budget of CHARACTERS: forty of them is the account in up to forty times
+    CAPTION_CHARS, two hundred is the same account in up to two hundred times
+    it. How many lines that comes out in is the text's business — a thought
+    that needs one screen takes one and a thought that needs two takes two —
+    and is bounded by the grid only in that no account is cut into more lines
+    than there are stills. See `_group` and `_screens`, which is where it is
+    spent, and the module header for why it is no longer a line count.
 
     None means "as many captions as the transcript makes", which is what this
     did before the grid was known here and is still the right answer for a
@@ -1301,8 +1274,20 @@ def rewrite(sentences: list[Sentence], language: str | None = None,
     # the top of this file for why that decision was taken away from it.
     groups = _group(sentences, frames)
     blocks = [_block(g) for g in groups]
+    screens = _screens(blocks, frames)
+
+    # The room, said as numbers the model can act on line by line. The total
+    # is there so it knows how much of the story it is telling — a long video
+    # on a short grid is a summary, and on a long grid it is not — and the
+    # list of two-screen items is there because a budget held across a whole
+    # list is the kind of instruction this model ignores (see the note above
+    # SYSTEM), while "item 7 has two screens" is one it can follow on item 7.
+    room = ("The whole account has %d screens of %d characters to be told in "
+            "(%d characters).\n" % (frames, CAPTION_CHARS, frames * CAPTION_CHARS)
+            if frames is not None else "")
 
     done: list[Sentence] = []
+    allowed: list[int] = []
     rewritten = 0
 
     for first in range(0, len(blocks), CHUNK_SENTENCES):
@@ -1315,16 +1300,31 @@ def rewrite(sentences: list[Sentence], language: str | None = None,
                        "rewritten. Do not answer for them:\n"
                        + "\n".join(s.text for s in tail) + "\n\n")
 
+        two = [i for i in range(first, last) if screens[i] == 2]
+        if frames is None:
+            sizes = ""
+        elif two:
+            sizes = ("\n\nThese items have TWO screens (up to %d characters, as two "
+                     "sentences): %s. Every other item has ONE screen: under %d "
+                     "characters." % (CAPTION_CHARS_MAX, ", ".join(map(str, two)),
+                                      CAPTION_CHARS))
+        else:
+            sizes = "\n\nEvery item has ONE screen: under %d characters." % CAPTION_CHARS
+
         user = (context
                 + reminder
+                + room
                 + "Rewrite these. Answer for every id from "
                 + f"{first} to {last - 1}:\n"
-                + _listing(blocks, first, last))
+                + _listing(blocks, first, last)
+                + sizes)
 
         runs = _parse(_generate(system, user), first, last, guard_english)
         rewritten += sum(1 + end - start for start, (end, _) in runs.items())
-        done.extend(_apply(groups, blocks, runs, first, last,
-                           previous=done[-1].text if done else ""))
+        lines, room_of = _apply(groups, blocks, runs, first, last, screens,
+                                previous=done[-1].text if done else "")
+        done.extend(lines)
+        allowed.extend(room_of)
 
     # The lines that came back too long to show, asked again and shorter (see
     # CONDENSE_SYSTEM). Between the two passes rather than after the naming
@@ -1332,7 +1332,8 @@ def rewrite(sentences: list[Sentence], language: str | None = None,
     # actually be set — an opening it varied on a line that is about to be
     # replaced is work thrown away, and worse, a variation it would have made
     # on the replacement is one it never sees.
-    long_lines = {i: s.text for i, s in enumerate(done) if _needs_condensing(s.text)}
+    long_lines = {i: s.text for i, s in enumerate(done)
+                  if _needs_condensing(s.text, allowed[i])}
     shortened = _condense(long_lines, language)
 
     # ...and a shortened line is only taken if it does not collide with the one
@@ -1365,10 +1366,12 @@ def rewrite(sentences: list[Sentence], language: str | None = None,
     # a caption's opening and nothing else — never the timeline.
     varied = reference.vary(done, language)
 
-    log.info("narration: %s, %d sentences grouped into %d, %d rewritten, "
-             "%d captions on the timeline, %d shortened of %d over budget, "
-             "%d openings varied",
-             named or "language unknown", len(sentences), len(blocks), rewritten,
-             len(varied), taken, len(long_lines),
+    log.info("narration: %s, %d sentences grouped into %d, room of %s screens "
+             "with %d items given two, %d rewritten, %d captions on the timeline, "
+             "%d shortened of %d over their room, %d openings varied",
+             named or "language unknown", len(sentences), len(blocks),
+             "%d" % frames if frames is not None else "no stated",
+             sum(1 for n in screens if n == 2),
+             rewritten, len(varied), taken, len(long_lines),
              sum(1 for a, b in zip(done, varied) if a.text != b.text))
     return varied

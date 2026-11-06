@@ -107,8 +107,11 @@ the four keys are one composition rather than four effects.
 | `backdrop` | the gradient painted over the whole canvas under it — what the margin is |
 | `tint` | a second gradient painted over the card and clipped to it, corners included |
 
-`noisy-dish` is the pack that does it, and it explains each of its own numbers
-where it states them.
+`binge-us` is the pack that does it now, with a flat `fill` in place of the two
+gradients, and it explains each of its own numbers where it states them.
+`noisy-dish` was the first, and the only one to use `backdrop` and `tint`,
+until the show moved to a caption card; its old `channel.json` in git history
+is where those two gradients were argued.
 
 Both gradients are written the way `title.sticker.fill` is: `from` and `to` are
 corners as fractions of the box the ramp runs across, so `[0,0]` to `[0,1]` is
@@ -270,6 +273,15 @@ times.
 gradient has nothing to do on a vertical still, and it has even less to do
 with a card in front of it.
 
+`conspiracy-central` took the card back later, by the same four decisions with
+one difference: the show replaced its colours rather than adding to them, so
+there is no old colour left to keep first and the list is the four it asked
+for, in its order. Its yellow box went with the shadow, since a box inside a
+card is a shape inside a shape, and its picked words now differ by face
+(Poppins against a block of Bebas Neue Cyrillic) as on the carded siblings.
+Unlike the nine, its `branding.gradient` is `true`: it states a `scrim` of its
+own, which that flag switches (see "`scrim` is the channel's own shade").
+
 ### Every palette offers the picked words too
 
 Every channel with a `text` palette and a highlight shows three rows of
@@ -300,9 +312,10 @@ now the user's choice too. So all nine made the same three decisions:
   it still names it and says it is not here; `highlight.face` is where it goes
   the day the show wants it.
 
-The three channels under the heading with no palette at all — `binge-us`,
-`noisy-dish` and `conspiracy-central` — have no swatches to offer the picked
-words and are unchanged.
+The one channel under the heading with no palette at all — `binge-us` — has
+no swatches to offer the picked words and is unchanged. `conspiracy-central`
+and `noisy-dish` used to be the others, until each took the card back (see
+above).
 
 ### `framing` is the one key with a deadline
 
@@ -414,9 +427,9 @@ Both are measured to the first thing **drawn**, not to the letters. Under a
 box highlight or a line-scope panel, a row with a background on it puts that
 background's edge on the margin and the capitals a padding's worth inside it.
 
-`conspiracy-central` is the pack that hangs its captions from the head of the
-frame, 50px down, and it is also the one pack under the Snapchat heading with
-no card behind its type at all — the two go together, and it says why.
+No pack hangs its caption from the head of the frame today. `conspiracy-central`
+did, 50px down, until the show asked for the foot like every other caption; its
+`channel.json` in git history is the worked example, and says why it was there.
 
 ### `capture` changes what the app IS
 
@@ -467,15 +480,22 @@ asked for a self-contained sentence inside 80 characters, and one that genuinely
 needs more may run to 160 — which is then split across two consecutive frames
 rather than repeated on both.
 
-How many captions there are is decided by `frames`, not by the transcript. The
-rewrite is told how many stills the run is about to deliver and writes that many
-lines, so forty frames of a long video is an account in forty captions and two
-hundred is the same account in two hundred. The count slider above the link box
-is therefore a control over the writing as much as over the pictures.
+How much room the account has is decided by `frames`, in characters: one screen
+of 80 per still. Forty frames is the story told in up to 40 × 80 characters and
+two hundred is the same story in up to 200 × 80. How that room is cut into lines
+is the text's decision — a thought that needs one screen takes one, a thought
+with more to say takes two, and a video with less to say than its room is told
+in fewer screens (`backend/narrator.py`, `_screens`). The only thing the count
+fixes outright is the ceiling: no account is cut into more lines than there are
+stills. The count slider above the link box is therefore a control over the
+writing as much as over the pictures.
 
-Nothing repeats a caption; a frame with nothing left to say comes back with an
-empty text box (`backend/transcriber.py`, `captions_for`). The long explanation
-of what the rewrite does and what it refuses to do lives in the preset itself.
+Nothing repeats a caption, and no frame is left bare ahead of a captioned one:
+a frame is given text only when the frame before it has some, the first frame
+regardless, so the stills with nothing to say are all at the end of the grid
+with empty text boxes (`backend/transcriber.py`, `captions_for` and
+`close_gaps`). The long explanation of what the rewrite does and what it
+refuses to do lives in the preset itself.
 
 `output` is the one number both halves of the app have to agree on, and
 neither holds a second copy of it: the backend is told it in the framing this
@@ -536,11 +556,14 @@ top edge instead of being cut off by it. A channel wanting a ramp at an angle
 wants `photo.backdrop` or `photo.tint`, which are painted on shapes that have
 somewhere to end.
 
-Two packs use it for two different jobs. `laugh-society-2` throws it over a
+Three packs use it for three different jobs. `laugh-society-2` throws it over a
 composed stage so the cut-out figures and the backdrop read as one photograph in
 one light. `laugh-society-snapchat` throws it over the bottom third of a
 captured still because its caption is set straight onto the picture with no card
-under it, and the shade is what makes that legible.
+under it, and the shade is what makes that legible. `conspiracy-central` throws
+it over the bottom half of a captured still purely as part of its look — its
+caption is on a card, legible without it — and its numbers are the
+backend's side gradient turned to rise from the floor.
 
 **A scrim is what the Gradient button means.** That button is one idea — whatever
 the channel puts between the photograph and the title — and where it comes from
@@ -575,8 +598,8 @@ in `content/presets/snapchat-caption.json`, and that file is the worked
 example: `"freeform": true` (the caption is a sentence, and its breaks are the
 user's), `"fontSize": 40` (one stated size, so forty stills cut from one video
 are one set rather than forty type sizes), `"maxChars": 20`, `"vAlign":
-"bottom"` (burned-in speech sits at the foot of the frame — one pack hangs it
-from the head instead, see below) and `"movable": true` (so it can be pulled
+"bottom"` (burned-in speech sits at the foot of the frame — a pack may hang
+it from the head instead, see below) and `"movable": true` (so it can be pulled
 off a face).
 
 Where the sentence breaks when it first arrives is decided in `js/caption.js`.

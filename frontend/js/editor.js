@@ -1,13 +1,18 @@
-import { CW, CH, LINE_IDS, BLOCK_ID, TITLE_FIELD_IDS, FIDELITY, DEFAULT_PRESET, NO_PANEL, el } from "./config.js";
+import {
+    CW, CH, LINE_IDS, BLOCK_ID, TITLE_FIELD_IDS, FIDELITY, DEFAULT_PRESET, NO_PANEL,
+    OVERLAY_DEFAULT_WIDTH, el,
+} from "./config.js";
 import {
     frames, current, selectedIndex, linesFor, hlFor, logosFor,
     backendPresentation, setFrameImage, clearCutout, channelFor,
     titleAlignFor, layersFor, activeLayerFor, backgroundFor, figureGlowFor, cutoutModeFor,
-    textColorFor, panelColorFor, highlightColorFor,
+    textColorFor, panelColorFor, highlightColorFor, positionOf, gridOrder,
+    newTextbox, textboxFor, textboxesFor, textboxLinesFor, MAX_TEXTBOXES,
 } from "./state.js";
 import {
     channels, activeChannelId, setActiveChannel, hasChannel, titleStyle, branding,
-    decorFor, usesCutout, NO_CHANNEL,
+    decorFor, usesCutout, NO_CHANNEL, captureFor, textEffects, setTextEffects, mergeTextEffects,
+    textboxFaces, textboxFace, defaultTextboxFace,
 } from "./channels.js";
 import {
     prepareTitleFont, prepareTitleTexture, wordsOf, wordKey, recolored, highlightFollowsBlock,
@@ -21,7 +26,32 @@ import {
 import { invalidate as invalidateWide, prefetchWide } from "./wide.js";
 import { syncZoomSliderFor } from "./reframe.js";
 import { captureMode } from "./capture.js";
+import { openMaskStep } from "./mask.js";
+import { openAssetStep } from "./assets.js";
+
+/**
+ * Records a usage event. Never throws, whatever goes wrong inside it.
+ *
+ * Every caller invokes it on its FIRST line — picking a channel, the edit
+ * pass, picking a frame, both uploads — so an exception here is not a lost
+ * log line, it is the feature itself abandoned before it starts. That is
+ * exactly what happened in a browser with no prompt() (the Claude app's
+ * preview pane): the channel dropdown moved, selectChannel died on its first
+ * line, the page went on believing no channel was picked, and a Static
+ * Studio run went out as a plain thumbnail run — 1280x720, the three-line
+ * template, no frame-count slider. localStorage can throw too (blocked site
+ * data, some private windows). A usage counter is never worth any of that,
+ * so a failure anywhere in here costs the event and nothing else.
+ */
 function trackEvent(action, details = {}) {
+    try {
+        sendTrackEvent(action, details);
+    } catch (e) {
+        console.warn(`Usage event "${action}" was not recorded:`, e);
+    }
+}
+
+function sendTrackEvent(action, details) {
     // 1. Identify which tool this page represents
     const toolName = window.location.pathname.includes("static") ? "static_studio" : "thumbnail_maker";
 
@@ -233,6 +263,12 @@ export function syncTitlePanelMode() {
 
     const offersGlow = hasChannel() && !!style.glow && !!style.glow.toggle;
     el("glowRow").classList.toggle("hidden", !offersGlow);
+    // The shadow and outline belong to Static Studio, where every channel is
+    // a capture channel (see `capture` in channels.js); a thumbnail channel's
+    // type is the brand's and nothing here would be drawn on it.
+    el("textEffects").classList.toggle("hidden", !(hasChannel() && captureFor(activeChannelId())));
+    // The second textbox is Static Studio's too, for the same reason.
+    syncTextboxPanel();
     el("titleMoveHint").classList.toggle("hidden", !(hasChannel() && style.movable));
     const cutout = usesCutout(activeChannelId());
     el("cutoutHint").classList.toggle("hidden", !cutout);
@@ -273,8 +309,7 @@ export function syncTitlePanelMode() {
  * `height` includes the border while scrollHeight does not — without it the
  * field ends up 4px short of its own content and scrolls by a hairline.
  */
-function autoGrowBlock() {
-    const field = el(BLOCK_ID);
+function autoGrowBlock(field = el(BLOCK_ID)) {
     if (!field) return;
     field.style.height = "auto";
     // An EMPTY field is left at the height its one row gives it. Chrome
@@ -416,9 +451,20 @@ export async function selectChannel(id) {
  * against whatever metrics have arrived, and drawn again once the real ones
  * have.
  */
-export async function syncChannelToFrame() {
+export function syncChannelToFrame() {
     const f = current();
-    const changed = setActiveChannel((f && f.channel) || NO_CHANNEL);
+    return showChannel((f && f.channel) || NO_CHANNEL);
+}
+
+/**
+ * Points the page at a channel the user did not just pick — the body of
+ * syncChannelToFrame, and also how a run picked back up after a reload puts
+ * the page back on the channel it was started with (see main.resumeSettings).
+ * Same contract: nothing is written to any frame, and the caller need not
+ * wait for the face.
+ */
+export async function showChannel(id) {
+    const changed = setActiveChannel(id);
     syncChannelPickers();
     syncChannelFields();
     renderHlButtons();
@@ -582,10 +628,11 @@ export function loadTextPanel() {
     // the user looking for a title they never wrote (see capture.js).
     const capture = captureMode();
     const kind = capture && capture.captions ? "Caption" : "Title";
-    el("textPanelLabel").textContent = `${kind} — Frame ${selectedIndex() + 1}`;
+    el("textPanelLabel").textContent = `${kind} — Frame ${positionOf(selectedIndex()) + 1}`;
     renderHlButtons();
     syncAlignButtons();  // ...as does the alignment
     renderColorButtons();   // ...and the two colours, which are the frame's as well
+    syncTextboxPanel();   // ...and the textboxes, every one of them the frame's
     syncGlowButton();   // the halo is the frame's, so it follows the selection
     syncLogoControls();
     syncEditPresetButtons();
@@ -693,10 +740,10 @@ export function renderHlButtons() {
  * (text.wordsOf), so a click cannot put a box round the word next to the one
  * that was clicked.
  */
-function renderWordButtons(container, hl, highlightable, noHighlightMsg) {
+function renderWordButtons(container, hl, highlightable, noHighlightMsg, target = TITLE_HL) {
     container.className = "btn-col";
     const style = titleStyle();
-    const lines = linesFor(selectedIndex());
+    const lines = target.lines();
     const cased = (w) => (style.uppercase ? w.toUpperCase() : w);
 
     const keys = [];
@@ -714,11 +761,8 @@ function renderWordButtons(container, hl, highlightable, noHighlightMsg) {
             b.disabled = !highlightable;
             b.title = noHighlightMsg;
             b.onclick = () => {
-                const frame = current();
-                if (!frame) return;
-                const cur = hlFor(selectedIndex());
-                frame.hl = cur.includes(key) ? cur.filter(v => v !== key) : [...cur, key];
-                updateLines();
+                const cur = target.hl();
+                target.set(cur.includes(key) ? cur.filter(v => v !== key) : [...cur, key]);
             };
             row.appendChild(b);
         });
@@ -728,7 +772,7 @@ function renderWordButtons(container, hl, highlightable, noHighlightMsg) {
     if (!keys.length) {
         const hint = document.createElement("div");
         hint.className = "panel-hint";
-        hint.textContent = "Type a title, then click a word to highlight it.";
+        hint.textContent = target.emptyHint;
         container.appendChild(hint);
         return;
     }
@@ -741,13 +785,346 @@ function renderWordButtons(container, hl, highlightable, noHighlightMsg) {
     all.textContent = "Highlight All";
     all.disabled = !highlightable;
     all.title = noHighlightMsg;
-    all.onclick = () => {
+    all.onclick = () => target.set(allActive ? [] : keys);
+    container.appendChild(all);
+}
+
+/**
+ * What a set of word buttons picks words out OF, and where the picks go —
+ * the caption's, by default, and the second textbox's when it draws its own
+ * (see renderTextboxHlButtons). One description handed to one function,
+ * rather than a second copy of the buttons, so the two panels cannot come to
+ * offer the words differently.
+ */
+const TITLE_HL = {
+    lines: () => linesFor(selectedIndex()),
+    hl: () => hlFor(selectedIndex()),
+    set: (hl) => {
         const frame = current();
         if (!frame) return;
-        frame.hl = allActive ? [] : keys;
+        frame.hl = hl;
         updateLines();
+    },
+    emptyHint: "Type a title, then click a word to highlight it.",
+};
+
+// ── The textboxes ─────────────────────────────────────────────────────────
+//
+// Static Studio's "Add textbox" (see channels.textboxStyle for what one is
+// and why it looks the way it does). The panel half of it lives here: the
+// button that adds one, and a card per textbox on the frame — its field, its
+// highlight buttons, its "Text font" list, its colours, its alignment, its
+// shadow and outline, and the button that takes it off.
+//
+// Up to MAX_TEXTBOXES of them (see state.js). Every control on a card writes
+// to that card's textbox and to nothing else: a textbox is a second voice the
+// user sets apart from the caption and from the others, so none of what it
+// is set in may be shared with them (see state.textboxFor).
+//
+// The cards are built from the <template id="textboxTemplate"> in the
+// markup and kept by POSITION: card k is textbox k, and they are rebuilt only
+// when the count changes. Rebuilding on every sync would throw the caret out
+// of the field being typed in, on every keystroke.
+
+/** Card `k` in the panel, or null. */
+const textboxCard = (k) => el("textboxList").children[k] || null;
+
+/** The element playing `role` on card `k`, or null. */
+const cardPart = (k, role) => {
+    const card = textboxCard(k);
+    return card ? card.querySelector(`[data-role="${role}"]`) : null;
+};
+
+/** Shows the textbox controls this frame and channel call for, filled in. */
+export function syncTextboxPanel() {
+    const offered = hasChannel() && !!captureFor(activeChannelId());
+    el("textboxControls").classList.toggle("hidden", !offered);
+    if (!offered) return;
+
+    const f = current();
+    const boxes = f ? textboxesFor(selectedIndex()) : [];
+    const full = boxes.length >= MAX_TEXTBOXES;
+    const add = el("addTextboxBtn");
+    add.disabled = !f || full;
+    add.textContent = full ? `Up to ${MAX_TEXTBOXES} textboxes` : "Add textbox";
+
+    const list = el("textboxList");
+    while (list.children.length > boxes.length) list.lastElementChild.remove();
+    while (list.children.length < boxes.length) list.appendChild(buildTextboxCard(list.children.length));
+    boxes.forEach((box, k) => syncTextboxCard(k, box));
+}
+
+/**
+ * A new card for textbox `k`, with every control wired to that index.
+ *
+ * By index rather than by record, because the card outlives the record it
+ * was built for: Undo puts back copies, and a removal hands this card to the
+ * next textbox along. The index is the one thing that stays true.
+ */
+function buildTextboxCard(k) {
+    const card = el("textboxTemplate").content.firstElementChild.cloneNode(true);
+    const part = (role) => card.querySelector(`[data-role="${role}"]`);
+    part("text").addEventListener("input", () => updateTextboxText(k));
+    // Working in a card is working on that textbox, so it takes the handles
+    // on the canvas — which is also how the user finds out which of three
+    // blocks a card is.
+    part("text").addEventListener("focus", () => selectTextboxFromPanel(k));
+    part("font").addEventListener("change", (e) => setTextboxFont(k, e.target.value));
+    for (const b of card.querySelectorAll("[data-align]")) {
+        b.addEventListener("click", () => setTextboxAlign(k, b.dataset.align));
+    }
+    // The caption's effect controls, pointed at this textbox: picking a
+    // colour or a size switches the effect on, and the "none" swatch is a
+    // click on the switch beside it (see the same wiring in main.js).
+    const fx = () => (textboxFor(selectedIndex(), k) || {}).effects;
+    part("shadowBtn").addEventListener("click", () =>
+        changeTextboxEffects(k, { shadow: { on: !mergeTextEffects(fx()).shadow.on } }));
+    part("outlineBtn").addEventListener("click", () =>
+        changeTextboxEffects(k, { outline: { on: !mergeTextEffects(fx()).outline.on } }));
+    part("shadowNoneBtn").addEventListener("click", () => changeTextboxEffects(k, { shadow: { on: true } }));
+    part("outlineNoneBtn").addEventListener("click", () => changeTextboxEffects(k, { outline: { on: true } }));
+    part("shadowColor").addEventListener("input", (e) =>
+        changeTextboxEffects(k, { shadow: { on: true, color: e.target.value } }));
+    part("outlineColor").addEventListener("input", (e) =>
+        changeTextboxEffects(k, { outline: { on: true, color: e.target.value } }));
+    part("outlineWidth").addEventListener("input", (e) =>
+        changeTextboxEffects(k, { outline: { on: true, width: e.target.value } }));
+    part("remove").addEventListener("click", () => removeTextbox(k));
+    return card;
+}
+
+/** Card `k`, made to agree with textbox `box`. */
+function syncTextboxCard(k, box) {
+    cardPart(k, "label").textContent = `Textbox ${k + 1}`;
+    // Written only when it differs, so a redraw arriving while the user types
+    // (an Undo, a font change) does not throw the caret to the end.
+    const field = cardPart(k, "text");
+    if (field.value !== box.text) field.value = box.text;
+    autoGrowBlock(field);
+    renderTextboxFonts(k, box);
+    renderTextboxHlButtons(k);
+    renderColorRows(k);
+    syncTextboxAlign(k, box);
+    syncEffectControls(mergeTextEffects(box.effects), (role) => cardPart(k, role));
+}
+
+/**
+ * Fills card `k`'s "Text font" list with the faces this channel owns, the
+ * textbox's choice selected — or the channel's default, which is the
+ * highlight's face, while the user has chosen nothing (see
+ * channels.defaultTextboxFace).
+ *
+ * Rebuilt on every sync rather than once per channel: it is two options at
+ * most, and a list kept from the last channel would offer a face the frame
+ * in front of the user cannot be set in.
+ */
+function renderTextboxFonts(k, box) {
+    const select = cardPart(k, "font");
+    const channel = activeChannelId();
+    const chosen = textboxFace(channel, box ? box.face : null);
+    select.innerHTML = "";
+    for (const face of textboxFaces(channel)) {
+        const o = document.createElement("option");
+        o.value = face.family;
+        o.textContent = face.family;
+        select.appendChild(o);
+    }
+    select.value = chosen.family;
+    // A channel set in one face has nothing to choose between. Left visible
+    // so the panel says which face the box is in; disabled so it does not
+    // pretend to be a choice.
+    select.disabled = select.options.length < 2;
+}
+
+/**
+ * Card `k`'s highlight buttons — the caption's own buttons, pointed at that
+ * textbox's words and picks (see TITLE_HL), so a word is picked out of it
+ * exactly as one is picked out of the caption.
+ *
+ * Word buttons for a channel that highlights words, which is every channel
+ * under Static Studio; one button per line for one that highlights lines.
+ */
+function renderTextboxHlButtons(k) {
+    const c = cardPart(k, "hl");
+    c.innerHTML = "";
+    const style = titleStyle();
+    const highlightable = !!style.highlight;
+    const noHighlightMsg = highlightable
+        ? ""
+        : "This channel has no highlight — every line is set the same way.";
+    const target = {
+        lines: () => textboxLinesFor(selectedIndex(), k),
+        hl: () => { const b = textboxFor(selectedIndex(), k); return b ? b.hl : []; },
+        set: (hl) => {
+            const b = textboxFor(selectedIndex(), k);
+            if (!b) return;
+            b.hl = hl;
+            textboxChanged();
+        },
+        emptyHint: "Type in the textbox, then click a word to highlight it.",
     };
-    container.appendChild(all);
+    if (wordHighlight()) {
+        renderWordButtons(c, target.hl(), highlightable, noHighlightMsg, target);
+        return;
+    }
+    c.className = "btn-row";
+    const lines = target.lines();
+    lines.forEach((line, li) => {
+        if (!line.trim()) return;
+        const b = document.createElement("button");
+        b.className = "btn " + (target.hl().includes(li) ? "btn-active" : "");
+        b.textContent = `Highlight Line ${li + 1}`;
+        b.disabled = !highlightable;
+        b.title = noHighlightMsg;
+        b.onclick = () => {
+            const cur = target.hl();
+            target.set(cur.includes(li) ? cur.filter(v => v !== li) : [...cur, li]);
+        };
+        c.appendChild(b);
+    });
+}
+
+/** Redraws everything a change to a textbox reaches: the panel, the canvas, its card. */
+function textboxChanged() {
+    const f = current();
+    if (f) f.edited = true;
+    syncTextboxPanel();
+    updatePreview();
+    refreshThumb(selectedIndex());
+}
+
+/** Gives textbox `k` the canvas handles, as pressing it on the canvas does. */
+function selectTextboxFromPanel(k) {
+    const f = current();
+    if (!f || !f.textboxes[k] || f.activeTextbox === k) return;
+    f.activeTextbox = k;
+    f.titleActive = false;
+    f.activeLogo = -1;
+    f.activeLayer = -1;
+    syncLogoControls();
+    updatePreview();
+}
+
+// How far apart a new textbox starts from the one added before it, as a
+// fraction of the canvas height. Without it the second and third would
+// arrive exactly on top of the first — every textbox starts at the same
+// place (see channels.textboxStyle) — and look like one block.
+const TEXTBOX_STAGGER = 0.12;
+
+/**
+ * Puts another textbox on the frame in front of the user, selected, and the
+ * caret in its field — the next thing anyone who pressed the button does is
+ * type. Empty, so nothing is drawn until they do: a placeholder sentence on
+ * the canvas would be one more thing to delete before the frame is right.
+ */
+export function addTextboxToFrame() {
+    if (!guardChannel()) return;
+    const f = current();
+    if (!f || f.textboxes.length >= MAX_TEXTBOXES) return;
+    const k = f.textboxes.length;
+    const box = newTextbox();
+    if (k > 0) {
+        // Away from the end of the frame the textboxes start at — down from
+        // the head, up from the foot — so each lands below or above the last.
+        const captionEnd = titleStyle().layout.vAlign || "center";
+        const dir = captionEnd === "top" ? -1 : 1;
+        box.box = { dx: 0, dy: dir * k * Math.round(CH * TEXTBOX_STAGGER), scale: 1 };
+    }
+    f.textboxes.push(box);
+    // It wears the handles from the start, so its first appearance on the
+    // canvas says it is the thing being worked on.
+    f.activeTextbox = k;
+    f.titleActive = false;
+    f.activeLogo = -1;
+    f.activeLayer = -1;
+    syncLogoControls();
+    textboxChanged();
+    const field = cardPart(k, "text");
+    if (field) field.focus();
+}
+
+/** Takes textbox `k` off the frame, words, picks, place, face and looks together. */
+export function removeTextbox(k) {
+    const f = current();
+    if (!f || !f.textboxes[k]) return;
+    f.textboxes.splice(k, 1);
+    // The handles stay on the textbox that had them, which has moved down a
+    // place if it came after the one removed.
+    if (f.activeTextbox === k) f.activeTextbox = -1;
+    else if (f.activeTextbox > k) f.activeTextbox -= 1;
+    textboxChanged();
+}
+
+/** Textbox `k`'s field was typed in. */
+export function updateTextboxText(k) {
+    const f = current();
+    const box = f && f.textboxes[k];
+    if (!box || !hasChannel()) return;
+    box.text = cardPart(k, "text").value;
+    // The picks that still name something, by the rule the caption's follow
+    // (see survivingHighlights): a word key whose word is gone, or a line
+    // index past the end, is dropped rather than left to land on whatever
+    // moves into its place.
+    const lines = textboxLinesFor(selectedIndex(), k);
+    box.hl = box.hl.filter((key) => {
+        if (typeof key !== "string") return key < lines.length;
+        const [li, wi] = key.split(":").map(Number);
+        return lines[li] !== undefined && wordsOf(lines[li])[wi] !== undefined;
+    });
+    textboxChanged();
+}
+
+/** Textbox `k`'s "Text font" list was changed. */
+export function setTextboxFont(k, family) {
+    const f = current();
+    const box = f && f.textboxes[k];
+    if (!box) return;
+    // Stored as null when it is the channel's default, so a textbox that was
+    // never really given a choice goes on following its channel's default if
+    // the frame is moved to another one.
+    box.face = family === defaultTextboxFace(activeChannelId()).family ? null : family;
+    textboxChanged();
+}
+
+/**
+ * Sets textbox `k`'s alignment, or hands it back to the channel — the
+ * caption's gesture (see setTitleAlign), on the textbox's own field.
+ */
+export function setTextboxAlign(k, align) {
+    const f = current();
+    const box = f && f.textboxes[k];
+    if (!box || !guardChannel()) return;
+    box.align = box.align === align ? null : align;
+    textboxChanged();
+}
+
+/** Card `k`'s alignment buttons, shown when the channel has slack to place (see alignable). */
+function syncTextboxAlign(k, box) {
+    const row = cardPart(k, "alignRow");
+    row.classList.toggle("hidden", !alignable());
+    const now = (box && box.align)
+        || (hasChannel() ? titleStyle().layout.align : null) || "center";
+    for (const b of row.querySelectorAll("[data-align]")) {
+        b.className = "btn " + (b.dataset.align === now ? "btn-active" : "");
+    }
+}
+
+/**
+ * Applies a change to textbox `k`'s shadow and outline (see
+ * channels.mergeTextEffects) and redraws what it reaches — this frame only,
+ * unlike the caption's, which are the page's.
+ */
+export function changeTextboxEffects(k, patch) {
+    const f = current();
+    const box = f && f.textboxes[k];
+    if (!box) return;
+    const next = mergeTextEffects(box.effects, patch);
+    if (JSON.stringify(next) === JSON.stringify(mergeTextEffects(box.effects))) {
+        syncTextboxPanel();
+        return;
+    }
+    box.effects = next;
+    textboxChanged();
 }
 
 // ── Which way the title is set ────────────────────────────────────────────
@@ -876,9 +1253,49 @@ function paletteOf(which) {
  * already have a way back to the block's treatment — un-picking them.
  */
 export function renderColorButtons() {
+    renderColorRows("title");
+    textboxesFor(selectedIndex()).forEach((_, k) => renderColorRows(k));
+}
+
+/**
+ * Which block a row of swatches colours: the caption ("title") or textbox
+ * number k (a number). They are the same three rows asking the same three
+ * questions, each under its own block in the panel and each stored in its
+ * own place — the caption's on the frame, a textbox's on that textbox (see
+ * state.textboxFor) — so that a colour picked for one never reaches another.
+ *
+ * The caption's rows are found by id; a textbox's by the same names as
+ * data-roles on its card (see the textbox template in the markup): a naming
+ * rule rather than a second table, so a fourth row is still one line in
+ * PALETTES.
+ */
+const colorEl = (target, id) => (target === "title" ? el(id) : cardPart(target, id));
+
+/** What frame `i` stores for `field` on `target`, or null (see chosenColor). */
+function storedColor(target, field, i) {
+    if (target === "title") return STORED_COLOR[field](i);
+    const box = textboxFor(i, target);
+    return (box && box[field] != null) ? box[field] : null;
+}
+
+/** The three stored colours of `target` on frame `i`, as text.recolored takes them. */
+const colorsOf = (target, i) => ({
+    textColor: storedColor(target, "textColor", i),
+    highlightColor: storedColor(target, "highlightColor", i),
+    panelColor: storedColor(target, "panelColor", i),
+});
+
+function renderColorRows(target) {
+    const block = colorEl(target, "colorRows");
+    // A textbox's rows only exist while it does; a card left over from one
+    // that has gone is about to be removed (see syncTextboxPanel).
+    if (target !== "title" && !textboxFor(selectedIndex(), target)) {
+        if (block) block.classList.add("hidden");
+        return;
+    }
     let any = false;
-    for (const [which, rowId, labelId, field] of PALETTES) {
-        const row = el(rowId), label = el(labelId);
+    for (const [which, rowId, labelId] of PALETTES) {
+        const row = colorEl(target, rowId), label = colorEl(target, labelId);
         if (!row) continue;
         const colors = paletteOf(which);
         row.classList.toggle("hidden", !colors);
@@ -889,7 +1306,7 @@ export function renderColorButtons() {
 
         // With the slab switched off, the ring belongs to the crossed-out
         // swatch and to none of the colours: no colour is what is drawn.
-        const off = which === "panel" && panelColorFor(selectedIndex()) === NO_PANEL;
+        const off = which === "panel" && storedColor(target, "panelColor", selectedIndex()) === NO_PANEL;
 
         // Marked, never unmarked. chosenColor answers -1 only for a pack that
         // contradicts itself — one whose own colour is not among the ones it
@@ -898,7 +1315,7 @@ export function renderColorButtons() {
         // to show the user than a ring on the wrong swatch that the first
         // press makes true. The press is still a real write in that case:
         // setTitleColor asks chosenColor, not this.
-        const at = off ? -1 : Math.max(chosenColor(which, colors), 0);
+        const at = off ? -1 : Math.max(chosenColor(which, colors, target), 0);
         colors.forEach((color, k) => {
             const b = document.createElement("button");
             b.type = "button";
@@ -907,7 +1324,7 @@ export function renderColorButtons() {
             // cannot know a colour that arrived in a pack.
             b.style.background = color;
             b.title = color;
-            b.onclick = () => setTitleColor(which, k);
+            b.onclick = () => setTitleColor(which, k, target);
             row.appendChild(b);
         });
 
@@ -922,11 +1339,10 @@ export function renderColorButtons() {
             b.className = "btn-swatch btn-swatch-none " + (off ? "btn-active" : "");
             b.title = "No background";
             b.setAttribute("aria-label", "No background");
-            b.onclick = () => setTitleColor("panel", NO_PANEL);
+            b.onclick = () => setTitleColor("panel", NO_PANEL, target);
             row.appendChild(b);
         }
     }
-    const block = el("colorRows");
     if (block) block.classList.toggle("hidden", !any);
 }
 
@@ -956,12 +1372,12 @@ export function renderColorButtons() {
  * text.recolored), so no swatch is marked because none of them is what is
  * drawn, which is the truth rather than a tidier lie.
  */
-function chosenColor(which, colors) {
+function chosenColor(which, colors, target = "title") {
     const row = PALETTES.find(([key]) => key === which);
     if (!row) return -1;
     const [, , , field, ownOf] = row;
     const i = selectedIndex();
-    const stored = STORED_COLOR[field](i);
+    const stored = storedColor(target, field, i);
     // The slab switched off is marked on its own swatch (see
     // renderColorButtons), so none of the colours is the one chosen.
     if (stored === NO_PANEL) return -1;
@@ -983,11 +1399,7 @@ function chosenColor(which, colors) {
     // index 3, 4 or 5 lost its ring, while the title on screen was plainly
     // one of the three offered. The swatch matching the pack's own colour is
     // both the honest answer and the one the user is looking for.
-    const own = ownOf(recolored(titleStyle(), {
-        textColor: textColorFor(i),
-        highlightColor: highlightColorFor(i),
-        panelColor: panelColorFor(i),
-    }));
+    const own = ownOf(recolored(titleStyle(), colorsOf(target, i)));
     if (!own) return -1;
     const same = (a, b) => String(a).trim().toLowerCase() === String(b).trim().toLowerCase();
     return colors.findIndex(c => same(c, own));
@@ -1045,9 +1457,13 @@ const STORED_COLOR = {
  * stay it" — the very thing that stops the words changing the next time the
  * letters do. So that press always writes.
  */
-export function setTitleColor(which, index) {
+export function setTitleColor(which, index, target = "title") {
     const f = current();
     if (!f) return;
+    // A textbox's colours are written on that textbox (see
+    // state.textboxFor); everything else below is the same question.
+    const holder = target === "title" ? f : f.textboxes[target];
+    if (!holder) return;
     if (!guardChannel()) return;
     const colors = paletteOf(which);
     if (!colors) return;
@@ -1058,13 +1474,13 @@ export function setTitleColor(which, index) {
     const row = PALETTES.find(([key]) => key === which);
     if (!row) return;
     const field = row[3];
-    const stored = STORED_COLOR[field](selectedIndex());
+    const stored = storedColor(target, field, selectedIndex());
     if (stored === index) return;
     const following = which === "highlight" && highlightFollowsBlock(titleStyle());
-    if (stored == null && !following && chosenColor(which, colors) === index) return;
+    if (stored == null && !following && chosenColor(which, colors, target) === index) return;
     f.edited = true;
-    f[field] = index;
-    renderColorButtons();
+    holder[field] = index;
+    renderColorRows(target);
     updatePreview();
     refreshThumb(selectedIndex());
 }
@@ -1096,6 +1512,55 @@ export function syncGlowButton() {
     const on = !!(f && f.glow);
     btn.className = "btn " + (on ? "btn-active" : "");
     btn.textContent = on ? "Glow On" : "Glow Off";
+}
+
+// ── The user's shadow and outline ─────────────────────────────────────────
+
+/**
+ * Applies a change to the page's text effects (see setTextEffects in
+ * channels.js) and redraws whatever it reaches: the preview, and every card
+ * in the grid, since every frame draws with the same setting.
+ *
+ * No guardChannel and no `edited` flag, unlike every per-frame control above:
+ * this is not an edit to the frame on screen, and a page with no channel
+ * picked yet is a page with nothing to redraw, not a mistake to warn about.
+ */
+export function changeTextEffects(patch) {
+    const changed = setTextEffects(patch);
+    syncTextEffects();
+    if (!changed) return;
+    updatePreview();
+    refreshAllThumbs();
+}
+
+/** Draws the caption's controls from the page's settings, so they can never disagree. */
+export function syncTextEffects() {
+    syncEffectControls(textEffects(), el);
+}
+
+/**
+ * Draws one set of effect controls from `fx`. `find` turns a control's name
+ * into its element — the page's ids for the caption's, a card's data-roles
+ * for a textbox's (see syncTextboxCard) — so both are drawn by one rule.
+ */
+function syncEffectControls(fx, find) {
+    for (const [part, btnId, colorId] of [
+        ["shadow", "shadowBtn", "shadowColor"], ["outline", "outlineBtn", "outlineColor"],
+    ]) {
+        const on = fx[part].on;
+        const btn = find(btnId), well = find(colorId);
+        btn.classList.toggle("btn-active", on);
+        btn.setAttribute("aria-pressed", String(on));
+        btn.closest(".mask-contour-row").classList.toggle("on", on);
+        // Not while the well is being dragged through: writing the value back
+        // into an open picker on every input event can make it stutter.
+        if (document.activeElement !== well) well.value = fx[part].color;
+    }
+    const slider = find("outlineWidth");
+    slider.value = String(fx.outline.width);
+    const min = Number(slider.min), max = Number(slider.max);
+    slider.style.setProperty("--count-fill", max > min ? (fx.outline.width - min) / (max - min) : 0);
+    find("outlineWidthValue").textContent = `${fx.outline.width}px`;
 }
 
 // ── Edit presets ──────────────────────────────────────────────────────────
@@ -1286,6 +1751,16 @@ export function syncGradientButton() {
     const acts = !!decor.scrim || (!decor.cutout && !decor.photo);
     btn.className = ["btn", on ? "btn-active" : "", acts ? "" : "hidden"]
         .filter(Boolean).join(" ");
+    // ...and on the body, for the same reason syncTitlePanelMode sets
+    // `cutout-channel`: Static Studio takes this button away with a rule
+    // about the RUN (a frame fetch has no title column for the backend's
+    // side gradient to darken), and a scrim is the case that rule does not
+    // cover. A scrim is drawn on the canvas, from the foot of the frame, and
+    // is exactly what a capture frame can use - and a channel that states
+    // one and then hides the only switch for it lays a shade over every
+    // still with no way to take it off. Set from the SELECTED frame's
+    // channel, because that is the channel the button acts on.
+    document.body.classList.toggle("scrim-frame", !!decor.scrim);
     btn.textContent = on ? "Gradient On" : "Gradient Off";
 }
 
@@ -1326,6 +1801,14 @@ async function recompose({ previewFirst }) {
     } catch (_) { /* network error — the local flag already flipped; the next call retries */ }
     maybeHideSpinner();
 }
+
+/**
+ * Asks the backend for the selected frame's picture again, for whatever its
+ * mirror and gradient flags now say. For Undo and Redo (see history.js),
+ * which put those flags back by writing them, not by pressing the buttons —
+ * and the picture is where those two are drawn.
+ */
+export const recomposeSelected = () => recompose({ previewFirst: false });
 
 export async function toggleFlip(key) {
     const f = current();
@@ -1959,17 +2442,36 @@ export async function warmCutouts() {
  * So it is reported rather than done quietly. This is minutes of work on a
  * grid of forty, and a status line counting them off is the difference between
  * a machine that is busy and one that looks broken.
+ *
+ * Worked through in the grid's order, asked afresh before each frame: the user
+ * may rearrange the grid while this runs (see reorder.js), and the frames they
+ * have just dragged to the front are the ones they want to see turn first.
+ *
+ * The same question is what skips a frame the user has thrown out (see
+ * state.discardFrame): it is no longer in the grid's order, so it is never
+ * the next one. The pass ends when every frame still IN the order is done,
+ * and the count it shows is of those — a discard shortens it on the spot.
  */
 export async function applyEditToAll() {
     trackEvent("batch_edit_all_frames", { total_frames: frames().length });
     const grid = frames();
-    for (let i = 0; i < grid.length; i++) {
-        if (frames() !== grid) return;
-        status(`Applying the edit — frame ${i + 1} of ${grid.length}`);
+    const done = new Set();
+    for (;;) {
+        if (frames() !== grid) return false;
+        const order = gridOrder();
+        const i = order.find(k => !done.has(k));
+        if (i === undefined) break;
+        done.add(i);
+        const finished = order.filter(k => done.has(k)).length;
+        status(`Applying the edit — frame ${finished} of ${order.length}`);
         await ensureEnhanced(i);
     }
-    if (frames() !== grid) return;
-    status(`${grid.length} frames ready. Download all, or pick the ones you want.`);
+    if (frames() !== grid) return false;
+    status(`${gridOrder().length} frames ready. Download all, or pick the ones you want.`);
+    // Whether the pass reached the end of the grid it started on — the moment
+    // every frame has loaded, which is what unlocks "Split the text" (see
+    // main.runPipeline). False when a newer run's frames replaced these.
+    return true;
 }
 
 // ── Image overlay ─────────────────────────────────────────────────────────
@@ -2016,6 +2518,7 @@ export function selectLogo(i) {
     if (!f || !f.logos[i]) return;
     f.activeLogo = i;
     f.titleActive = false;   // one thing wears the handles — see reframe.selectTitle
+    f.activeTextbox = -1;
     f.activeLayer = -1;
     syncLogoControls();
     updatePreview();
@@ -2044,19 +2547,65 @@ export async function handleLogoFile(file) {
         reader.onerror = () => reject(new Error("could not read file"));
         reader.readAsDataURL(file);
     });
-    const img = await loadImage(dataUrl);
-    const targetW = CW * 0.28;                        // default on-canvas width
+    const picked = await loadImage(dataUrl);
+    // The mask step sits between the file dialog and the canvas (see
+    // mask.js). It answers with the picture to place — the masked crop, or
+    // the upload itself when the user keeps it whole — or null for cancel,
+    // which adds nothing. Asked before the frame is touched, so a cancel
+    // leaves it exactly as it was, `edited` flag included.
+    const src = await openMaskStep(picked, dataUrl);
+    if (!src || current() !== f) return;   // cancelled, or the user moved to another frame meanwhile
+    const img = src === dataUrl ? picked : await loadImage(src);
+    placeLogo(f, src, img);
+}
+
+/**
+ * The image overlay's Assets button: a ready-made picture from
+ * frontend/assets/, in the colour the user picks (see assets.js), placed
+ * exactly as an upload is — so it drags, resizes and deletes like one.
+ */
+export async function handleAssetPick() {
+    trackEvent("open_overlay_assets");
+    const f = current();
+    if (!f) return;
+    const picked = await openAssetStep();
+    if (!picked || current() !== f) return;   // cancelled, or the user moved to another frame meanwhile
+    trackEvent("add_overlay_asset", { asset: picked.name, color: picked.color });
+    placeLogo(f, picked.src, await loadImage(picked.src), { asset: true });
+}
+
+/**
+ * Adds the picture `src` (decoded as `img`) to frame `f`'s overlays.
+ *
+ * Assets always stack above the user's own images. They are marks drawn ON
+ * something — a ring around a face, an arrow at it — and a photo uploaded
+ * after the ring would otherwise land on top and cover the very thing the
+ * ring was put there to point at. So an asset goes on top of everything,
+ * and an upload goes on top of the uploads but under the first asset.
+ *
+ * The rule is kept by where things are inserted, not by sorting at draw
+ * time: array order IS stacking order (see state.logosFor) for the canvas,
+ * the hit test, the composite and the carry-over alike, so an array that is
+ * already in the right order is right for all of them at once. Nothing
+ * reorders the array after insertion, so it stays that way.
+ */
+function placeLogo(f, src, img, { asset = false } = {}) {
+    const targetW = CW * OVERLAY_DEFAULT_WIDTH;       // default on-canvas width
     const scale = Math.min(1, targetW / img.width);   // never upscale past the upload's own resolution
     f.edited = true;
-    // Appended, not assigned: a frame carries as many overlays as the user
-    // adds, and the newest goes on top of the stack.
-    f.logos.push({
-        src: dataUrl, _img: img,
+    const firstAsset = f.logos.findIndex(l => l.asset);
+    const at = asset || firstAsset < 0 ? f.logos.length : firstAsset;
+    // Inserted, not assigned: a frame carries as many overlays as the user
+    // adds, and the newest goes on top of its own kind.
+    f.logos.splice(at, 0, {
+        src, _img: img,
         natW: img.width, natH: img.height,
         x: CW / 2, y: CH / 2,   // centered, per spec
         scale,
+        asset,
     });
-    f.activeLogo = f.logos.length - 1;   // the one just added is the one you want to place
+    f.activeLogo = at;   // the one just added is the one you want to place
+    f.activeTextbox = -1;
     syncLogoControls();
     updatePreview();
     refreshThumb(selectedIndex());

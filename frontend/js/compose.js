@@ -4,11 +4,20 @@ import {
     selectedIndex, channelFor, titleBoxFor, titleActiveFor, glowFor,
     layersFor, activeLayerFor, titleAlignFor, backgroundFor, figureGlowFor,
     textColorFor, panelColorFor, highlightColorFor,
+    textboxesFor, textboxLinesFor, textboxActiveFor, frameMaskFor, frameMaskActiveFor,
 } from "./state.js";
-import { usingChannel, decorFor } from "./channels.js";
+import {
+    usingChannel, usingStyle, titleStyle, textboxStyle, textboxFace, decorFor, textEffectsKey,
+    packTitleStyle, applyTextEffects,
+} from "./channels.js";
 import { addTextOverlay } from "./text.js";
 import { loadImage } from "./net.js";
 import { hideReframeWait } from "./ui.js";
+import { noteEdit } from "./history.js";
+// A cycle (framemask imports this module for its previews), and a harmless
+// one: history.js already closes the same loop, and nothing here is called
+// before every module has finished loading.
+import { placeOf, placedWindow, placedAsCut } from "./framemask.js";
 
 export let fabricCanvas = null;
 
@@ -84,10 +93,14 @@ export function loadLogoImage(logo) {
  * edge would get a rectangle, so nothing asks for one.
  */
 export function addLogoOverlay(canvas, logo, img, interactive, shadow = null) {
-    const w = logo.natW * logo.scale, h = logo.natH * logo.scale;
-    const left = logo.x - w / 2, top = logo.y - h / 2;
+    // Placed by its CENTRE, which is what logo.x/y has always been, so that
+    // a rotation (assets only, see the rotate handle below) turns it in place
+    // instead of swinging it round its top-left corner. At angle 0 this is
+    // the same rectangle the top-left placement drew.
+    const angle = logo.angle || 0;
     canvas.add(new fabric.Image(img, {
-        left, top, width: logo.natW, height: logo.natH,
+        left: logo.x, top: logo.y, originX: "center", originY: "center", angle,
+        width: logo.natW, height: logo.natH,
         scaleX: logo.scale, scaleY: logo.scale,
         // Mirrored HERE rather than by the backend, for the one overlay that
         // is ever mirrored: a flipped figure is the same cutout drawn the
@@ -99,31 +112,149 @@ export function addLogoOverlay(canvas, logo, img, interactive, shadow = null) {
         shadow: shadow ? new fabric.Shadow({ ...shadow }) : null,
         selectable: false, evented: false,
     }));
-    if (!interactive) return;
+    if (interactive) addLogoChrome(canvas, logo);
+}
+
+/**
+ * The selection chrome alone — the dashed box and the handles — for an
+ * overlay whose picture was drawn earlier.
+ *
+ * Apart from addLogoOverlay because the user's own uploads are drawn UNDER
+ * the title (see splitOverlays), and the selected one's handles cannot go
+ * down with it: a resize handle hidden behind a line of text is a handle the
+ * user cannot find, on exactly the picture they just clicked to work on. So
+ * the picture goes where it belongs in the stack and its chrome goes on top
+ * of everything.
+ */
+export function addLogoChrome(canvas, logo) {
+    const w = logo.natW * logo.scale, h = logo.natH * logo.scale;
+    const angle = logo.angle || 0;
+    // The chrome turns with the picture: a dashed box left square round a
+    // tilted arrow would be a box round mostly nothing, and the handles have
+    // to sit on the corners the user can see.
     canvas.add(new fabric.Rect({
-        left, top, width: w, height: h, fill: "transparent",
+        left: logo.x, top: logo.y, originX: "center", originY: "center", angle,
+        width: w, height: h, fill: "transparent",
         stroke: "#1b2fea", strokeWidth: 2, strokeDashArray: [6, 4],
         selectable: false, evented: false,
     }));
     const hs = HANDLE_SIZE;
+    const [rx, ry] = logoCorner(logo, 1, 1);
     canvas.add(new fabric.Rect({
-        left: left + w - hs / 2, top: top + h - hs / 2, width: hs, height: hs,
+        left: rx, top: ry, originX: "center", originY: "center", angle,
+        width: hs, height: hs,
         fill: "#1b2fea", stroke: "#fff", strokeWidth: 2, rx: 3, ry: 3,
         selectable: false, evented: false,
     }));
+    if (logo.asset) addRotateHandle(canvas, ...logoCorner(logo, 1, -1));
 }
 
 /**
- * Hit-tests a canvas-space point against a logo's bounding box and resize
- * handle — shared by the drag-start and hover-cursor handlers so both agree
- * on exactly the same regions.
+ * A frame's image overlays in the two places they are drawn: `under`, the
+ * user's own uploads, which go beneath the channel's brand mark and the
+ * title; `over`, the ready-made assets, which go on top of everything. Each
+ * keeps its array order, which is stacking order within its own kind.
+ *
+ * The uploads used to go on top as well, and that hid the title. The most
+ * common reason to upload a picture onto a frame is to put a different
+ * picture there — a still the video does not have, a photo of the person
+ * being talked about — and an upload scaled up to cover the frame covered
+ * the words with it, on screen and in the download. Nothing said the title
+ * was still there; it had simply gone. An upload is a picture, the same kind
+ * of thing as the photograph, so it now sits where the photograph does
+ * relative to the channel's furniture: under it.
+ *
+ * Assets stay above, because they are marks drawn ON something — a ring, an
+ * arrow — and one pointing at a word in the title has to be visible over it.
+ * placeLogo (editor.js) already keeps every asset after every upload in the
+ * array, so this split never reorders anything within a kind.
+ */
+export function splitOverlays(logos) {
+    return {
+        under: logos.filter(l => !l.asset),
+        over: logos.filter(l => l.asset),
+    };
+}
+
+/**
+ * Where one corner of an overlay's box is on the canvas, rotation included:
+ * (sx, sy) = (1, 1) is its bottom-right as drawn unrotated, (1, -1) its
+ * top-right. The one place the corners are worked out, so the drawn handles
+ * and the hit test cannot drift apart.
+ */
+function logoCorner(logo, sx, sy) {
+    const w = logo.natW * logo.scale, h = logo.natH * logo.scale;
+    const a = (logo.angle || 0) * Math.PI / 180;
+    const lx = sx * w / 2, ly = sy * h / 2;
+    return [logo.x + lx * Math.cos(a) - ly * Math.sin(a), logo.y + lx * Math.sin(a) + ly * Math.cos(a)];
+}
+
+/**
+ * The rotate handle: two circling arrows on a round button in the resize
+ * handle's blue, on the box's top-right corner — the corner diagonally
+ * clear of the resize handle, so the two are never mistaken for each other
+ * and a small asset still has room for both.
+ *
+ * Round where the resize handle is square, because the gesture is round.
+ * Never turned with the asset: an icon lying on its side is harder to
+ * recognise, and the circle has no "up" to show the angle anyway.
+ *
+ * The glyph is built here from two arcs and two arrowheads rather than taken
+ * from an icon font, for the reason the title font is guarded: a glyph from
+ * a face that failed to load is a box, and a box on a handle says nothing.
+ */
+function addRotateHandle(canvas, cx, cy) {
+    const r = HANDLE_SIZE * 0.6;
+    canvas.add(new fabric.Circle({
+        left: cx, top: cy, originX: "center", originY: "center", radius: r,
+        fill: "#1b2fea", stroke: "#fff", strokeWidth: 2,
+        selectable: false, evented: false,
+    }));
+    // Two clockwise arcs on a circle of radius `ar`, each ending in an
+    // arrowhead pointing along its travel.
+    const ar = r * 0.52, head = r * 0.3;
+    const at = (deg, rad = ar) => {
+        const t = deg * Math.PI / 180;
+        return [cx + rad * Math.cos(t), cy + rad * Math.sin(t)];
+    };
+    for (const [from, to] of [[200, 335], [20, 155]]) {
+        const [x0, y0] = at(from), [x1, y1] = at(to);
+        canvas.add(new fabric.Path(`M ${x0} ${y0} A ${ar} ${ar} 0 0 1 ${x1} ${y1}`, {
+            fill: "", stroke: "#fff", strokeWidth: Math.max(1.5, r * 0.16), strokeLineCap: "round",
+            objectCaching: false, selectable: false, evented: false,
+        }));
+        // The head: tip ahead along the tangent, base across the arc.
+        const t = to * Math.PI / 180;
+        const tx = -Math.sin(t), ty = Math.cos(t);   // clockwise tangent (y points down)
+        const nx = Math.cos(t), ny = Math.sin(t);    // outward normal
+        canvas.add(new fabric.Polygon([
+            { x: x1 + tx * head * 1.3, y: y1 + ty * head * 1.3 },
+            { x: x1 + nx * head, y: y1 + ny * head },
+            { x: x1 - nx * head, y: y1 - ny * head },
+        ], { fill: "#fff", selectable: false, evented: false, objectCaching: false }));
+    }
+}
+
+/**
+ * Hit-tests a canvas-space point against a logo's box, its resize handle
+ * and, for an asset, its rotate handle — shared by the drag-start and
+ * hover-cursor handlers so both agree on exactly the same regions.
+ *
+ * The point is turned back by the overlay's angle first, so every region is
+ * tested in the overlay's own unrotated frame, where they are rectangles.
  */
 export function logoHitTest(logo, cx, cy) {
     const w = logo.natW * logo.scale, h = logo.natH * logo.scale;
-    const left = logo.x - w / 2, top = logo.y - h / 2;
     const hs = HANDLE_SIZE;
-    if (cx >= left + w - hs && cx <= left + w + hs / 2 && cy >= top + h - hs && cy <= top + h + hs / 2) return "resize";
-    if (cx >= left && cx <= left + w && cy >= top && cy <= top + h) return "move";
+    if (logo.asset) {
+        const [rx, ry] = logoCorner(logo, 1, -1);
+        if (Math.hypot(cx - rx, cy - ry) <= hs * 0.75) return "rotate";
+    }
+    const a = (logo.angle || 0) * Math.PI / 180;
+    const dx = cx - logo.x, dy = cy - logo.y;
+    const lx = dx * Math.cos(a) + dy * Math.sin(a), ly = -dx * Math.sin(a) + dy * Math.cos(a);
+    if (lx >= w / 2 - hs && lx <= w / 2 + hs / 2 && ly >= h / 2 - hs && ly <= h / 2 + hs / 2) return "resize";
+    if (Math.abs(lx) <= w / 2 && Math.abs(ly) <= h / 2) return "move";
     return null;
 }
 
@@ -861,6 +992,135 @@ function addPhotoPlate(canvas, plate, img) {
     }
 }
 
+// ── The frame mask ────────────────────────────────────────────────────────
+//
+// Static Studio's "Create mask": the photograph seen through a window — a
+// rectangle of any proportion, or a circle — with everything outside the
+// window painted one solid colour, and optionally an edge drawn round it.
+// The record is described at state.frameMaskFor.
+
+/**
+ * Draws `mask` onto `canvas`: the solid ground with the window cut out of it,
+ * then the edge, if it has one.
+ *
+ * Fabric objects rather than pixels, like everything else on this canvas, so
+ * the preview, the grid thumbnail and the download all draw it through the
+ * one path and none of them can drift. The ground is a canvas-sized rectangle
+ * with the window as an INVERTED clip — a hole — which keeps the window's
+ * edge as crisp as the shape that cuts it, round or square.
+ *
+ * Positioned from the centre, and that is not a style choice. Fabric places
+ * an object by the outside of its stroke when its origin is a corner, so a
+ * stroked shape anchored at (x, y) lands half a stroke away from where the
+ * same shape unstroked would — and the edge has to sit exactly against the
+ * hole. From the centre, a shape's size is simply its size.
+ *
+ * The edge is drawn OUTSIDE the window, on the ground, rather than across
+ * its boundary. The window is the picture the user framed, and a stroke
+ * straddling it would eat into the very part of the photograph they chose
+ * to keep, by an amount that changes every time they change the width. It
+ * reaches one pixel into the window, which nobody sees but which stops a
+ * hairline of photograph showing between the edge and the ground where the
+ * two antialias against each other.
+ */
+export function addFrameMask(canvas, mask, photo = null) {
+    if (!mask || !(mask.w > 0) || !(mask.h > 0)) return;
+    // Where the window stands on the canvas once the user has placed the
+    // masked picture (see `place` in framemask.js) — the cut window itself
+    // when they have not.
+    const win = placedWindow(mask);
+    const place = placeOf(mask);
+    const cx = win.x + win.w / 2;
+    const cy = win.y + win.h / 2;
+    const round = mask.shape === "round";
+    const shape = (w, h, extra) => {
+        const common = {
+            left: cx, top: cy, originX: "center", originY: "center",
+            selectable: false, evented: false, objectCaching: false,
+            ...extra,
+        };
+        return round
+            ? new fabric.Ellipse({ rx: w / 2, ry: h / 2, ...common })
+            : new fabric.Rect({ width: w, height: h, ...common });
+    };
+
+    if (photo && !placedAsCut(mask)) {
+        // Placed: the photograph has to travel with its window, so the ground
+        // goes down WHOLE over the picture already on the canvas and the
+        // picture is drawn again on top of it, carried through the placement
+        // and clipped to the placed window. Only the photograph can be moved
+        // like this — it is the one thing under the mask this function is
+        // handed — which is all Static Studio draws there.
+        canvas.add(new fabric.Rect({
+            left: 0, top: 0, width: CW, height: CH,
+            fill: mask.fill || "#000000", strokeWidth: 0,
+            selectable: false, evented: false, objectCaching: false,
+        }));
+        const pw = photo.naturalWidth || photo.width || CW;
+        const ph = photo.naturalHeight || photo.height || CH;
+        canvas.add(new fabric.Image(photo, {
+            left: place.tx, top: place.ty,
+            scaleX: place.s * CW / pw, scaleY: place.s * CH / ph,
+            clipPath: shape(win.w, win.h, { strokeWidth: 0, absolutePositioned: true }),
+            selectable: false, evented: false, objectCaching: false,
+        }));
+    } else {
+        const hole = shape(win.w, win.h, { strokeWidth: 0, absolutePositioned: true, inverted: true });
+        canvas.add(new fabric.Rect({
+            left: 0, top: 0, width: CW, height: CH,
+            fill: mask.fill || "#000000", strokeWidth: 0,
+            clipPath: hole,
+            selectable: false, evented: false, objectCaching: false,
+        }));
+    }
+
+    // The edge scales with the picture it frames: a masked picture made twice
+    // the size is the same design twice the size, not a new one with a
+    // hairline round it.
+    const sw = mask.outline ? Math.max(0, +mask.outlineWidth || 0) * place.s : 0;
+    if (sw > 0) {
+        // The path runs half a stroke outside the window, less the pixel of
+        // overlap described above, so the stroke's inner edge is on the hole.
+        const grow = sw - 2;
+        canvas.add(shape(win.w + grow, win.h + grow, {
+            fill: "", stroke: mask.outlineColor || "#ffffff", strokeWidth: sw,
+        }));
+    }
+}
+
+/**
+ * The selected mask's selection box: the window's box, dashed, with a handle
+ * on each of its four corners — dragging any of them reshapes the window
+ * from that corner (see reframe.js).
+ *
+ * Four handles where an overlay has one, because a window's proportions are
+ * the point of it: an overlay keeps its picture's shape and only gets bigger
+ * or smaller, but a window is pulled wider or taller from whichever side the
+ * subject needs more room on. Styled as the overlay's chrome is, so it reads
+ * as the same kind of selection. Never on a composite: see paintFrame.
+ */
+export function addFrameMaskChrome(canvas, frameMask) {
+    if (!frameMask) return;
+    // Round the window as it stands on the canvas, which is what the
+    // handles scale (see framemask.scalePlacementFrom).
+    const mask = placedWindow(frameMask);
+    canvas.add(new fabric.Rect({
+        left: mask.x, top: mask.y, width: mask.w, height: mask.h,
+        fill: "transparent", stroke: "#1b2fea", strokeWidth: 2, strokeDashArray: [6, 4],
+        strokeUniform: true, selectable: false, evented: false, objectCaching: false,
+    }));
+    const hs = HANDLE_SIZE;
+    for (const [x, y] of [[mask.x, mask.y], [mask.x + mask.w, mask.y],
+                          [mask.x, mask.y + mask.h], [mask.x + mask.w, mask.y + mask.h]]) {
+        canvas.add(new fabric.Rect({
+            left: x, top: y, originX: "center", originY: "center",
+            width: hs, height: hs,
+            fill: "#1b2fea", stroke: "#fff", strokeWidth: 2, rx: 3, ry: 3,
+            selectable: false, evented: false,
+        }));
+    }
+}
+
 /**
  * Draws a channel's scrim: a gradient laid over the backdrop AND over the
  * figures standing on it.
@@ -1283,6 +1543,61 @@ let _titleBounds = null;
 
 export const titleBounds = () => _titleBounds;
 
+// The same, for the textboxes — one entry per textbox, by index, null for
+// one with nothing typed in it yet.
+let _textboxBounds = [];
+
+/** Where textbox `k`'s ink landed in the last preview render, or null. */
+export const textboxBounds = (k) => _textboxBounds[k] || null;
+
+/** Every textbox's bounds, by index — what the canvas hit-tests (see reframe.js). */
+export const allTextboxBounds = () => _textboxBounds;
+
+/**
+ * Draws frame `i`'s textbox `k` onto `cv` and answers with where its ink
+ * landed, or null when there is nothing to draw.
+ *
+ * Through addTextOverlay with the title's options for what is the frame's
+ * — its halo, which way round it sits — and the textbox's own for everything
+ * that is the block's: its colours, its alignment, where it was dragged, its
+ * picks. The style it is handed is the PACK's, not the caption's, with the
+ * textbox's own shadow and outline laid over it (see
+ * channels.applyTextEffects), set in the face the user chose and starting at
+ * the other end of the frame (see channels.textboxStyle). So nothing set on
+ * the caption, or on another textbox, reaches this one.
+ *
+ * Exported because the reframe drag's snapshot draws them too (see
+ * reframe.snapshotOverlays), and a second copy of this sequence there would
+ * be a textbox that changes look for the length of every drag.
+ */
+export function addTextbox(cv, i, k, interactive) {
+    const lines = textboxLinesFor(i, k);
+    if (!lines.length) return null;
+    const box = textboxesFor(i)[k];
+    const channel = channelFor(i);
+    return usingChannel(channel, () => {
+        const base = applyTextEffects(packTitleStyle(), box.effects);
+        const style = textboxStyle(base, textboxFace(channel, box.face));
+        return usingStyle(style, () => addTextOverlay(
+            cv, lines, box.hl, framePresentation(i).flip_text, {
+                ...titleOpts(i, false),
+                // `?? null` for a textbox made before it had any of these:
+                // the channel's own answer, as a fresh one starts.
+                textColor: box.textColor ?? null,
+                highlightColor: box.highlightColor ?? null,
+                panelColor: box.panelColor ?? null,
+                align: box.align ?? null,
+                placement: box.box,
+                interactive: interactive && textboxActiveFor(i, k),
+            }));
+    });
+}
+
+/** Every textbox of frame `i`, in order — the last on top — and their bounds. */
+export function addTextboxes(cv, i, interactive) {
+    return textboxesFor(i).map((_, k) => addTextbox(cv, i, k, interactive));
+}
+
 // ── Preview ───────────────────────────────────────────────────────────────
 
 // Bumped on every updatePreview call and captured by paintFrame — it awaits
@@ -1301,6 +1616,10 @@ let _previewRenderId = 0;
 let _lastPreviewUrl = null, _lastPreviewImg = null;
 
 export function updatePreview() {
+    // Every edit ends in a redraw of the preview, which makes this the one
+    // place Undo can hear about all of them (see history.js). It only starts
+    // a timer.
+    noteEdit();
     if (!fabricCanvas || !frames().length) return;
     const i = selectedIndex();
     if (!activeUrl(i)) return;
@@ -1351,19 +1670,24 @@ function framePhoto(url, cached) {
  *      photo is what is drawn, because a grid of twenty identical empty stages
  *      is not a grid anyone can pick a frame out of.
  *   2. the subject, with the shadow its channel gives it.
- *   3. the channel brand mark — above the subject, so a tall person cannot
- *      stand in front of the logo, and below everything the user controls.
- *   4. the title.
- *   5. the user own image overlays, newest on top. Last, because they are the
- *      thing most recently placed by hand, and burying them under the
- *      channel furniture would make them impossible to work with.
+ *   3. the user's own uploaded images, newest on top. Pictures, the same kind
+ *      of thing as the photograph, so they go under the channel's furniture
+ *      and the title exactly as it does — see splitOverlays for the title an
+ *      upload scaled to cover the frame used to hide.
+ *   4. the channel brand mark — above the subject and the uploads, so neither
+ *      a tall person nor a replacement picture can cover the logo.
+ *   5. the title.
+ *   6. the ready-made assets (rings, arrows), newest on top. Last, because
+ *      they are marks pointing AT something, the title included.
+ *   7. the selected overlay's handles, whichever kind it is, so the picture
+ *      being worked on can always be grabbed.
  *
  * `renderId` belongs to the preview: this awaits image decodes, and switching
  * frames fast enough starts a newer paint before an older one resumes. A paint
  * whose id no longer matches stops where it is rather than laying a previous
  * frame layers over the current one.
  */
-async function paintFrame(cv, i, { interactive = false, renderId } = {}) {
+async function paintFrame(cv, i, { interactive = false, renderId, mask, baseOnly = false } = {}) {
     const live = () => renderId === undefined || renderId === _previewRenderId;
 
     const channel = channelFor(i);
@@ -1403,14 +1727,28 @@ async function paintFrame(cv, i, { interactive = false, renderId } = {}) {
     // The rest together rather than one after another: sequential awaits are
     // round trips through the event loop before a single pixel is drawn, on a
     // path that runs per keystroke.
-    const [photo, stamps, figures] = await Promise.all([
+    //
+    // The overlays are decoded here too, rather than one by one as they are
+    // drawn: the uploads now go down in the middle of the stack (see
+    // splitOverlays), and an await between two layers is a moment for a newer
+    // paint to start on the same canvas. Decoded once and cached on the
+    // overlay, so this costs nothing after the first paint.
+    const logos = logosFor(i);
+    const [photo, stamps, figures, logoImgs] = await Promise.all([
         // A backdrop that failed to load leaves the photo as the only picture
         // there is, which is a channel drawn wrong rather than a blank canvas.
         wantsPhoto ? framePhoto(activeUrl(i), renderId !== undefined) : null,
         Promise.all((decor.stamp || []).map(mark => decorImage(mark.texture))),
         Promise.all(layers.map(l => loadCutoutImage(l).catch(() => null))),
+        Promise.all(logos.map(l => loadLogoImage(l).catch(() => null))),
     ]);
     if (!live()) return null;
+    const logoImg = new Map(logos.map((l, k) => [l, logoImgs[k]]));
+    const { under: uploads, over: assets } = splitOverlays(logos);
+    // Never with handles here — the selected one's go on at the very end.
+    const drawUploads = () => uploads.forEach(l => {
+        if (logoImg.get(l)) addLogoOverlay(cv, l, logoImg.get(l), false);
+    });
 
     cv.clear();
     // Three ways the bottom of a frame can be drawn, in the order of how much
@@ -1450,6 +1788,26 @@ async function paintFrame(cv, i, { interactive = false, renderId } = {}) {
     // the call, because everything about what gets drawn — the channel it is
     // set in, the hit-testable bounds it hands back — is the same either way
     // and only the moment differs.
+    // The mask goes straight onto the picture, before anything that stands on
+    // it: it is the photograph being cropped to a window, and the figures,
+    // the title and the overlays are all things placed ON the thumbnail
+    // rather than parts of the picture. `mask` lets the mask step preview a
+    // mask it has not saved yet (see framemask.js); left out, the frame's own
+    // is drawn.
+    //
+    // `baseOnly` stops here, before the mask: the picture alone, which is
+    // what the mask step shows the user to draw their window on.
+    if (baseOnly) {
+        cv.renderAll();
+        return cv;
+    }
+    // The photograph goes with it so a placed mask can carry it (see
+    // addFrameMask) — but only where the photograph is what is under the
+    // mask: a backdrop or a card is a composition of the channel's that a
+    // mask placed elsewhere could not take along.
+    addFrameMask(cv, mask === undefined ? frameMaskFor(i) : mask,
+        (!background && !plate) ? photo : null);
+
     const lines = linesFor(i);
     const drawTitle = () => {
         const bounds = lines.length
@@ -1457,9 +1815,23 @@ async function paintFrame(cv, i, { interactive = false, renderId } = {}) {
                 cv, lines, hlFor(i), framePresentation(i).flip_text, titleOpts(i, interactive)))
             : null;
         if (interactive) _titleBounds = bounds;
+        // The textboxes straight after, in the same layer: they are the
+        // caption's siblings and goes wherever the caption goes — under the
+        // figures on a channel that puts the caption there, over them
+        // everywhere else. Over the caption rather than under it, because it
+        // is the newer thing and the one the user is placing against it.
+        const textboxes = addTextboxes(cv, i, interactive);
+        if (interactive) _textboxBounds = textboxes;
     };
     const titleUnderFigures = !!(decor.cutout && decor.cutout.overTitle);
-    if (titleUnderFigures) drawTitle();
+    // The uploads go directly under the title wherever the title goes. On a
+    // channel that sets its figures over the words, that puts them under the
+    // figures as well — under the title is the one promise, and keeping it
+    // means following the title down.
+    if (titleUnderFigures) {
+        drawUploads();
+        drawTitle();
+    }
 
     const glowSpec = decor.cutout && decor.cutout.glow;
     const glowColor = figureGlowColor(decor, i);
@@ -1469,6 +1841,10 @@ async function paintFrame(cv, i, { interactive = false, renderId } = {}) {
         addLogoOverlay(cv, layer, figures[k], false, figureShadow);
         if (glowSpec && glowColor) addFigureGlow(cv, layer, figures[k], glowSpec, glowColor);
     });
+    // Over the figures and under the scrim, as the photograph is under it: a
+    // picture uploaded to stand in for the frame gets the same darkening the
+    // frame would have had behind the title.
+    if (!titleUnderFigures) drawUploads();
     // Over the backdrop and the figures both, and under everything that has to
     // stay readable — see addScrim.
     //
@@ -1498,16 +1874,20 @@ async function paintFrame(cv, i, { interactive = false, renderId } = {}) {
     // ink is.
     if (!titleUnderFigures) drawTitle();
 
-    // In array order, so the stack on screen matches the stack in the record.
-    // Only the active one wears the selection chrome, and never on a composite:
-    // a thumbnail or a download with a dashed selection box baked into it is a
-    // ruined file.
+    // The assets, in array order, so the stack on screen matches the stack in
+    // the record. Only the active overlay wears the selection chrome, and
+    // never on a composite: a thumbnail or a download with a dashed selection
+    // box baked into it is a ruined file.
     const active = activeLogoFor(i);
-    for (const logo of logosFor(i)) {
-        const img = await loadLogoImage(logo).catch(() => null);
-        if (!live()) return null;
-        if (img) addLogoOverlay(cv, logo, img, interactive && logo === active);
-    }
+    assets.forEach(l => {
+        if (logoImg.get(l)) addLogoOverlay(cv, l, logoImg.get(l), interactive && l === active);
+    });
+    // ...and an active UPLOAD's chrome, which did not go down with it. Over
+    // the title and the assets both — see addLogoChrome.
+    if (interactive && active && !active.asset && logoImg.get(active)) addLogoChrome(cv, active);
+    // ...and the selected mask's, over everything for the same reason: its
+    // corners have to stay grabbable wherever the title or an overlay lands.
+    if (interactive && frameMaskActiveFor(i)) addFrameMaskChrome(cv, frameMaskFor(i));
     // The reorder arrows go on last of everything, on the preview only and
     // only when there is more than one copy to reorder — so they are never
     // buried under a layer stacked over the one they belong to, and never
@@ -1534,12 +1914,14 @@ async function paintFrame(cv, i, { interactive = false, renderId } = {}) {
  * later clear() could wipe out the earlier call's in-progress composite —
  * observed as one frame's thumbnail briefly showing another frame's title.
  */
-export async function buildComposite(i) {
+export async function buildComposite(i, { mask, baseOnly = false } = {}) {
     if (!frames()[i]) return null;
     const element = document.createElement("canvas");
     element.width = CW; element.height = CH;
     const cv = new fabric.StaticCanvas(element, { width: CW, height: CH });
-    return paintFrame(cv, i, { interactive: false });
+    // `mask` and `baseOnly` are the mask step's (see paintFrame); every other
+    // caller leaves them out and gets the frame exactly as it is.
+    return paintFrame(cv, i, { interactive: false, mask, baseOnly });
 }
 
 // Everything a composite depends on. Regenerating a thumbnail is by far the
@@ -1565,10 +1947,16 @@ function thumbSignature(i) {
         // the active overlay is: selection chrome is never composited.
         glowFor(i) ? 1 : 0,
         titleBoxFor(i) ? `${titleBoxFor(i).dx}:${titleBoxFor(i).dy}:${titleBoxFor(i).scale}` : "",
+        // The textboxes, whole: their words, highlights, places, faces,
+        // colours, effects and alignment all change the pixels. Which one is
+        // selected is left out, as the title's selection is.
+        textboxesFor(i).length ? JSON.stringify(textboxesFor(i)) : "",
+        // The mask, whole, for the same reason: every field of it is pixels.
+        frameMaskFor(i) ? JSON.stringify(frameMaskFor(i)) : "",
         // Every overlay, in order. Which one is ACTIVE is deliberately absent:
         // selection chrome is never baked into a composite, so a change of
         // selection cannot change one.
-        logosFor(i).map(l => `${l.src.length}:${l.x}:${l.y}:${l.scale}`).join(";"),
+        logosFor(i).map(l => `${l.src.length}:${l.x}:${l.y}:${l.scale}:${l.angle || 0}`).join(";"),
         // Which way the title is set, when the user has overruled the channel.
         titleAlignFor(i) || "",
         // ...and which of the channel's colours it is set in, which its
@@ -1608,6 +1996,10 @@ function thumbSignature(i) {
         // the grid keeps the picture it had before the button was pressed —
         // and keeps it until something else about the frame happens to change.
         backgroundFor(i), figureGlowFor(i),
+        // The user's shadow and outline. The page's rather than the frame's
+        // (see setTextEffects in channels.js), so nothing above changes when
+        // they do — and every card in the grid has to be redrawn.
+        textEffectsKey(),
     ].join("|");
 }
 

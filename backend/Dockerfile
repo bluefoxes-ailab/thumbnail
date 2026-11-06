@@ -13,7 +13,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     libgl1-mesa-glx \
     libglib2.0-0 \
+    unzip \
     && rm -rf /var/lib/apt/lists/*
+
+# A JavaScript runtime for yt-dlp. YouTube signs its video URLs with
+# JavaScript from the watch page, and without something to run it every
+# download is refused (see the runtime notes in video_downloader.py, which
+# refuses to start a YouTube download without one rather than fail with a
+# bare 403). deno is what yt-dlp looks for first, on PATH.
+RUN curl -fsSL -o /tmp/deno.zip \
+    https://github.com/denoland/deno/releases/latest/download/deno-x86_64-unknown-linux-gnu.zip \
+    && unzip -o /tmp/deno.zip -d /usr/local/bin \
+    && rm /tmp/deno.zip \
+    && deno --version
 
 WORKDIR /app
 
@@ -25,13 +37,16 @@ RUN pip install --no-cache-dir \
     torchvision==0.21.0+cu124 \
     --extra-index-url https://download.pytorch.org/whl/cu124
 
-# Base requirements
+# Base requirements. yt-dlp is a floor and not a pin, for the reason given
+# beside it in requirements.txt: 2026.7.4, which was pinned here, had already
+# stopped working against YouTube, and the version that works moves every few
+# weeks. Rebuild the image to pick up a newer one.
 RUN pip install --no-cache-dir \
     fastapi==0.139.0 \
     uvicorn==0.50.2 \
     pydantic==2.11.7 \
     imageio-ffmpeg==0.6.0 \
-    yt-dlp==2026.7.4 \
+    "yt-dlp>=2026.8.19" \
     onnxruntime-gpu==1.20.0 \
     faster-whisper==1.1.1 \
     ctranslate2==4.5.0 \

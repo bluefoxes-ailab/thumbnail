@@ -14,6 +14,34 @@
       "port": 3000
     },
     {
+      "name": "frontend-local-3010",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [".claude/dev_proxy.py", "http://34.13.214.196:3000", "3010"],
+      "port": 3010,
+      "autoPort": false
+    },
+    {
+      "name": "frontend-fake-images",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["C:/Users/marco/AppData/Local/Temp/claude/C--Users-marco-Desktop-Thumbnail-Maker/128cb53c-0230-4a26-bea9-6d6ce9c76d02/scratchpad/fake_images_proxy.py", ".", "http://34.13.214.196:3000", "3020"],
+      "port": 3020,
+      "autoPort": false
+    },
+    {
+      "name": "frontend-fake-images-3030",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["C:/Users/marco/AppData/Local/Temp/claude/C--Users-marco-Desktop-Thumbnail-Maker/128cb53c-0230-4a26-bea9-6d6ce9c76d02/scratchpad/fake_images_proxy.py", ".", "http://34.13.214.196:3000", "3030"],
+      "port": 3030,
+      "autoPort": false
+    },
+    {
+      "name": "frontend-fake-images-3040",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["C:/Users/marco/AppData/Local/Temp/claude/C--Users-marco-Desktop-Thumbnail-Maker/128cb53c-0230-4a26-bea9-6d6ce9c76d02/scratchpad/fake_images_proxy.py", ".", "http://34.13.214.196:3000", "3040"],
+      "port": 3040,
+      "autoPort": false
+    },
+    {
       "name": "backend",
       "runtimeExecutable": "python",
       "runtimeArgs": ["run_backend.py"],

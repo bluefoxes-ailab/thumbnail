@@ -43,3 +43,12 @@ logs/
 frontend/*.csv
 *.save
 fonts
+
+# ...except the app's own. The bare `fonts` above matches any folder of that
+# name, frontend/fonts/ included, and it did so silently: every face already
+# committed stayed tracked, so nothing looked wrong, while every face added
+# after it was ignored. A pack whose JSON reached the repo without its font
+# file is exactly the broken-title failure installer/README.md describes, and
+# build_patch.py only catches it on a machine that happens to have the file.
+# The faces are content the packs name, so they are versioned like the packs.
+!/frontend/fonts/

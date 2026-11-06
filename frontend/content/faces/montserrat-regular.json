@@ -1,0 +1,74 @@
+{
+    "schema": 1,
+    "id": "montserrat-regular",
+
+    "_comment_family": [
+        "Montserrat Regular, the static cut from the Google Fonts download of",
+        "the family (static/Montserrat-Regular.ttf, Version 9.000), under the",
+        "SIL Open Font License like the other Google faces in fonts/. Same",
+        "release as the SemiBold, Bold and ExtraBold beside it: the Bold in",
+        "that same download is byte for byte the Montserrat-Bold.ttf already",
+        "in fonts/, so the four cuts are one family and not four vintages of",
+        "it.",
+        "",
+        "Declared by its full name (name ID 4), 'Montserrat Regular', for the",
+        "reason montserrat-bold.json gives at length. This file's name ID 1",
+        "is plain 'Montserrat' - the Regular is the one cut the family name",
+        "belongs to most of all - and it is also the name every other weight",
+        "of Montserrat answers to. Declared as 'Montserrat', it would be one",
+        "family name shared with whatever weights a machine has installed,",
+        "and fontguard, which keys its check by family, could not tell this",
+        "file from the Bold.",
+        "",
+        "Weight 400, the file's own usWeightClass. A static cut rather than an",
+        "instance read out of the variable font - there is no fvar table - so",
+        "asking for 400 asks for exactly these outlines.",
+        "",
+        "It has a real lower case, which on noisy-dish is never seen: the",
+        "preset uppercases every caption under the Snapchat heading (see",
+        "`uppercase` in presets/snapchat-caption.json), so a picked word is",
+        "in Montserrat's capitals like the Bebas around it."
+    ],
+    "family": "Montserrat Regular",
+    "weight": "400",
+
+    "file": "fonts/Montserrat-Regular.ttf",
+    "format": "truetype",
+
+    "_comment_css": [
+        "Not declared in styles.css. This face arrived with a channel and is",
+        "registered from this JSON at load time (see registerFace in",
+        "js/channels.js), which is the route content/README.md describes -",
+        "nothing has to be added to the stylesheet for it."
+    ],
+    "css": false,
+
+    "_comment_local": [
+        "What the machine may already know the face by, tried after the file",
+        "and used by the installer as the name it registers this face under",
+        "(see engine.install_fonts, which takes the first).",
+        "",
+        "The full name first, then the PostScript name, the order the other",
+        "three Montserrat packs use. Both name this one cut. 'Montserrat' on",
+        "its own is deliberately absent: it is the name every weight of the",
+        "family answers to, and a designer's PC with the family installed",
+        "could hand back the Bold under it - a picked word heavier than the",
+        "block, which is the opposite of what this face is for."
+    ],
+    "local": ["Montserrat Regular", "Montserrat-Regular"],
+
+    "_comment_stack": [
+        "Damage limitation, never a design choice - a block laid out against",
+        "the wrong metrics is broken rather than merely different, which is",
+        "what fontguard exists to catch before anything is drawn.",
+        "",
+        "The same entries as the other Montserrat packs, reached at 400. This",
+        "is the HIGHLIGHT face on a channel set in Bebas Neue Cyrillic (see",
+        "noisy-dish), which is the job poppins-regular.json does on",
+        "conspiracy-central, and it falls through ordinary-width sans faces",
+        "for the same reason: never through Anton or Impact, because a",
+        "substitute in the block's condensed register would take away the",
+        "one thing that sets a picked word apart."
+    ],
+    "stack": "'Montserrat Regular', 'Segoe UI', Arial, sans-serif"
+}

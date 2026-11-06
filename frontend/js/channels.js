@@ -230,8 +230,8 @@ const BASE_TITLE_STYLE = {
         // across the middle of it, so the two places a caption can go without
         // covering a face are the head of the frame and the foot of it. The
         // foot is where a player's own captions appear and is what every pack
-        // under the Snapchat heading wanted until one was cut for the other
-        // end (see conspiracy-central).
+        // under the Snapchat heading uses; conspiracy-central was cut for the
+        // other end for a while, and its git history says why.
         //
         // This is the block's STARTING place, not a rule about where it stays:
         // a `movable` channel stores the user's drag as an offset from
@@ -1445,7 +1445,121 @@ export function setActiveChannel(id) {
  * since addTextOverlay draws nothing without a channel, but a measurement
  * asked for early must not have to handle a null style.
  */
-export const titleStyle = () => styleFor(_activeId);
+export const titleStyle = () => _styleOverride || styleFor(_activeId);
+
+// A whole style standing in for the active channel's for the length of one
+// synchronous call — see usingStyle. Null the rest of the time.
+let _styleOverride = null;
+
+/**
+ * Runs `fn` with `style` answering every titleStyle() call, and puts back
+ * whatever was answering before — including when `fn` throws.
+ *
+ * What the second textbox is drawn through (see textboxStyle). It is the
+ * channel's style with a different face and a different starting place, and
+ * the renderer has to see it EVERYWHERE, not only at the top of
+ * addTextOverlay: half the measuring helpers in text.js default their style
+ * argument to titleStyle(), and one of them reached without it would lay a
+ * line out against the title's face while it is drawn in the textbox's.
+ * Swapping the answer for the length of the call is the same move
+ * usingChannel makes for the channel, and it carries the same rule: `fn`
+ * must be synchronous.
+ *
+ * Call it INSIDE usingChannel, never around it — the override is a finished
+ * style, so a channel swapped in underneath it would not be seen.
+ */
+export function usingStyle(style, fn) {
+    const previous = _styleOverride;
+    _styleOverride = style;
+    try {
+        return fn();
+    } finally {
+        _styleOverride = previous;
+    }
+}
+
+// ── The second textbox ────────────────────────────────────────────────────
+//
+// Static Studio's "Add textbox": up to three more blocks of text on the
+// frame, each set in its channel's card and highlight treatment, with its own
+// face — picked from the faces the channel already owns — and its own
+// colours, shadow, outline and alignment (see state.textboxFor).
+//
+// From the faces it OWNS and from nowhere else, and that is the whole limit
+// on the choice. A channel's faces are the ones fontguard has checked and
+// text.js has loaded and measured; any other font would be a face nobody has
+// verified, laid out against metrics that may be a fallback's (see the font
+// section of installer/README.md). The block's face and the highlight's are
+// both already loaded the moment the channel is picked, so switching between
+// them costs nothing and can never draw against the wrong letters.
+
+/**
+ * The faces channel `id` is set in — the block's, then the highlight's where
+ * it has its own — deduplicated by family the way text.titleFaces is.
+ */
+export function textboxFaces(id) {
+    const style = styleFor(id);
+    const hl = style.highlight && style.highlight.face;
+    if (!hl || hl.family === style.face.family) return [style.face];
+    return [style.face, hl];
+}
+
+/**
+ * The face a textbox on channel `id` is set in when the user has picked none:
+ * the highlight's, which is the louder of a channel's two voices and the one
+ * that makes a second block read as something other than more caption. A
+ * channel with no highlight face of its own has only one face to give.
+ */
+export function defaultTextboxFace(id) {
+    const faces = textboxFaces(id);
+    return faces[faces.length - 1];
+}
+
+/**
+ * The face a textbox asking for `family` is set in on channel `id` — that
+ * face if the channel owns it, the default otherwise.
+ *
+ * Resolved at every draw rather than stored as a face, so a frame moved onto
+ * a channel that does not own the face it was given falls back to that
+ * channel's own default instead of drawing in a face from another brand.
+ */
+export function textboxFace(id, family) {
+    return textboxFaces(id).find(f => f.family === family) || defaultTextboxFace(id);
+}
+
+// Which end of the frame the textbox starts at, given the end the caption
+// stands at. The opposite one, so the two never arrive on top of each other:
+// a caption at the foot of a still puts the textbox at its head, and the
+// other way round. A centred caption sends it to the top.
+const OPPOSITE_END = { bottom: "top", top: "bottom", center: "top" };
+
+/**
+ * Channel style `base` as the second textbox is drawn in it: set in `face`,
+ * movable whatever the pack says, and starting at the other end of the frame
+ * from the caption.
+ *
+ * Movable because the textbox is the user's addition rather than the brand's:
+ * a pack that pins its caption in place has said nothing about a block it
+ * did not know would exist, and one that could not be moved could only ever
+ * sit where the layout put it. The margin it keeps from its edge is the one
+ * the caption keeps from its own, so the two read as one design.
+ */
+export function textboxStyle(base, face) {
+    const layout = base.layout;
+    const end = layout.vAlign || "center";
+    const margin = end === "top" ? layout.topRatio : layout.bottomRatio;
+    return {
+        ...base,
+        face,
+        movable: true,
+        layout: {
+            ...layout,
+            vAlign: OPPOSITE_END[end] || "top",
+            topRatio: margin,
+            bottomRatio: margin,
+        },
+    };
+}
 
 /**
  * The guidelines of one NAMED channel, whichever one happens to be active.
@@ -1459,7 +1573,171 @@ export const titleStyle = () => styleFor(_activeId);
  * skeleton, for the same reason titleStyle does: a caller measuring or
  * inspecting must never have to handle a null style.
  */
-export const styleFor = (id) => (CHANNELS.find(c => c.id === id) || { title: BASE_TITLE_STYLE }).title;
+export const styleFor = (id) => {
+    const c = CHANNELS.find(ch => ch.id === id);
+    if (!c) return BASE_TITLE_STYLE;
+    return c.capture ? withTextEffects(c) : c.title;
+};
+
+// ── The user's text effects ───────────────────────────────────────────────
+//
+// A drop shadow and an outline the USER puts on the type, on top of whatever
+// the channel says — Static Studio only, which is to say every channel that
+// fetches frames (see `capture` above). There, the pack's look is a slab
+// behind a caption and the photo under it changes every few seconds, so
+// whether the letters need lifting off it is a question about the footage,
+// which the brand cannot answer in advance.
+//
+// The CAPTION's are one setting for the whole page rather than one per
+// frame, and that is the point of it: a set of forty stills is read as one
+// sequence, and a shadow on some captions and not others reads as a mistake,
+// not as a choice. Every frame on every capture channel draws its caption
+// with it, including the ones that arrive after it was set.
+//
+// The textboxes each carry their own (see state.textboxFor), drawn through
+// applyTextEffects over the pack's style rather than over the caption's: a
+// textbox is a second voice the user sets apart on purpose, and a shadow
+// asked for on the caption arriving on it as well was the opposite of that.
+//
+// Applied HERE, in the style itself, rather than handed to addTextOverlay as
+// one more option, because the outline is ink: it widens every line, and the
+// layout in text.js is measured through the same properties it is drawn
+// with (see textProps). An outline passed in only at the draw would put 3px
+// of stroke round letters that had been fitted without it. Done in the style,
+// every measurement, every composite and every download sees one answer.
+
+const HEX = /^#[0-9a-f]{6}$/i;
+
+// Off until asked for. Black and 3px are what switching one on gives the
+// first time, so that it is usable straight away.
+const DEFAULT_TEXT_EFFECTS = {
+    shadow: { on: false, color: "#000000" },
+    outline: { on: false, color: "#000000", width: 3 },
+};
+export const OUTLINE_RANGE = { min: 1, max: 12 };
+
+// The shadow's geometry is fixed and only its colour is the user's. Sized
+// for the 40px caption on a 540px-wide still: a lift you can see on a pale
+// photo without the letters looking doubled.
+const SHADOW_SHAPE = { blur: 8, offsetX: 3, offsetY: 3 };
+
+// Held for the life of the page and no longer. Every page opens with both
+// effects off, so a shadow switched on for one set is never quietly waiting
+// on the next; the colours and the size, though, are remembered across
+// switching off and on again, so turning a shadow back on brings back the
+// colour it had rather than black.
+let _textEffects = structuredClone(DEFAULT_TEXT_EFFECTS);
+// The styled copies handed out, one per channel, for the current settings.
+// styleFor is asked many times per keystroke, and a fresh object each time
+// would cost an allocation per call and give the same channel a different
+// identity from one call to the next.
+let _effectStyles = new Map();
+
+/** A copy of the current settings — what the controls are drawn from. */
+export const textEffects = () => structuredClone(_textEffects);
+
+/**
+ * One string that changes whenever the settings do, for anything that must
+ * notice: a composite drawn under one shadow is not the composite drawn
+ * under another (see compose.thumbSignature).
+ */
+export const textEffectsKey = () => {
+    const { shadow: s, outline: o } = _textEffects;
+    return `${s.on ? s.color : "-"}/${o.on ? `${o.color}:${o.width}` : "-"}`;
+};
+
+/**
+ * Merges `patch` ({shadow: {...}, outline: {...}}, either half optional) into
+ * the settings. Returns true when anything changed, so the caller can skip a
+ * redraw of every frame on a click that did nothing.
+ */
+export function setTextEffects(patch) {
+    const before = textEffectsKey();
+    _textEffects = mergeTextEffects(_textEffects, patch);
+    if (textEffectsKey() === before) return false;
+    _effectStyles = new Map();
+    return true;
+}
+
+/** A fresh set of effects, both off: what a new textbox starts with. */
+export const defaultTextEffects = () => structuredClone(DEFAULT_TEXT_EFFECTS);
+
+/**
+ * `fx` with `patch` merged into it, as a new object — anything in the patch
+ * that is not a colour or a size in range is ignored. The one rule for every
+ * set of effects there is: the caption's, held here for the page, and each
+ * textbox's, held on the textbox (see state.textboxFor).
+ *
+ * A missing or partial `fx` is filled from the defaults first, so a textbox
+ * stored before it had effects reads as one with both switched off.
+ */
+export function mergeTextEffects(fx, patch = {}) {
+    const next = defaultTextEffects();
+    for (const part of ["shadow", "outline"]) {
+        Object.assign(next[part], (fx && fx[part]) || {});
+        const p = patch[part];
+        if (!p) continue;
+        if (p.on !== undefined) next[part].on = !!p.on;
+        if (HEX.test(p.color || "")) next[part].color = p.color.toLowerCase();
+    }
+    if (patch.outline && patch.outline.width !== undefined) {
+        const w = Math.round(Number(patch.outline.width));
+        if (w >= OUTLINE_RANGE.min && w <= OUTLINE_RANGE.max) next.outline.width = w;
+    }
+    return next;
+}
+
+/**
+ * Channel `c`'s title style with the user's effects laid over it.
+ *
+ * With both switched off it is the channel's own style, untouched — not a
+ * copy with the shadow and outline set to null, because a capture pack is
+ * free to carry its own, and "off" means "not mine", not "none".
+ *
+ * The shadow goes on the picked words as well as the rest, through the
+ * highlight's own `shadow` — but only where the highlight is a recolour. A
+ * boxed highlight's shadow is the BOX's (see addBoxes in text.js), and the
+ * letters on a box are drawn without one on purpose.
+ */
+function withTextEffects(c) {
+    const { shadow, outline } = _textEffects;
+    if (!shadow.on && !outline.on) return c.title;
+    if (_effectStyles.has(c.id)) return _effectStyles.get(c.id);
+    const style = applyTextEffects(c.title, _textEffects);
+    _effectStyles.set(c.id, style);
+    return style;
+}
+
+/**
+ * Title style `title` with effects `fx` laid over it — withTextEffects'
+ * arithmetic, uncached, for any set of effects. The textboxes are drawn
+ * through it with their own (see compose.addTextbox), which is what keeps a
+ * shadow on the caption off every textbox and the other way round.
+ */
+export function applyTextEffects(title, fx) {
+    const { shadow, outline } = mergeTextEffects(fx);
+    if (!shadow.on && !outline.on) return title;
+    const style = { ...title };
+    if (outline.on) style.outline = { width: outline.width, color: outline.color, opacity: 1 };
+    if (shadow.on) {
+        const spec = { ...SHADOW_SHAPE, color: shadow.color };
+        style.shadow = spec;
+        if (style.highlight && style.highlight.mode !== "box") {
+            style.highlight = { ...style.highlight, shadow: spec };
+        }
+    }
+    return style;
+}
+
+/**
+ * The active channel's title style as the pack states it — WITHOUT the
+ * caption's effects (see withTextEffects). What a textbox starts from, so
+ * the caption's shadow and outline are the caption's alone.
+ */
+export const packTitleStyle = () => {
+    const c = CHANNELS.find(ch => ch.id === _activeId);
+    return c ? c.title : BASE_TITLE_STYLE;
+};
 
 /** The active channel's non-type brand defaults (see BASE_BRANDING). */
 export const branding = () => (activeChannel() || { branding: BASE_BRANDING }).branding;
