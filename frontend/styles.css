@@ -1034,6 +1034,24 @@ body.mask-open { overflow: hidden; }
     max-width: 500px; margin: 0 auto 24px;
 }
 .my-text-section.hidden { display: none; }
+/* The run's setup and the user's own text: one column of two 500px
+   blocks everywhere they do not both fit across, which is how they
+   have always stood. Once both are on screen and the window holds
+   them side by side, they stand side by side - the second block
+   starting level with the first rather than half a screen below it.
+   Keyed on the text block being shown rather than on a mode, because
+   that block is the one that comes and goes (see js/mytext.js). */
+.source-row { display: contents; }
+@media (min-width: 1100px) {
+    .source-row:has(> .my-text-section:not(.hidden)) {
+        display: flex; justify-content: center; align-items: flex-start;
+        gap: 40px; margin-bottom: 24px;
+    }
+    .source-row:has(> .my-text-section:not(.hidden)) > .input-section,
+    .source-row:has(> .my-text-section:not(.hidden)) > .my-text-section {
+        flex: 0 1 500px; margin: 0;
+    }
+}
 .my-text-input {
     min-height: 120px; max-height: 40vh;
     overflow-y: auto; resize: vertical;
@@ -1302,35 +1320,67 @@ body.capture-mode .frame-card .pick { top: auto; bottom: 3px; }
    looks: the 540x960 is the pack's, and content/README.md is
    explicit that neither half of the app keeps a second copy of it. */
 body.captions-mode .editor { align-items: stretch; }
+/* Three columns, four sections. The caption's controls and the second
+   textbox's each get a column of their own, because they are what
+   grew: with the colours, the textbox and its own colours, the effects
+   and the hints all in the first column, that one ran far past the
+   canvas and had to be scrolled while the other two stood half empty.
+   "Edit preset" and "Image overlay" are a few buttons each, so they
+   share the third column, one over the other.
+
+   `contain: size` with a stated width is what holds the panel to the
+   canvas column's height. Without it the panel's own content is one
+   of the heights the row stretches to, and a long caption column
+   makes the whole editor - canvas included - taller than the screen;
+   contained, the row is as tall as the canvas column and each section
+   scrolls inside it. The width is the three columns, the padding and
+   the border; the min-height is for a window narrow enough that the
+   panel wraps under the canvas, where there is no canvas beside it to
+   take a height from. */
 body.captions-mode .text-panel {
-    flex-direction: row; width: auto; flex: 0 1 auto;
-    gap: 0; padding: 20px 4px;
+    display: grid; gap: 0; padding: 20px 4px;
+    grid-template-columns: 290px 250px 190px;
+    grid-template-rows: auto minmax(0, 1fr);
+    width: 740px; flex: 0 0 740px;
+    contain: size; min-height: 520px;
 }
-/* Each section becomes the column the panel used to be, at the width
-   the caption box actually needs to be typed in. min-height: 0 is
-   what lets a section scroll instead of pushing the panel taller
-   than the canvas - without it a flex child refuses to shrink below
-   its content and the whole point is lost. */
+/* Each section becomes a column of its own. min-height: 0 is what lets
+   a section scroll instead of pushing its grid row taller than the
+   panel - without it a grid item refuses to shrink below its content
+   and the whole point is lost. */
 body.captions-mode .panel-group {
     display: flex; flex-direction: column; gap: 14px;
-    width: 190px; flex: 0 0 190px;
     padding: 0 16px; min-height: 0; overflow-y: auto;
 }
-/* ...but not the same width as each other. The caption column holds a
-   sentence somebody is editing; the other two hold four buttons and two
-   hints between them. Splitting the row equally gave the widest control
-   in the panel the same room as a column that had space going spare. */
-body.captions-mode .panel-group:first-child {
-    width: 290px; flex: 0 0 290px;
-}
+body.captions-mode .panel-group:nth-child(1) { grid-column: 1; grid-row: 1 / -1; }
+body.captions-mode .panel-group:nth-child(2) { grid-column: 2; grid-row: 1 / -1; }
+body.captions-mode .panel-group:nth-child(3) { grid-column: 3; grid-row: 1; }
+body.captions-mode .panel-group:nth-child(4) { grid-column: 3; grid-row: 2; }
 /* The divider turns with them: between columns it is a line down the
-   side, not across the top. */
+   side, not across the top - except between the two sections that
+   share the last column, where it is across again. */
 body.captions-mode .panel-group:not(:first-child) {
     border-left: 1px solid rgba(255, 255, 255, 0.14);
 }
 body.captions-mode .panel-group:not(:first-child) > h2 {
     margin-top: 0; padding-top: 0; border-top: none;
 }
+body.captions-mode .panel-group:nth-child(4) {
+    margin-top: 18px; padding-top: 18px;
+    border-top: 1px solid rgba(255, 255, 255, 0.14);
+}
+/* The textbox column's heading only exists where it is a column. On
+   a thumbnail channel the section is part of the caption's run and a
+   heading there would be a divider in the middle of one block. */
+.panel-group-more > h2 { display: none; }
+body.captions-mode .panel-group-more > h2 { display: block; }
+/* The actions under a portrait canvas, three to a row instead of two,
+   so the column they hang from - and with it the whole editor row - is
+   two rows shorter. The canvas is only 340px wide here, and at the
+   landscape buttons' padding three of them do not fit across it. */
+body.captions-mode .below-canvas { gap: 6px; }
+body.captions-mode .below-canvas .btn { padding: 8px 10px; font-size: 11px; }
+body.captions-mode .below-canvas #downloadBtn { width: auto; }
 /* The caption is the reason this channel has a panel at all, so it
    gets the height the other two do not need. */
 body.captions-mode #lineBlock { flex: 1 1 auto; min-height: 96px; resize: none; }

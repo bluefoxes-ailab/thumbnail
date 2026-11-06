@@ -12,13 +12,13 @@
         "characters to a line, the freeform text box, the drag, and now the",
         "card.",
 
-        "What makes it a different show is four decisions. The block is set",
+        "What makes it a different show is three decisions. The block is set",
         "in Bebas Neue Cyrillic with picked words in Poppins; the colours are",
         "black, a periwinkle, a mint and white, which the user pairs between",
-        "the type and the card; the block is hung from the top of the frame",
-        "rather than stood on the foot of it; and a dark shade rises from the",
-        "foot of the frame, which the Gradient button switches. Each is argued",
-        "where it is stated.",
+        "the type and the card; and a dark shade rises from the foot of the",
+        "frame, which the Gradient button switches. Each is argued where it",
+        "is stated. Where the block stands is NOT one of them - see",
+        "`_comment_layout` below.",
 
         "The id is kebab-case ASCII because it is also the folder name and the",
         "key everything else refers to; the name is the brand."
@@ -163,52 +163,23 @@
         ],
         "panel": { "fill": "#000000" },
 
-        "layout": {
-            "_comment": [
-                "The preset's block, with the one thing this show measures",
-                "differently: it is hung from the top of the frame instead of",
-                "stood on the foot of it.",
+        "_comment_layout": [
+            "No `layout` of its own: the preset's block, stood on the foot of",
+            "the frame at its 120px margin, where every Snapchat caption",
+            "stands - nearly the full width, a stated 40px, twenty characters",
+            "to a line, `freeform`, all argued in the preset.",
 
-                "Everything else is inherited and argued there - nearly the",
-                "full width, a stated 40px so that forty stills cut from one",
-                "video are one set rather than forty type sizes, twenty",
-                "characters as the second ceiling on where the lines break,",
-                "`freeform` because a caption is a sentence and not three typed",
-                "beats, and the renderer's own 10px between the lines.",
-
-                "vAlign `top`. The foot of a vertical still is where a player",
-                "puts its own captions and where burned-in speech usually goes,",
-                "which is why every other pack under this heading is there -",
-                "and it is also, on a phone, where the player's furniture is",
-                "and where a viewer's thumb rests. A caption at the head of the",
-                "frame is read before the picture rather than after it, which",
-                "is the register this show wants: the claim first, the footage",
-                "as the evidence for it.",
-
-                "topRatio is 50px off the head of a 960-tall frame, written as",
-                "the fraction every layout number here is written as",
-                "(50 / 960 = 0.052083). Small on purpose, and it can afford to",
-                "be where the bottom margin cannot: 0.125 at the foot is 120px",
-                "because a vertical video is watched inside a player with its",
-                "own furniture along the bottom edge, and there is nothing",
-                "along the top edge but the picture.",
-
-                "Like its opposite number it is a margin and not a position,",
-                "measured to the first thing drawn - the top of the card - and",
-                "it buys the constancy for nothing: a block hung from the top",
-                "grows DOWNWARD, so a caption that gains a fourth line grows",
-                "into the picture and its card stays exactly 50px down",
-                "whatever was said over it.",
-
-                "The preset's `bottomRatio` survives the merge and is simply",
-                "not read under vAlign `top` (see blockTop0 in js/text.js).",
-                "Left rather than nulled: it is the number this pack would go",
-                "back to if it ever came down to the foot of the frame, and a",
-                "null there would be a hole where every sibling has a number."
-            ],
-            "vAlign": "top",
-            "topRatio": 0.052083
-        }
+            "It used to be hung from the HEAD of the frame instead (vAlign",
+            "`top`, 50px down), on the argument that a caption read before",
+            "the picture puts the claim first and the footage after it as",
+            "the evidence. The show asked for its captions at the foot like",
+            "every other one under this heading, so the override is gone",
+            "rather than set to the preset's own numbers - a pack that copies",
+            "a shared answer is a pack that can be left behind when the",
+            "answer moves. git history has the top-hung version and its",
+            "margin if the show ever asks for it back; the renderer still",
+            "supports vAlign `top` (see blockTop0 in js/text.js)."
+        ]
     },
 
     "_comment_scrim": [
@@ -234,8 +205,8 @@
         "takes the 0.65 that adaptation was validated around.",
 
         "Unlike laugh-society-snapchat's scrim it is not what holds the",
-        "caption legible - the card does that, and the caption hangs from",
-        "the HEAD of the frame, away from the shade. It is part of the look",
+        "caption legible - the card does that, standing in the shade at the",
+        "foot of the frame as a shadow behind it. It is part of the look",
         "of the show, which is why it is offered at all on a carded pack and",
         "why it arrives on (see `branding` below). It ends on a fully",
         "transparent stop, so there is no line across the picture where it",

@@ -126,11 +126,10 @@ export function syncFrameMaskButton() {
 
 // ── Geometry ──────────────────────────────────────────────────────────────
 //
-// Moving and reshaping a mask, in canvas pixels. Shared by the step's stage
-// and by the canvas itself (see reframe.js), where a selected mask can be
-// reshaped by its corners without opening the step: two copies of these
-// rules would be a window that is allowed to be one size in the dialog and
-// another on the canvas.
+// Moving and reshaping a mask's window, in canvas pixels, as the step does
+// it. The canvas never reshapes the window — it moves and scales the masked
+// picture whole (see Placement below) — but it hit-tests the PLACED window
+// with the same corner and inside tests, so a corner is a corner in both.
 
 /** The window's four corners, in the order top-left, top-right, bottom-left, bottom-right. */
 export function maskCorners(mask) {
@@ -203,6 +202,148 @@ export function resizeMask(mask, ax, ay, x, y, square = false) {
  */
 export function roundMask(mask) {
     for (const key of ["x", "y", "w", "h"]) mask[key] = Math.round(mask[key]);
+    const p = mask.place;
+    if (p) {
+        p.tx = Math.round(p.tx);
+        p.ty = Math.round(p.ty);
+        p.s = Math.round(p.s * 1000) / 1000;
+    }
+}
+
+// ── Placement ─────────────────────────────────────────────────────────────
+//
+// Where the MASKED PICTURE stands on the canvas, as opposed to where the
+// window was cut. Two different decisions, made in two different places on
+// purpose.
+//
+// The window is cut in the step, on the photograph alone: `x`, `y`, `w`, `h`
+// are measured on the picture, and they say which part of it is kept. Once
+// applied that is settled. On the canvas the user is no longer choosing what
+// to keep, they are placing what they kept - so a drag there moves the window
+// AND the photograph in it together, and a corner scales the two together,
+// keeping their proportions. It used to be the other way round: the canvas
+// moved and reshaped the window over a photograph that stayed put, which
+// re-cut the picture every time the user only meant to move it.
+//
+// `place` is that placement, as a uniform scale and a shift: a point of the
+// picture at (px, py) is drawn at (s*px + tx, s*py + ty). Absent means the
+// identity - the masked picture exactly where it was cut - which is what
+// every mask made before this existed is, and what a new one starts as.
+// Stated as an absolute map rather than as a scale about the window's centre
+// so that re-cutting the window in the step leaves the picture where it was
+// on the canvas instead of jumping by however far the centre moved.
+
+const PLACE_IDENTITY = Object.freeze({ s: 1, tx: 0, ty: 0 });
+
+// How big the masked picture may be made, as a multiple of the size it was
+// cut at. Below the floor its window would be a speck nobody can get hold of
+// again (the same reason MIN_SIDE exists); the ceiling is generous because
+// blowing a window up past the frame, cropped to a face, is a composition.
+const PLACE_SCALE_MAX = 4;
+
+// How much of the window has to stay on the canvas, in canvas pixels, so a
+// picture dragged off the edge can still be grabbed and dragged back.
+const PLACE_KEEP = 40;
+
+/** The mask's placement, or the identity. Never null. */
+export const placeOf = (mask) => (mask && mask.place) || PLACE_IDENTITY;
+
+/** Whether the masked picture stands exactly where it was cut. */
+export function placedAsCut(mask) {
+    const p = placeOf(mask);
+    return p.s === 1 && p.tx === 0 && p.ty === 0;
+}
+
+/**
+ * The window as it is drawn on the canvas - the cut window carried through
+ * the placement. Everything the canvas hit-tests and draws chrome round is
+ * this box, never the cut one.
+ */
+export function placedWindow(mask) {
+    const p = placeOf(mask);
+    return {
+        shape: mask.shape,
+        x: p.s * mask.x + p.tx, y: p.s * mask.y + p.ty,
+        w: p.s * mask.w, h: p.s * mask.h,
+    };
+}
+
+/**
+ * Shifts the masked picture so its placement's offset is (tx, ty), kept
+ * partly on the canvas: PLACE_KEEP pixels of the window always remain.
+ */
+export function movePlacementTo(mask, tx, ty) {
+    const p = { ...placeOf(mask) };
+    const w = p.s * mask.w, h = p.s * mask.h;
+    const x0 = p.s * mask.x, y0 = p.s * mask.y;   // the window's corner before the shift
+    p.tx = Math.max(PLACE_KEEP - w - x0, Math.min(tx, CW - PLACE_KEEP - x0));
+    p.ty = Math.max(PLACE_KEEP - h - y0, Math.min(ty, CH - PLACE_KEEP - y0));
+    mask.place = p;
+}
+
+/**
+ * Scales the masked picture uniformly with corner (ax, ay) of its window -
+ * in canvas pixels - held still, to whatever size the pointer at (x, y)
+ * asks for. Uniform because the picture is a photograph: the pointer's
+ * horizontal and vertical travel are read as one size, the larger of the
+ * two, and both sides follow it.
+ */
+export function scalePlacementFrom(mask, ax, ay, x, y) {
+    const p = placeOf(mask);
+    // The point of the picture under the held corner, which must not move.
+    const px = (ax - p.tx) / p.s, py = (ay - p.ty) / p.s;
+    const want = Math.max(Math.abs(x - ax) / mask.w, Math.abs(y - ay) / mask.h);
+    const floor = MIN_SIDE / Math.min(mask.w, mask.h);
+    const s = Math.max(floor, Math.min(want, PLACE_SCALE_MAX));
+    mask.place = { s, tx: ax - s * px, ty: ay - s * py };
+}
+
+/**
+ * The placed mask, painted with a 2D context over the photograph `ctx` has
+ * just drawn on `source` (the same canvas, or another of the same size):
+ * the ground, the photograph carried through the placement and clipped to
+ * the placed window, then the edge.
+ *
+ * compose.addFrameMask is the one that draws a mask on every real render.
+ * This exists only for the live layer the zoom slider previews on (see
+ * reframe.drawLiveCrop), which is painted with a bare 2D context many times
+ * a second and has no fabric canvas to hand the photograph to; it follows
+ * the same geometry, edge outside the window included.
+ */
+let _copy = null;
+export function paintPlacedMask(ctx, mask, source) {
+    const p = placeOf(mask);
+    const win = placedWindow(mask);
+    _copy = _copy || document.createElement("canvas");
+    _copy.width = CW;
+    _copy.height = CH;
+    _copy.getContext("2d").drawImage(source, 0, 0, CW, CH);
+
+    const path = (grow = 0) => {
+        const q = new Path2D();
+        if (mask.shape === "round") {
+            q.ellipse(win.x + win.w / 2, win.y + win.h / 2, win.w / 2 + grow, win.h / 2 + grow, 0, 0, Math.PI * 2);
+        } else {
+            q.rect(win.x - grow, win.y - grow, win.w + grow * 2, win.h + grow * 2);
+        }
+        return q;
+    };
+
+    ctx.save();
+    ctx.fillStyle = mask.fill || "#000000";
+    ctx.fillRect(0, 0, CW, CH);
+    ctx.clip(path());
+    ctx.drawImage(_copy, p.tx, p.ty, CW * p.s, CH * p.s);
+    ctx.restore();
+
+    const sw = mask.outline ? Math.max(0, +mask.outlineWidth || 0) * p.s : 0;
+    if (sw > 0) {
+        ctx.save();
+        ctx.lineWidth = sw;
+        ctx.strokeStyle = mask.outlineColor || "#ffffff";
+        ctx.stroke(path(sw / 2 - 1));
+        ctx.restore();
+    }
 }
 
 let _open = null;   // the live session, so a second press cannot stack a second step
@@ -342,9 +483,12 @@ class FrameMaskSession {
         if (!f || f.discarded) return;
         f.frameMask = copyFrameMask(mask);
         // A mask that has just been applied arrives selected, its box and
-        // corner handles on, so the canvas shows straight away that it can be
-        // reshaped there without coming back to this step. The handles come
-        // off everything else, as they do when the mask is pressed on.
+        // corner handles on, so the canvas shows straight away that the
+        // masked picture can be moved and scaled there. The handles come off
+        // everything else, as they do when the mask is pressed on. Its
+        // placement on the canvas, if it had one, rides along in the copy:
+        // re-cutting the window here does not send the picture back to
+        // where it started.
         f.frameMaskActive = !!mask;
         if (mask) {
             f.titleActive = false;

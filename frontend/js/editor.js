@@ -838,6 +838,7 @@ export function syncTextboxPanel() {
     autoGrowBlock(field);
     renderTextboxFonts();
     renderTextboxHlButtons();
+    renderColorRows("textbox");
 }
 
 /**
@@ -1111,9 +1112,51 @@ function paletteOf(which) {
  * already have a way back to the block's treatment — un-picking them.
  */
 export function renderColorButtons() {
+    renderColorRows("title");
+    renderColorRows("textbox");
+}
+
+/**
+ * Which block a row of swatches colours: the caption ("title") or the second
+ * textbox ("textbox"). The two are the same three rows asking the same three
+ * questions, each under its own block in the panel and each stored in its
+ * own place — the caption's on the frame, the textbox's on the textbox (see
+ * state.textboxFor) — so that a colour picked for one never reaches the
+ * other.
+ *
+ * The textbox's rows are the caption's ids with "textbox" in front, and its
+ * block is #textboxColorRows: a naming rule rather than a second table, so a
+ * fourth row is still one line in PALETTES.
+ */
+const colorRowId = (target, id) => (target === "textbox"
+    ? "textbox" + id[0].toUpperCase() + id.slice(1)
+    : id);
+
+/** What frame `i` stores for `field` on `target`, or null (see chosenColor). */
+function storedColor(target, field, i) {
+    if (target !== "textbox") return STORED_COLOR[field](i);
+    const box = textboxFor(i);
+    return (box && box[field] != null) ? box[field] : null;
+}
+
+/** The three stored colours of `target` on frame `i`, as text.recolored takes them. */
+const colorsOf = (target, i) => ({
+    textColor: storedColor(target, "textColor", i),
+    highlightColor: storedColor(target, "highlightColor", i),
+    panelColor: storedColor(target, "panelColor", i),
+});
+
+function renderColorRows(target) {
+    const block = el(colorRowId(target, "colorRows"));
+    // The textbox's rows only exist while the frame has a textbox; with none
+    // there is nothing for them to colour (its panel is hidden anyway).
+    if (target === "textbox" && !textboxFor(selectedIndex())) {
+        if (block) block.classList.add("hidden");
+        return;
+    }
     let any = false;
-    for (const [which, rowId, labelId, field] of PALETTES) {
-        const row = el(rowId), label = el(labelId);
+    for (const [which, rowId, labelId] of PALETTES) {
+        const row = el(colorRowId(target, rowId)), label = el(colorRowId(target, labelId));
         if (!row) continue;
         const colors = paletteOf(which);
         row.classList.toggle("hidden", !colors);
@@ -1124,7 +1167,7 @@ export function renderColorButtons() {
 
         // With the slab switched off, the ring belongs to the crossed-out
         // swatch and to none of the colours: no colour is what is drawn.
-        const off = which === "panel" && panelColorFor(selectedIndex()) === NO_PANEL;
+        const off = which === "panel" && storedColor(target, "panelColor", selectedIndex()) === NO_PANEL;
 
         // Marked, never unmarked. chosenColor answers -1 only for a pack that
         // contradicts itself — one whose own colour is not among the ones it
@@ -1133,7 +1176,7 @@ export function renderColorButtons() {
         // to show the user than a ring on the wrong swatch that the first
         // press makes true. The press is still a real write in that case:
         // setTitleColor asks chosenColor, not this.
-        const at = off ? -1 : Math.max(chosenColor(which, colors), 0);
+        const at = off ? -1 : Math.max(chosenColor(which, colors, target), 0);
         colors.forEach((color, k) => {
             const b = document.createElement("button");
             b.type = "button";
@@ -1142,7 +1185,7 @@ export function renderColorButtons() {
             // cannot know a colour that arrived in a pack.
             b.style.background = color;
             b.title = color;
-            b.onclick = () => setTitleColor(which, k);
+            b.onclick = () => setTitleColor(which, k, target);
             row.appendChild(b);
         });
 
@@ -1157,11 +1200,10 @@ export function renderColorButtons() {
             b.className = "btn-swatch btn-swatch-none " + (off ? "btn-active" : "");
             b.title = "No background";
             b.setAttribute("aria-label", "No background");
-            b.onclick = () => setTitleColor("panel", NO_PANEL);
+            b.onclick = () => setTitleColor("panel", NO_PANEL, target);
             row.appendChild(b);
         }
     }
-    const block = el("colorRows");
     if (block) block.classList.toggle("hidden", !any);
 }
 
@@ -1191,12 +1233,12 @@ export function renderColorButtons() {
  * text.recolored), so no swatch is marked because none of them is what is
  * drawn, which is the truth rather than a tidier lie.
  */
-function chosenColor(which, colors) {
+function chosenColor(which, colors, target = "title") {
     const row = PALETTES.find(([key]) => key === which);
     if (!row) return -1;
     const [, , , field, ownOf] = row;
     const i = selectedIndex();
-    const stored = STORED_COLOR[field](i);
+    const stored = storedColor(target, field, i);
     // The slab switched off is marked on its own swatch (see
     // renderColorButtons), so none of the colours is the one chosen.
     if (stored === NO_PANEL) return -1;
@@ -1218,11 +1260,7 @@ function chosenColor(which, colors) {
     // index 3, 4 or 5 lost its ring, while the title on screen was plainly
     // one of the three offered. The swatch matching the pack's own colour is
     // both the honest answer and the one the user is looking for.
-    const own = ownOf(recolored(titleStyle(), {
-        textColor: textColorFor(i),
-        highlightColor: highlightColorFor(i),
-        panelColor: panelColorFor(i),
-    }));
+    const own = ownOf(recolored(titleStyle(), colorsOf(target, i)));
     if (!own) return -1;
     const same = (a, b) => String(a).trim().toLowerCase() === String(b).trim().toLowerCase();
     return colors.findIndex(c => same(c, own));
@@ -1280,9 +1318,13 @@ const STORED_COLOR = {
  * stay it" — the very thing that stops the words changing the next time the
  * letters do. So that press always writes.
  */
-export function setTitleColor(which, index) {
+export function setTitleColor(which, index, target = "title") {
     const f = current();
     if (!f) return;
+    // The textbox's colours are written on the textbox (see
+    // state.textboxFor); everything else below is the same question.
+    const holder = target === "textbox" ? f.textbox : f;
+    if (!holder) return;
     if (!guardChannel()) return;
     const colors = paletteOf(which);
     if (!colors) return;
@@ -1293,13 +1335,13 @@ export function setTitleColor(which, index) {
     const row = PALETTES.find(([key]) => key === which);
     if (!row) return;
     const field = row[3];
-    const stored = STORED_COLOR[field](selectedIndex());
+    const stored = storedColor(target, field, selectedIndex());
     if (stored === index) return;
     const following = which === "highlight" && highlightFollowsBlock(titleStyle());
-    if (stored == null && !following && chosenColor(which, colors) === index) return;
+    if (stored == null && !following && chosenColor(which, colors, target) === index) return;
     f.edited = true;
-    f[field] = index;
-    renderColorButtons();
+    holder[field] = index;
+    renderColorRows(target);
     updatePreview();
     refreshThumb(selectedIndex());
 }

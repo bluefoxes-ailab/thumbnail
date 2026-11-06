@@ -17,7 +17,8 @@ import { titleStyle, decorFor } from "./channels.js";
 import { pending, showSpinner, hideReframeWait } from "./ui.js";
 import { fetchWide, loadWideImage, peek, viewStamp } from "./wide.js";
 import {
-    maskCornerAt, oppositeCorner, inWindow, moveMaskTo, resizeMask, roundMask,
+    maskCornerAt, oppositeCorner, inWindow, roundMask, placedWindow, placedAsCut,
+    placeOf, movePlacementTo, scalePlacementFrom, paintPlacedMask,
 } from "./framemask.js";
 
 let _logoDrag = null;
@@ -25,8 +26,10 @@ let _logoDrag = null;
 // the title's is its own: it acts on a different thing and ends differently,
 // while behaving identically in between.
 let _cutoutDrag = null;
-// The gesture moving or reshaping the frame's mask (Static Studio's "Create
-// mask") — see the press handler below for which press starts which.
+// The gesture moving or scaling the masked picture (Static Studio's "Create
+// mask") — see the press handler below for which press starts which. Never
+// the window's own shape: that is cut in the step (see `place` in
+// framemask.js).
 let _maskDrag = null;
 
 /**
@@ -398,12 +401,14 @@ export function setupReframeInteraction() {
         // selected one's handles over everything. A snapshot that stacked
         // them differently would hide the title for the length of every drag
         // on a frame whose upload covers it.
-        // The mask first, under everything else, as the preview draws it. It
-        // is pinned to the canvas and not to the photograph (see
-        // state.frameMaskFor), so it holds still here while the picture pans
-        // underneath — which is the gesture's whole use with a mask on: moving
-        // what shows through the window.
-        addFrameMask(overlayCanvas, frameMaskFor(i));
+        // The mask first, under everything else, as the preview draws it —
+        // when it stands where it was cut, so the photograph moving under
+        // this snapshot is exactly what shows through its window. A mask
+        // that has been placed elsewhere carries the photograph with it, and
+        // a snapshot cannot: drawLiveCrop paints that one itself, round the
+        // live picture (see framemask.paintPlacedMask).
+        const liveMask = frameMaskFor(i);
+        if (liveMask && placedAsCut(liveMask)) addFrameMask(overlayCanvas, liveMask);
         const active = activeLogoFor(i);
         const { under, over } = splitOverlays(logosFor(i));
         for (const logo of under) {
@@ -548,6 +553,8 @@ export function setupReframeInteraction() {
         // things standing on top of it. Painting it last would drag the
         // caption's colour with the picture's.
         if (plate) closePlate(liveCtx, plate);
+        const mask = frameMaskFor(selectedIndex());
+        if (mask && !placedAsCut(mask) && !plate) paintPlacedMask(liveCtx, mask, liveCropLayer);
         if (overlayEl) liveCtx.drawImage(overlayEl, 0, 0, wide.target_w, wide.target_h);
     }
 
@@ -611,20 +618,21 @@ export function setupReframeInteraction() {
         // The mask's corners first of anything, while it is selected: they are
         // drawn over everything (see compose.addFrameMaskChrome), and a press
         // on one is aimed at the handle, not at what is under it. Dragging a
-        // corner reshapes the window from that corner, the opposite one held
-        // still — free proportions for a rectangle, a circle kept round.
+        // corner scales the masked picture — window and photograph as one,
+        // proportions kept — from that corner, the opposite one held still.
         //
         // Any other press takes the selection off the mask; the branches
         // further down put it back when the press turns out to be on the mask
         // after all.
         const mask = f.frameMask;
+        const placed = mask ? placedWindow(mask) : null;
         const rectM = dragCanvas.getBoundingClientRect();
         const scaleM = rectM.width / CW;
         const [mx, my] = clientToCanvasPoint(e, rectM, scaleM);
         if (mask && f.frameMaskActive) {
-            const corner = maskCornerAt(mask, mx, my, maskReach(scaleM));
+            const corner = maskCornerAt(placed, mx, my, maskReach(scaleM));
             if (corner !== -1) {
-                const [ax, ay] = oppositeCorner(mask, corner);
+                const [ax, ay] = oppositeCorner(placed, corner);
                 _maskDrag = { mode: "resize", ax, ay };
                 dragCanvas.classList.remove("hover-move", "hover-resize", "hover-rotate");
                 dragCanvas.classList.add("hover-resize");
@@ -811,22 +819,27 @@ export function setupReframeInteraction() {
             }
         }
 
-        // Then the mask itself. A press on its ground — the solid colour round
-        // the window — selects it and drags it, window and all, which is what
-        // grabbing the mask means. A press INSIDE the window selects it too,
-        // so its box and handles come up, but goes on to the pan below: what
-        // is inside the window is the photograph, and dragging there is how
-        // the user chooses which part of it shows through.
+        // Then the mask itself. A press on the masked picture — the
+        // photograph showing through the window — selects it and drags it,
+        // window and photograph together, which is what grabbing a picture
+        // means. Where the window falls on the photograph was settled in the
+        // step and is not this gesture's to change.
+        //
+        // A press on the ground round it is a press on the background, and a
+        // flat colour has nothing to drag: it is consumed rather than handed
+        // to the pan below, which would slide the photograph about inside a
+        // window the user has already cut.
         if (mask) {
-            selectMask(f);
-            updatePreview();
-            if (!inWindow(mask, mx, my)) {
-                _maskDrag = { mode: "move", sx: mx, sy: my, ox: mask.x, oy: mask.y };
+            if (inWindow(placed, mx, my)) {
+                selectMask(f);
+                updatePreview();
+                const p = placeOf(mask);
+                _maskDrag = { mode: "move", sx: mx, sy: my, ox: p.tx, oy: p.ty };
                 dragCanvas.classList.remove("hover-move", "hover-resize", "hover-rotate");
                 dragCanvas.classList.add("hover-move");
-                e.preventDefault();
-                return;
             }
+            e.preventDefault();
+            return;
         }
 
         // Nothing else was hit, so this is a press on the background — which
@@ -878,8 +891,8 @@ export function setupReframeInteraction() {
             if (!f || !f.frameMask) { _maskDrag = null; return; }
             const rect = dragCanvas.getBoundingClientRect();
             const [cx, cy] = clientToCanvasPoint(e, rect, rect.width / CW);
-            if (s.mode === "move") moveMaskTo(f.frameMask, s.ox + cx - s.sx, s.oy + cy - s.sy);
-            else resizeMask(f.frameMask, s.ax, s.ay, cx, cy, e.shiftKey);
+            if (s.mode === "move") movePlacementTo(f.frameMask, s.ox + cx - s.sx, s.oy + cy - s.sy);
+            else scalePlacementFrom(f.frameMask, s.ax, s.ay, cx, cy);
             f.edited = true;
             updatePreview();
             refreshThumbLive(selectedIndex());
@@ -1008,10 +1021,10 @@ export function setupReframeInteraction() {
                 if (!hit && titleStyle().movable) hit = titleHitTest(titleBounds(), cx, cy);
                 // The mask last, as the press tests it — except its corners,
                 // which the press tests first and so does this.
-                const m = f.frameMask;
+                const m = f.frameMask && placedWindow(f.frameMask);
                 if (m && f.frameMaskActive
                     && maskCornerAt(m, cx, cy, maskReach(rect.width / CW)) !== -1) hit = "resize";
-                else if (!hit && m && !inWindow(m, cx, cy)) hit = "move";
+                else if (!hit && m && inWindow(m, cx, cy)) hit = "move";
             }
             dragCanvas.classList.toggle("hover-move", hit === "move");
             dragCanvas.classList.toggle("hover-resize", hit === "resize");

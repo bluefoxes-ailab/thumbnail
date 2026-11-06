@@ -230,8 +230,8 @@ const BASE_TITLE_STYLE = {
         // across the middle of it, so the two places a caption can go without
         // covering a face are the head of the frame and the foot of it. The
         // foot is where a player's own captions appear and is what every pack
-        // under the Snapchat heading wanted until one was cut for the other
-        // end (see conspiracy-central).
+        // under the Snapchat heading uses; conspiracy-central was cut for the
+        // other end for a while, and its git history says why.
         //
         // This is the block's STARTING place, not a rule about where it stays:
         // a `movable` channel stores the user's drag as an offset from

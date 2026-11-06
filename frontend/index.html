@@ -46,159 +46,168 @@
         <h1 id="mainTitle">Thumbnail Maker</h1>
     </div>
 
-    <div class="input-section">
-        <label class="field-label" for="runChannelSelect">Channel</label>
-        <select class="channel-select" id="runChannelSelect">
-            <option value="">-</option>
-        </select>
-        <!-- Output mode, Static Studio only (see setAppMode in main.js):
-             frames with their captions, or the bare frames with no
-             transcription at all — onto which the user can then split a
-             text of their own (see #myTextSection below).
+    <!-- The run's setup and the user's own text, which are two 500px
+         columns. Transparent to layout until both are on screen on a wide
+         window; then they stand side by side instead of one under the
+         other, which is half a screen of scrolling Static Studio gave back
+         (see .source-row in styles.css). -->
+    <div class="source-row">
+        <div class="input-section">
+            <label class="field-label" for="runChannelSelect">Channel</label>
+            <select class="channel-select" id="runChannelSelect">
+                <option value="">-</option>
+            </select>
+            <!-- Output mode, Static Studio only (see setAppMode in main.js):
+                 frames with their captions, or the bare frames with no
+                 transcription at all — onto which the user can then split a
+                 text of their own (see #myTextSection below).
 
-             Two ordinary .btn buttons and the choice held in .btn-active,
-             the way every other one-of-two choice in the app shows itself
-             (the edit presets, the alignment): blue at rest, yellow on hover,
-             and yellow held on the one that is chosen. No styling of their
-             own beyond sharing the row equally, because a second button
-             system on the same page reads as a different app. -->
-        <!-- The third, "Upload my own images", has no video at all: the link
-             box and the video upload give way to an image upload, and the
-             images become the grid a "Frames only" run would have produced
-             (see startImageSet in main.js). -->
-        <div class="btn-row output-mode-toggle hidden" id="outputModeToggle">
-            <button type="button" class="btn btn-active" id="btnModeText" aria-pressed="true">Frames with text</button>
-            <button type="button" class="btn" id="btnModeFramesOnly" aria-pressed="false">Frames only</button>
-            <button type="button" class="btn" id="btnModeOwnImages" aria-pressed="false">Upload my own images</button>
-        </div>
-        <!-- The link box straight under the mode buttons, ahead of the
-             settings for the run: the video is what the user came with, so
-             it is asked for first, and the frame count and the caption
-             ceiling below it are then read as settings of that video. The
-             Process button stays at the end of them, where a form's
-             submit button is looked for once everything above it is filled
-             in. -->
-        <input type="text" id="driveUrl" placeholder="Paste Google Drive, Dropbox, or YouTube link here">
-        <!-- How many frames a FRAME-FETCHING channel should return (see
-             `capture` in js/channels.js). Hidden for every channel that makes
-             thumbnails, where the grid's size is the pipeline's answer and not
-             a question anybody is asked.
-
-             Here, before Process, because it belongs to the same moment
-             the channel does: how many frames to cut is decided before the
-             video is read and cannot be revisited once the grid exists.
-
-             Under the output mode buttons rather than above them: the mode
-             decides whether there is anything to fetch at all ("Upload my
-             own images" hides this row, see syncSourceFields in main.js), so
-             the count is the answer to a question the mode asks first. Above
-             them, the row would vanish from between the channel and the
-             buttons the moment a mode was pressed, and the buttons would
-             jump up under the pointer that pressed them. -->
-        <div class="hidden" id="frameCountRow">
-            <label class="field-label" for="frameCount">Frames to fetch</label>
-            <!-- A slider rather than a typed number, because the count is a
-                 quantity being chosen and not a value being entered: the
-                 useful answers are a range and the user is picking a point in
-                 it, not recalling a figure. It also answers both ways of
-                 reaching for one \u2014 a click anywhere on the track jumps
-                 straight there, and the handle can be dragged \u2014 where a
-                 number box answers neither without the keyboard.
-
-                 The readout beside it is the exact number, live, so nothing
-                 about the choice is left to be judged by eye. -->
-            <div class="count-control">
-                <input type="range" id="frameCount" class="count-slider" min="1" max="200" step="1" value="40">
-                <output class="count-value" id="frameCountValue" for="frameCount">40</output>
+                 Two ordinary .btn buttons and the choice held in .btn-active,
+                 the way every other one-of-two choice in the app shows itself
+                 (the edit presets, the alignment): blue at rest, yellow on hover,
+                 and yellow held on the one that is chosen. No styling of their
+                 own beyond sharing the row equally, because a second button
+                 system on the same page reads as a different app. -->
+            <!-- The third, "Upload my own images", has no video at all: the link
+                 box and the video upload give way to an image upload, and the
+                 images become the grid a "Frames only" run would have produced
+                 (see startImageSet in main.js). -->
+            <div class="btn-row output-mode-toggle hidden" id="outputModeToggle">
+                <button type="button" class="btn btn-active" id="btnModeText" aria-pressed="true">Frames with text</button>
+                <button type="button" class="btn" id="btnModeFramesOnly" aria-pressed="false">Frames only</button>
+                <button type="button" class="btn" id="btnModeOwnImages" aria-pressed="false">Upload my own images</button>
             </div>
-            <div class="panel-hint" id="frameCountHint"></div>
-        </div>
-        <!-- The ceiling on a frame's caption, for a "Frames with text" run
-             (see syncCaptionCharsField and runPipeline in main.js). The same
-             question "Frames only" asks beside the user's own text, asked
-             here before processing because the captions arrive with the
-             frames and are dealt out the moment they land.
+            <!-- The link box straight under the mode buttons, ahead of the
+                 settings for the run: the video is what the user came with, so
+                 it is asked for first, and the frame count and the caption
+                 ceiling below it are then read as settings of that video. The
+                 Process button stays at the end of them, where a form's
+                 submit button is looked for once everything above it is filled
+                 in. -->
+            <input type="text" id="driveUrl" placeholder="Paste Google Drive, Dropbox, or YouTube link here">
+            <!-- How many frames a FRAME-FETCHING channel should return (see
+                 `capture` in js/channels.js). Hidden for every channel that makes
+                 thumbnails, where the grid's size is the pipeline's answer and not
+                 a question anybody is asked.
 
-             Empty, not 80, and required: there is no default the user can
-             have agreed to without typing it, and a figure already in the box
-             is a figure nobody reads. A text field rather than type="number"
-             so it wears the link box's look, and whole numbers only (see
-             mytext.js).
+                 Here, before Process, because it belongs to the same moment
+                 the channel does: how many frames to cut is decided before the
+                 video is read and cannot be revisited once the grid exists.
 
-             Label and box on one line, with no hint under them: it is one
-             number, and a row of its own reads as a setting rather than as a
-             second form. The placeholder is short for the same reason - the
-             box gets what the label leaves of the line, and a longer one was
-             cut off in it. -->
-        <div class="hidden" id="captionCharsRow">
-            <label class="field-label" for="captionCharsInput">Max characters per frame</label>
-            <input type="text" id="captionCharsInput" inputmode="numeric" autocomplete="off"
-                   placeholder="Required, e.g. 80">
+                 Under the output mode buttons rather than above them: the mode
+                 decides whether there is anything to fetch at all ("Upload my
+                 own images" hides this row, see syncSourceFields in main.js), so
+                 the count is the answer to a question the mode asks first. Above
+                 them, the row would vanish from between the channel and the
+                 buttons the moment a mode was pressed, and the buttons would
+                 jump up under the pointer that pressed them. -->
+            <div class="hidden" id="frameCountRow">
+                <label class="field-label" for="frameCount">Frames to fetch</label>
+                <!-- A slider rather than a typed number, because the count is a
+                     quantity being chosen and not a value being entered: the
+                     useful answers are a range and the user is picking a point in
+                     it, not recalling a figure. It also answers both ways of
+                     reaching for one \u2014 a click anywhere on the track jumps
+                     straight there, and the handle can be dragged \u2014 where a
+                     number box answers neither without the keyboard.
+
+                     The readout beside it is the exact number, live, so nothing
+                     about the choice is left to be judged by eye. -->
+                <div class="count-control">
+                    <input type="range" id="frameCount" class="count-slider" min="1" max="200" step="1" value="40">
+                    <output class="count-value" id="frameCountValue" for="frameCount">40</output>
+                </div>
+                <div class="panel-hint" id="frameCountHint"></div>
+            </div>
+            <!-- The ceiling on a frame's caption, for a "Frames with text" run
+                 (see syncCaptionCharsField and runPipeline in main.js). The same
+                 question "Frames only" asks beside the user's own text, asked
+                 here before processing because the captions arrive with the
+                 frames and are dealt out the moment they land.
+
+                 Empty, not 80, and required: there is no default the user can
+                 have agreed to without typing it, and a figure already in the box
+                 is a figure nobody reads. A text field rather than type="number"
+                 so it wears the link box's look, and whole numbers only (see
+                 mytext.js).
+
+                 Label and box on one line, with no hint under them: it is one
+                 number, and a row of its own reads as a setting rather than as a
+                 second form. The placeholder is short for the same reason - the
+                 box gets what the label leaves of the line, and a longer one was
+                 cut off in it. -->
+            <div class="hidden" id="captionCharsRow">
+                <label class="field-label" for="captionCharsInput">Max characters per frame</label>
+                <input type="text" id="captionCharsInput" inputmode="numeric" autocomplete="off"
+                       placeholder="Required, e.g. 80">
+            </div>
+            <button class="btn" style="width:100%" id="processBtn">Process Video</button>
+            <!-- A video already on this machine takes the same route as a linked
+                 one: the file is uploaded, and from there the backend cannot tell
+                 the two apart. The <input> is hidden because a bare file input
+                 can't be styled into the rest of the UI — the button in front of
+                 it is what the user sees, and it forwards the click. -->
+            <div class="source-or" id="sourceOr"><span>or</span></div>
+            <input type="file" id="videoFileInput" class="hidden"
+                   accept="video/*,.mp4,.m4v,.mov,.mkv,.webm,.avi,.mpg,.mpeg,.wmv,.flv,.ts,.m2ts,.3gp">
+            <button class="btn" style="width:100%" id="uploadVideoBtn">Upload video from computer</button>
+            <!-- In place of everything above, on "Upload my own images" (see
+                 syncSourceFields in main.js). One dialog takes as many images as
+                 the user selects, and the same button takes another batch onto
+                 the set already on screen; "Start a new set" is the way to begin
+                 again from nothing, so adding more can never cost what is there. -->
+            <input type="file" id="imagesFileInput" class="hidden" accept="image/*" multiple>
+            <!-- One row, sharing it equally once both are up; the upload alone
+                 fills it. The row is what fitTitleToInputWidth measures here,
+                 because it, not either button, spans the column. -->
+            <div class="btn-row image-source-row hidden" id="imageSourceRow">
+                <button class="btn" id="uploadImagesBtn">Upload images from computer</button>
+                <button class="btn hidden" id="newImageSetBtn">Start a new set</button>
+            </div>
+            <div class="panel-hint hidden" id="uploadImagesHint">Select as many images as you like, and add more at any time. They join the grid in file-name order, and can be dragged into any other.</div>
         </div>
-        <button class="btn" style="width:100%" id="processBtn">Process Video</button>
-        <!-- A video already on this machine takes the same route as a linked
-             one: the file is uploaded, and from there the backend cannot tell
-             the two apart. The <input> is hidden because a bare file input
-             can't be styled into the rest of the UI — the button in front of
-             it is what the user sees, and it forwards the click. -->
-        <div class="source-or" id="sourceOr"><span>or</span></div>
-        <input type="file" id="videoFileInput" class="hidden"
-               accept="video/*,.mp4,.m4v,.mov,.mkv,.webm,.avi,.mpg,.mpeg,.wmv,.flv,.ts,.m2ts,.3gp">
-        <button class="btn" style="width:100%" id="uploadVideoBtn">Upload video from computer</button>
-        <!-- In place of everything above, on "Upload my own images" (see
-             syncSourceFields in main.js). One dialog takes as many images as
-             the user selects, and the same button takes another batch onto
-             the set already on screen; "Start a new set" is the way to begin
-             again from nothing, so adding more can never cost what is there. -->
-        <input type="file" id="imagesFileInput" class="hidden" accept="image/*" multiple>
-        <!-- One row, sharing it equally once both are up; the upload alone
-             fills it. The row is what fitTitleToInputWidth measures here,
-             because it, not either button, spans the column. -->
-        <div class="btn-row image-source-row hidden" id="imageSourceRow">
-            <button class="btn" id="uploadImagesBtn">Upload images from computer</button>
-            <button class="btn hidden" id="newImageSetBtn">Start a new set</button>
+
+        <!-- The user's own text, for a "Frames only" run (see js/mytext.js).
+             Shown from the moment such a run starts, so the text can be written
+             or pasted while the video processes — the wait is the time there is
+             to do it. Beside the run's setup on a wide screen and under it on a
+             narrow one (see .source-row), and above the progress bar and the
+             grid, because it is about the whole run and not about any one
+             frame.
+
+             Split stays locked until every frame has finished loading: it deals
+             the text out over the frames that actually arrived, and until the
+             last one is in, that number is not known. The bubble on the locked
+             button says so, since a dead button with no reason reads as broken. -->
+        <div class="my-text-section hidden" id="myTextSection">
+            <!-- Beside the box, the ceiling on how much of it one frame gets.
+                 Whole numbers only (see mytext.js for why type="number" is not
+                 enough on its own); 80 is transcriber.CAPTION_CHARS.
+
+                 The box has a label of its own for the reason the number does:
+                 a field whose only name is its placeholder loses that name the
+                 moment anything is typed into it, and the two labels side by
+                 side make the pair read as one setting and its value. -->
+            <div class="my-text-row">
+                <label class="field-label my-text-label" for="myTextInput">Your text</label>
+                <textarea class="line-block my-text-input" id="myTextInput" rows="5"
+                          placeholder="Add your text here"></textarea>
+                <div class="max-chars-field">
+                    <label class="field-label" for="maxCharsInput">Max characters per frame</label>
+                    <input type="number" class="line-block max-chars-input" id="maxCharsInput"
+                           min="1" step="1" inputmode="numeric" value="80">
+                </div>
+            </div>
+            <div class="split-wrap locked" id="splitWrap">
+                <button type="button" class="btn" id="splitTextBtn" disabled>Split the text</button>
+                <div class="split-tip" role="tooltip" id="splitTip">This option is available once every frame has finished loading.</div>
+            </div>
         </div>
-        <div class="panel-hint hidden" id="uploadImagesHint">Select as many images as you like, and add more at any time. They join the grid in file-name order, and can be dragged into any other.</div>
     </div>
 
     <div class="progress-section hidden" id="progressSection">
         <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
         <div class="progress-text" id="progressText"></div>
-    </div>
-
-    <!-- The user's own text, for a "Frames only" run (see js/mytext.js).
-         Shown from the moment such a run starts, so the text can be written
-         or pasted while the video processes — the wait is the time there is
-         to do it. Under the progress bar and above the grid, because it is
-         about the whole run and not about any one frame.
-
-         Split stays locked until every frame has finished loading: it deals
-         the text out over the frames that actually arrived, and until the
-         last one is in, that number is not known. The bubble on the locked
-         button says so, since a dead button with no reason reads as broken. -->
-    <div class="my-text-section hidden" id="myTextSection">
-        <!-- Beside the box, the ceiling on how much of it one frame gets.
-             Whole numbers only (see mytext.js for why type="number" is not
-             enough on its own); 80 is transcriber.CAPTION_CHARS.
-
-             The box has a label of its own for the reason the number does:
-             a field whose only name is its placeholder loses that name the
-             moment anything is typed into it, and the two labels side by
-             side make the pair read as one setting and its value. -->
-        <div class="my-text-row">
-            <label class="field-label my-text-label" for="myTextInput">Your text</label>
-            <textarea class="line-block my-text-input" id="myTextInput" rows="5"
-                      placeholder="Add your text here"></textarea>
-            <div class="max-chars-field">
-                <label class="field-label" for="maxCharsInput">Max characters per frame</label>
-                <input type="number" class="line-block max-chars-input" id="maxCharsInput"
-                       min="1" step="1" inputmode="numeric" value="80">
-            </div>
-        </div>
-        <div class="split-wrap locked" id="splitWrap">
-            <button type="button" class="btn" id="splitTextBtn" disabled>Split the text</button>
-            <div class="split-tip" role="tooltip" id="splitTip">This option is available once every frame has finished loading.</div>
-        </div>
     </div>
 
     <div class="font-warning hidden" id="fontWarning"></div>
@@ -386,32 +395,6 @@
                     <textarea class="line-block hidden" id="lineBlock" rows="1"
                               placeholder="Press Enter for a new line"></textarea>
                     <div class="btn-row" id="hlButtons"></div>
-                    <!-- A second block of text on the frame, Static Studio
-                         only (see the textbox section of js/editor.js). It
-                         takes everything below this point from the caption -
-                         the colours, the highlight, the card, the effects -
-                         so its own controls are only what differs: the words,
-                         which of them are picked out, and the face, chosen
-                         from the faces this channel already owns (see
-                         channels.textboxStyle). Here, next to the caption's
-                         field, so the two things the user types sit together
-                         and everything that styles both sits under them. -->
-                    <div class="textbox-controls hidden" id="textboxControls">
-                        <div class="btn-row">
-                            <button type="button" class="btn" id="addTextboxBtn" title="Add a second block of text, styled like the caption">Add textbox</button>
-                        </div>
-                        <div class="textbox-panel hidden" id="textboxPanel">
-                            <label class="field-label" for="textboxBlock">Textbox</label>
-                            <textarea class="line-block" id="textboxBlock" rows="1"
-                                      placeholder="Press Enter for a new line"></textarea>
-                            <div class="btn-col" id="textboxHlButtons"></div>
-                            <label class="field-label" for="textboxFont">Text font</label>
-                            <select class="channel-select" id="textboxFont"></select>
-                            <div class="btn-row">
-                                <button type="button" class="btn" id="removeTextboxBtn" title="Take the textbox off this frame">Remove textbox</button>
-                            </div>
-                        </div>
-                    </div>
                     <!-- The colours this channel lets the user choose between
                          (see `title.colors` in channels.js), one swatch per
                          colour. Empty and hidden for every channel that
@@ -432,7 +415,14 @@
                          channel offering four colours, or offering the choice
                          for the letters and not for the slab, is a data change
                          like every other part of a pack. See
-                         editor.renderColorButtons. -->
+                         editor.renderColorButtons.
+
+                         Straight under the caption's field and its highlight
+                         buttons: these colour the CAPTION and nothing else.
+                         The textbox has its own three rows inside its own
+                         panel (the "More text" column), stored on the textbox, so
+                         each block's colours sit under the block they paint
+                         and neither reaches the other. -->
                     <div class="color-rows hidden" id="colorRows">
                         <label class="field-label" id="textColorLabel">Text colour</label>
                         <div class="btn-row swatch-row" id="textColorRow"></div>
@@ -456,6 +446,52 @@
                          channel has no such effect at all. -->
                     <div class="btn-row hidden" id="glowRow">
                         <button class="btn" id="glowBtn" title="A soft halo behind the whole title">Glow Off</button>
+                    </div>
+                </div>
+
+                <!-- The caption's column, continued: the second textbox and
+                     the effects both blocks share. One run with the caption's
+                     controls everywhere but Static Studio (`display:
+                     contents`, its heading hidden); there it is a column of
+                     its own, so the caption's controls are not one column
+                     tall enough to scroll past while the other two stand
+                     half empty. -->
+                <div class="panel-group panel-group-more">
+                    <h2>More text</h2>
+                    <!-- A second block of text on the frame, Static Studio
+                         only (see the textbox section of js/editor.js). Its
+                         own controls are what differs from the caption: the
+                         words, which of them are picked out, the face, chosen
+                         from the faces this channel already owns (see
+                         channels.textboxStyle), and its own colours, from the
+                         same palette as the caption's but stored apart (see
+                         state.textboxFor). The highlight's treatment, the
+                         card's shape and the effects below are shared. -->
+                    <div class="textbox-controls hidden" id="textboxControls">
+                        <div class="btn-row">
+                            <button type="button" class="btn" id="addTextboxBtn" title="Add a second block of text, styled like the caption">Add textbox</button>
+                        </div>
+                        <div class="textbox-panel hidden" id="textboxPanel">
+                            <label class="field-label" for="textboxBlock">Textbox</label>
+                            <textarea class="line-block" id="textboxBlock" rows="1"
+                                      placeholder="Press Enter for a new line"></textarea>
+                            <div class="btn-col" id="textboxHlButtons"></div>
+                            <label class="field-label" for="textboxFont">Text font</label>
+                            <select class="channel-select" id="textboxFont"></select>
+                            <!-- The caption's three colour rows, again, for
+                                 this block alone (see editor.renderColorRows). -->
+                            <div class="color-rows hidden" id="textboxColorRows">
+                                <label class="field-label" id="textboxTextColorLabel">Text colour</label>
+                                <div class="btn-row swatch-row" id="textboxTextColorRow"></div>
+                                <label class="field-label" id="textboxHighlightColorLabel">Highlight colour</label>
+                                <div class="btn-row swatch-row" id="textboxHighlightColorRow"></div>
+                                <label class="field-label" id="textboxPanelColorLabel">Background colour</label>
+                                <div class="btn-row swatch-row" id="textboxPanelColorRow"></div>
+                            </div>
+                            <div class="btn-row">
+                                <button type="button" class="btn" id="removeTextboxBtn" title="Take the textbox off this frame">Remove textbox</button>
+                            </div>
+                        </div>
                     </div>
                     <!-- The user's own drop shadow and outline, Static Studio
                          only (see setTextEffects in channels.js). One setting

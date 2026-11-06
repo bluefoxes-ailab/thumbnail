@@ -13,6 +13,10 @@ import { addTextOverlay } from "./text.js";
 import { loadImage } from "./net.js";
 import { hideReframeWait } from "./ui.js";
 import { noteEdit } from "./history.js";
+// A cycle (framemask imports this module for its previews), and a harmless
+// one: history.js already closes the same loop, and nothing here is called
+// before every module has finished loading.
+import { placeOf, placedWindow, placedAsCut } from "./framemask.js";
 
 export let fabricCanvas = null;
 
@@ -1018,10 +1022,15 @@ function addPhotoPlate(canvas, plate, img) {
  * hairline of photograph showing between the edge and the ground where the
  * two antialias against each other.
  */
-export function addFrameMask(canvas, mask) {
+export function addFrameMask(canvas, mask, photo = null) {
     if (!mask || !(mask.w > 0) || !(mask.h > 0)) return;
-    const cx = mask.x + mask.w / 2;
-    const cy = mask.y + mask.h / 2;
+    // Where the window stands on the canvas once the user has placed the
+    // masked picture (see `place` in framemask.js) — the cut window itself
+    // when they have not.
+    const win = placedWindow(mask);
+    const place = placeOf(mask);
+    const cx = win.x + win.w / 2;
+    const cy = win.y + win.h / 2;
     const round = mask.shape === "round";
     const shape = (w, h, extra) => {
         const common = {
@@ -1034,20 +1043,45 @@ export function addFrameMask(canvas, mask) {
             : new fabric.Rect({ width: w, height: h, ...common });
     };
 
-    const hole = shape(mask.w, mask.h, { strokeWidth: 0, absolutePositioned: true, inverted: true });
-    canvas.add(new fabric.Rect({
-        left: 0, top: 0, width: CW, height: CH,
-        fill: mask.fill || "#000000", strokeWidth: 0,
-        clipPath: hole,
-        selectable: false, evented: false, objectCaching: false,
-    }));
+    if (photo && !placedAsCut(mask)) {
+        // Placed: the photograph has to travel with its window, so the ground
+        // goes down WHOLE over the picture already on the canvas and the
+        // picture is drawn again on top of it, carried through the placement
+        // and clipped to the placed window. Only the photograph can be moved
+        // like this — it is the one thing under the mask this function is
+        // handed — which is all Static Studio draws there.
+        canvas.add(new fabric.Rect({
+            left: 0, top: 0, width: CW, height: CH,
+            fill: mask.fill || "#000000", strokeWidth: 0,
+            selectable: false, evented: false, objectCaching: false,
+        }));
+        const pw = photo.naturalWidth || photo.width || CW;
+        const ph = photo.naturalHeight || photo.height || CH;
+        canvas.add(new fabric.Image(photo, {
+            left: place.tx, top: place.ty,
+            scaleX: place.s * CW / pw, scaleY: place.s * CH / ph,
+            clipPath: shape(win.w, win.h, { strokeWidth: 0, absolutePositioned: true }),
+            selectable: false, evented: false, objectCaching: false,
+        }));
+    } else {
+        const hole = shape(win.w, win.h, { strokeWidth: 0, absolutePositioned: true, inverted: true });
+        canvas.add(new fabric.Rect({
+            left: 0, top: 0, width: CW, height: CH,
+            fill: mask.fill || "#000000", strokeWidth: 0,
+            clipPath: hole,
+            selectable: false, evented: false, objectCaching: false,
+        }));
+    }
 
-    const sw = mask.outline ? Math.max(0, +mask.outlineWidth || 0) : 0;
+    // The edge scales with the picture it frames: a masked picture made twice
+    // the size is the same design twice the size, not a new one with a
+    // hairline round it.
+    const sw = mask.outline ? Math.max(0, +mask.outlineWidth || 0) * place.s : 0;
     if (sw > 0) {
         // The path runs half a stroke outside the window, less the pixel of
         // overlap described above, so the stroke's inner edge is on the hole.
         const grow = sw - 2;
-        canvas.add(shape(mask.w + grow, mask.h + grow, {
+        canvas.add(shape(win.w + grow, win.h + grow, {
             fill: "", stroke: mask.outlineColor || "#ffffff", strokeWidth: sw,
         }));
     }
@@ -1064,8 +1098,11 @@ export function addFrameMask(canvas, mask) {
  * subject needs more room on. Styled as the overlay's chrome is, so it reads
  * as the same kind of selection. Never on a composite: see paintFrame.
  */
-export function addFrameMaskChrome(canvas, mask) {
-    if (!mask) return;
+export function addFrameMaskChrome(canvas, frameMask) {
+    if (!frameMask) return;
+    // Round the window as it stands on the canvas, which is what the
+    // handles scale (see framemask.scalePlacementFrom).
+    const mask = placedWindow(frameMask);
     canvas.add(new fabric.Rect({
         left: mask.x, top: mask.y, width: mask.w, height: mask.h,
         fill: "transparent", stroke: "#1b2fea", strokeWidth: 2, strokeDashArray: [6, 4],
@@ -1536,6 +1573,12 @@ export function addTextbox(cv, i, interactive) {
         return usingStyle(style, () => addTextOverlay(
             cv, lines, box.hl, framePresentation(i).flip_text, {
                 ...titleOpts(i, false),
+                // Its own colours, never the caption's (see
+                // state.textboxFor). `?? null` for a textbox made before it
+                // had any: the channel's colour, as a fresh one starts.
+                textColor: box.textColor ?? null,
+                highlightColor: box.highlightColor ?? null,
+                panelColor: box.panelColor ?? null,
                 placement: box.box,
                 interactive: interactive && textboxActiveFor(i),
             }));
@@ -1745,7 +1788,12 @@ async function paintFrame(cv, i, { interactive = false, renderId, mask, baseOnly
         cv.renderAll();
         return cv;
     }
-    addFrameMask(cv, mask === undefined ? frameMaskFor(i) : mask);
+    // The photograph goes with it so a placed mask can carry it (see
+    // addFrameMask) — but only where the photograph is what is under the
+    // mask: a backdrop or a card is a composition of the channel's that a
+    // mask placed elsewhere could not take along.
+    addFrameMask(cv, mask === undefined ? frameMaskFor(i) : mask,
+        (!background && !plate) ? photo : null);
 
     const lines = linesFor(i);
     const drawTitle = () => {

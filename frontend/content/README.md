@@ -427,9 +427,9 @@ Both are measured to the first thing **drawn**, not to the letters. Under a
 box highlight or a line-scope panel, a row with a background on it puts that
 background's edge on the margin and the capitals a padding's worth inside it.
 
-`conspiracy-central` is the pack that hangs its captions from the head of the
-frame, 50px down, and it says why. Its card is the first thing drawn, so the
-card's top edge is what sits on that margin.
+No pack hangs its caption from the head of the frame today. `conspiracy-central`
+did, 50px down, until the show asked for the foot like every other caption; its
+`channel.json` in git history is the worked example, and says why it was there.
 
 ### `capture` changes what the app IS
 
@@ -562,7 +562,7 @@ one light. `laugh-society-snapchat` throws it over the bottom third of a
 captured still because its caption is set straight onto the picture with no card
 under it, and the shade is what makes that legible. `conspiracy-central` throws
 it over the bottom half of a captured still purely as part of its look — its
-caption is on a card at the head of the frame — and its numbers are the
+caption is on a card, legible without it — and its numbers are the
 backend's side gradient turned to rise from the floor.
 
 **A scrim is what the Gradient button means.** That button is one idea — whatever
@@ -598,8 +598,8 @@ in `content/presets/snapchat-caption.json`, and that file is the worked
 example: `"freeform": true` (the caption is a sentence, and its breaks are the
 user's), `"fontSize": 40` (one stated size, so forty stills cut from one video
 are one set rather than forty type sizes), `"maxChars": 20`, `"vAlign":
-"bottom"` (burned-in speech sits at the foot of the frame — one pack hangs it
-from the head instead, see below) and `"movable": true` (so it can be pulled
+"bottom"` (burned-in speech sits at the foot of the frame — a pack may hang
+it from the head instead, see below) and `"movable": true` (so it can be pulled
 off a face).
 
 Where the sentence breaks when it first arrives is decided in `js/caption.js`.

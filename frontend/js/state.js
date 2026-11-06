@@ -229,10 +229,23 @@ export function titleActiveFor(i) {
  *         the channel's default (see channels.defaultTextboxFace). Stored as
  *         a name rather than as a face, so the channel the frame is drawn
  *         under decides what that name resolves to.
+ *   textColor, highlightColor, panelColor
+ *         the textbox's OWN colours, in exactly the shape the frame's
+ *         fields of the same names hold the caption's (see textColorFor):
+ *         an index into the channel's palette, NO_PANEL for the card, or
+ *         null for the channel's own colour.
+ *
+ * The colours are the textbox's own and not the caption's, on purpose: the
+ * user sets the two blocks apart by colour as often as by face, and a
+ * textbox that changed whenever the caption did could never be a second
+ * voice. Null — the channel's own colour — rather than a copy of the
+ * caption's, so a new textbox starts in the brand, not in whatever the
+ * caption happened to be wearing.
  *
  * Everything else about how it looks is NOT here, and that is the feature:
- * the colours, the highlight, the card and the effects are read from the same
- * places the caption reads them from, so the two blocks cannot drift apart.
+ * the highlight's treatment, the card's shape and the effects are read from
+ * the same places the caption reads them from, so the two blocks cannot
+ * drift apart.
  */
 export function textboxFor(i) {
     const f = store.frames[i];
@@ -264,7 +277,10 @@ export function textboxActiveFor(i) {
 }
 
 /** A fresh, empty textbox — what "Add textbox" puts on a frame. */
-export const newTextbox = () => ({ text: "", hl: [], box: null, face: null });
+export const newTextbox = () => ({
+    text: "", hl: [], box: null, face: null,
+    textColor: null, highlightColor: null, panelColor: null,
+});
 
 /** A copy of `box` that shares nothing with it, or null. */
 export const copyTextbox = (box) => (box
@@ -282,13 +298,16 @@ export const copyTextbox = (box) => (box
  *   outline       whether an edge is drawn round the window, and
  *   outlineColor  in which colour,
  *   outlineWidth  at what width, in canvas pixels.
+ *   place         optional { s, tx, ty }: where the masked picture — window
+ *                 and photograph together — has been moved and scaled to on
+ *                 the canvas. Absent is where it was cut. See `place` in
+ *                 framemask.js.
  *
- * In CANVAS pixels and not the photograph's, and that is the design: the mask
- * is a piece of the thumbnail's layout, like the title's placement, and it
- * stays where the user put it while the picture under it is panned and zoomed
- * (see reframe.snapshotOverlays, which keeps it on screen through the drag).
- * A window pinned to the photograph would wander off the canvas the first
- * time the frame was reframed.
+ * The window is measured on the photograph as it fills the canvas, and it is
+ * cut in the step and only there; the canvas moves and scales what was cut,
+ * as one piece, through `place`. The zoom slider still reframes the
+ * photograph behind the window — the one way left to change what shows
+ * through it without reopening the step.
  */
 export function frameMaskFor(i) {
     const f = store.frames[i];
@@ -302,7 +321,9 @@ export function frameMaskActiveFor(i) {
 }
 
 /** A copy of `mask` that shares nothing with it, or null. */
-export const copyFrameMask = (mask) => (mask ? { ...mask } : null);
+export const copyFrameMask = (mask) => (mask
+    ? { ...mask, ...(mask.place ? { place: { ...mask.place } } : {}) }
+    : null);
 
 /**
  * The figures frame `i` shows, bottom of the stack first — array order IS
