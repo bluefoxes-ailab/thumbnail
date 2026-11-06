@@ -567,6 +567,41 @@ input[type="text"]::-moz-selection { background: #fffa00; color: #1b2fea; }
     display: flex; justify-content: center; gap: 8px; flex-wrap: wrap;
 }
 .below-canvas #downloadBtn { width: 30%; }
+/* Undo / Redo: the arrow and the word side by side, the arrow drawn in the
+   button's text colour so it follows the yellow hover like the word does. */
+.history-btns { display: flex; gap: 8px; }
+.history-btns.hidden { display: none; }
+.btn-history {
+    display: inline-flex; align-items: center; gap: 6px;
+}
+/* The shortcut bubble over each of them, in the look of the "Split the
+   text" bubble (.split-tip) so the page has one kind of tooltip, not two.
+   Shown on the wrapper's hover, so it answers on a disabled button too. */
+.history-tip-wrap { position: relative; display: inline-flex; }
+.history-tip {
+    position: absolute; left: 50%; bottom: calc(100% + 10px);
+    transform: translateX(-50%) translateY(4px);
+    width: max-content;
+    padding: 6px 10px; border-radius: 8px;
+    background: #080b1e; border: 1px solid #026dff; color: #fff;
+    font-size: 12px; line-height: 1.4; text-align: center; white-space: nowrap;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);
+    opacity: 0; visibility: hidden; pointer-events: none;
+    transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s;
+    z-index: 20;
+}
+.history-tip::after {
+    content: ""; position: absolute; top: 100%; left: 50%;
+    margin-left: -6px; border: 6px solid transparent; border-top-color: #026dff;
+}
+.history-tip-wrap:hover .history-tip {
+    opacity: 1; visibility: visible; transform: translateX(-50%) translateY(0);
+}
+.history-icon {
+    width: 16px; height: 16px; flex-shrink: 0;
+    fill: none; stroke: currentColor; stroke-width: 2.6;
+    stroke-linecap: round; stroke-linejoin: round;
+}
 
 .wide-layer {
     position: absolute; top: 0; left: 0; display: none; pointer-events: none;

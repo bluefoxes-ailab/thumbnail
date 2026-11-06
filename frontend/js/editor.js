@@ -1410,6 +1410,14 @@ async function recompose({ previewFirst }) {
     maybeHideSpinner();
 }
 
+/**
+ * Asks the backend for the selected frame's picture again, for whatever its
+ * mirror and gradient flags now say. For Undo and Redo (see history.js),
+ * which put those flags back by writing them, not by pressing the buttons —
+ * and the picture is where those two are drawn.
+ */
+export const recomposeSelected = () => recompose({ previewFirst: false });
+
 export async function toggleFlip(key) {
     const f = current();
     if (!f) return status("No frame selected");

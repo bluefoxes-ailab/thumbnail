@@ -290,6 +290,51 @@
                          exists to produce a set, and the ordinary path through
                          it is process, then this. -->
                     <button class="btn hidden" id="downloadAllBtn" title="Download every frame as a single zip file">Download all</button>
+                    <!-- The last five things done to a frame, on the canvas or
+                         in the text panel, and the way back to them (see
+                         js/history.js). Static Studio only - setAppMode shows
+                         them. At the end of the row rather than among the
+                         edits, because they act on every one of those buttons
+                         and on the canvas besides, not beside any one of them.
+                         The arrows are drawn inline so they take the button's
+                         own text colour on the blue and on the yellow hover.
+
+                         One wrapper around the pair, so that on Static
+                         Studio's narrow portrait column the row wraps BETWEEN
+                         groups and never leaves Undo at the end of one line
+                         with Redo alone on the next.
+
+                         Each button sits in a wrapper that carries its
+                         shortcut bubble (see .history-tip). The hover is the
+                         wrapper's and not the button's, so the bubble still
+                         answers on a button that is disabled - which is when
+                         someone is most likely to wonder what it is for. The
+                         bubble is aria-describedby'd rather than a title, so
+                         the browser's own tooltip does not stack on top. -->
+                    <div class="history-btns hidden" id="historyBtns">
+                    <span class="history-tip-wrap">
+                        <button class="btn btn-history" id="undoBtn" type="button" disabled
+                                aria-describedby="undoTip">
+                            <svg class="history-icon" viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M9 14 4 9l5-5"/>
+                                <path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>
+                            </svg>
+                            <span>Undo</span>
+                        </button>
+                        <span class="history-tip" role="tooltip" id="undoTip">ctrl + z</span>
+                    </span>
+                    <span class="history-tip-wrap">
+                        <button class="btn btn-history" id="redoBtn" type="button" disabled
+                                aria-describedby="redoTip">
+                            <svg class="history-icon" viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="m15 14 5-5-5-5"/>
+                                <path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/>
+                            </svg>
+                            <span>Redo</span>
+                        </button>
+                        <span class="history-tip" role="tooltip" id="redoTip">ctrl + y</span>
+                    </span>
+                    </div>
                 </div>
             </div>
 

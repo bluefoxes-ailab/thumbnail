@@ -76,6 +76,7 @@ import {
 } from "./mytext.js";
 import { initReorder } from "./reorder.js";
 import { primeReadyNotice, announceReady } from "./notify.js";
+import * as undoHistory from "./history.js";
 
 const POLL_MS = 500;
 // Consecutive failed polls tolerated before giving up. A tunnel hiccup or a
@@ -1582,6 +1583,9 @@ function selectFrame(i) {
     loadTextPanel();   // the side panel follows the selection — per-frame title
     updatePreview();
     enhanceFrame(i);
+    // Last, so Undo watches this frame from the state it ARRIVED in, carry-over
+    // included: what the carry-over gave it is not something the user did.
+    undoHistory.frameSelected();
 }
 
 /**
@@ -1765,6 +1769,8 @@ function setAppMode(mode) {
     // the row keeps the layout .btn-row gives it whenever it is shown.
     const modeToggle = document.getElementById("outputModeToggle");
     if (modeToggle) modeToggle.classList.toggle("hidden", !isStatic);
+    // Undo and Redo are a Static Studio feature (see history.js).
+    el("historyBtns")?.classList.toggle("hidden", !isStatic);
 
     // The backend takes an Instagram link from either tab — it cannot tell
     // which one a run came from — but only Static Studio names it, because
@@ -1928,7 +1934,17 @@ el("addFrameFileInput").addEventListener("change", (e) => {
 });
 // Locked until every frame of a "Frames only" run has loaded (see
 // runPipeline); a locked button takes no clicks, so nothing here has to ask.
-el("splitTextBtn").addEventListener("click", splitMyText);
+//
+// Kept out of Undo: it rewrites every frame in the grid at once, and an
+// undo that put back one frame of forty would leave the set half-split. What
+// was pending before it is written down first, as its own action.
+el("splitTextBtn").addEventListener("click", async () => {
+    undoHistory.flush();
+    try { await splitMyText(); } finally { undoHistory.rebaseline(); }
+});
+
+// Undo and Redo (see history.js). Static Studio only, like the buttons.
+undoHistory.initHistory({ select: selectFrame, enabled: () => currentMode === "static" });
 
 for (const id of ["presetNoneBtn", "presetNaturalBtn", "presetFullBtn"]) {
     el(id).addEventListener("click", () => setEditPreset(el(id).dataset.preset));

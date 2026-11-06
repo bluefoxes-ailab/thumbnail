@@ -9,6 +9,7 @@ import { usingChannel, decorFor, textEffectsKey } from "./channels.js";
 import { addTextOverlay } from "./text.js";
 import { loadImage } from "./net.js";
 import { hideReframeWait } from "./ui.js";
+import { noteEdit } from "./history.js";
 
 export let fabricCanvas = null;
 
@@ -84,7 +85,6 @@ export function loadLogoImage(logo) {
  * edge would get a rectangle, so nothing asks for one.
  */
 export function addLogoOverlay(canvas, logo, img, interactive, shadow = null) {
-    const w = logo.natW * logo.scale, h = logo.natH * logo.scale;
     // Placed by its CENTRE, which is what logo.x/y has always been, so that
     // a rotation (assets only, see the rotate handle below) turns it in place
     // instead of swinging it round its top-left corner. At angle 0 this is
@@ -104,7 +104,23 @@ export function addLogoOverlay(canvas, logo, img, interactive, shadow = null) {
         shadow: shadow ? new fabric.Shadow({ ...shadow }) : null,
         selectable: false, evented: false,
     }));
-    if (!interactive) return;
+    if (interactive) addLogoChrome(canvas, logo);
+}
+
+/**
+ * The selection chrome alone — the dashed box and the handles — for an
+ * overlay whose picture was drawn earlier.
+ *
+ * Apart from addLogoOverlay because the user's own uploads are drawn UNDER
+ * the title (see splitOverlays), and the selected one's handles cannot go
+ * down with it: a resize handle hidden behind a line of text is a handle the
+ * user cannot find, on exactly the picture they just clicked to work on. So
+ * the picture goes where it belongs in the stack and its chrome goes on top
+ * of everything.
+ */
+export function addLogoChrome(canvas, logo) {
+    const w = logo.natW * logo.scale, h = logo.natH * logo.scale;
+    const angle = logo.angle || 0;
     // The chrome turns with the picture: a dashed box left square round a
     // tilted arrow would be a box round mostly nothing, and the handles have
     // to sit on the corners the user can see.
@@ -123,6 +139,33 @@ export function addLogoOverlay(canvas, logo, img, interactive, shadow = null) {
         selectable: false, evented: false,
     }));
     if (logo.asset) addRotateHandle(canvas, ...logoCorner(logo, 1, -1));
+}
+
+/**
+ * A frame's image overlays in the two places they are drawn: `under`, the
+ * user's own uploads, which go beneath the channel's brand mark and the
+ * title; `over`, the ready-made assets, which go on top of everything. Each
+ * keeps its array order, which is stacking order within its own kind.
+ *
+ * The uploads used to go on top as well, and that hid the title. The most
+ * common reason to upload a picture onto a frame is to put a different
+ * picture there — a still the video does not have, a photo of the person
+ * being talked about — and an upload scaled up to cover the frame covered
+ * the words with it, on screen and in the download. Nothing said the title
+ * was still there; it had simply gone. An upload is a picture, the same kind
+ * of thing as the photograph, so it now sits where the photograph does
+ * relative to the channel's furniture: under it.
+ *
+ * Assets stay above, because they are marks drawn ON something — a ring, an
+ * arrow — and one pointing at a word in the title has to be visible over it.
+ * placeLogo (editor.js) already keeps every asset after every upload in the
+ * array, so this split never reorders anything within a kind.
+ */
+export function splitOverlays(logos) {
+    return {
+        under: logos.filter(l => !l.asset),
+        over: logos.filter(l => l.asset),
+    };
 }
 
 /**
@@ -1381,6 +1424,10 @@ let _previewRenderId = 0;
 let _lastPreviewUrl = null, _lastPreviewImg = null;
 
 export function updatePreview() {
+    // Every edit ends in a redraw of the preview, which makes this the one
+    // place Undo can hear about all of them (see history.js). It only starts
+    // a timer.
+    noteEdit();
     if (!fabricCanvas || !frames().length) return;
     const i = selectedIndex();
     if (!activeUrl(i)) return;
@@ -1431,12 +1478,17 @@ function framePhoto(url, cached) {
  *      photo is what is drawn, because a grid of twenty identical empty stages
  *      is not a grid anyone can pick a frame out of.
  *   2. the subject, with the shadow its channel gives it.
- *   3. the channel brand mark — above the subject, so a tall person cannot
- *      stand in front of the logo, and below everything the user controls.
- *   4. the title.
- *   5. the user own image overlays, newest on top. Last, because they are the
- *      thing most recently placed by hand, and burying them under the
- *      channel furniture would make them impossible to work with.
+ *   3. the user's own uploaded images, newest on top. Pictures, the same kind
+ *      of thing as the photograph, so they go under the channel's furniture
+ *      and the title exactly as it does — see splitOverlays for the title an
+ *      upload scaled to cover the frame used to hide.
+ *   4. the channel brand mark — above the subject and the uploads, so neither
+ *      a tall person nor a replacement picture can cover the logo.
+ *   5. the title.
+ *   6. the ready-made assets (rings, arrows), newest on top. Last, because
+ *      they are marks pointing AT something, the title included.
+ *   7. the selected overlay's handles, whichever kind it is, so the picture
+ *      being worked on can always be grabbed.
  *
  * `renderId` belongs to the preview: this awaits image decodes, and switching
  * frames fast enough starts a newer paint before an older one resumes. A paint
@@ -1483,14 +1535,28 @@ async function paintFrame(cv, i, { interactive = false, renderId } = {}) {
     // The rest together rather than one after another: sequential awaits are
     // round trips through the event loop before a single pixel is drawn, on a
     // path that runs per keystroke.
-    const [photo, stamps, figures] = await Promise.all([
+    //
+    // The overlays are decoded here too, rather than one by one as they are
+    // drawn: the uploads now go down in the middle of the stack (see
+    // splitOverlays), and an await between two layers is a moment for a newer
+    // paint to start on the same canvas. Decoded once and cached on the
+    // overlay, so this costs nothing after the first paint.
+    const logos = logosFor(i);
+    const [photo, stamps, figures, logoImgs] = await Promise.all([
         // A backdrop that failed to load leaves the photo as the only picture
         // there is, which is a channel drawn wrong rather than a blank canvas.
         wantsPhoto ? framePhoto(activeUrl(i), renderId !== undefined) : null,
         Promise.all((decor.stamp || []).map(mark => decorImage(mark.texture))),
         Promise.all(layers.map(l => loadCutoutImage(l).catch(() => null))),
+        Promise.all(logos.map(l => loadLogoImage(l).catch(() => null))),
     ]);
     if (!live()) return null;
+    const logoImg = new Map(logos.map((l, k) => [l, logoImgs[k]]));
+    const { under: uploads, over: assets } = splitOverlays(logos);
+    // Never with handles here — the selected one's go on at the very end.
+    const drawUploads = () => uploads.forEach(l => {
+        if (logoImg.get(l)) addLogoOverlay(cv, l, logoImg.get(l), false);
+    });
 
     cv.clear();
     // Three ways the bottom of a frame can be drawn, in the order of how much
@@ -1539,7 +1605,14 @@ async function paintFrame(cv, i, { interactive = false, renderId } = {}) {
         if (interactive) _titleBounds = bounds;
     };
     const titleUnderFigures = !!(decor.cutout && decor.cutout.overTitle);
-    if (titleUnderFigures) drawTitle();
+    // The uploads go directly under the title wherever the title goes. On a
+    // channel that sets its figures over the words, that puts them under the
+    // figures as well — under the title is the one promise, and keeping it
+    // means following the title down.
+    if (titleUnderFigures) {
+        drawUploads();
+        drawTitle();
+    }
 
     const glowSpec = decor.cutout && decor.cutout.glow;
     const glowColor = figureGlowColor(decor, i);
@@ -1549,6 +1622,10 @@ async function paintFrame(cv, i, { interactive = false, renderId } = {}) {
         addLogoOverlay(cv, layer, figures[k], false, figureShadow);
         if (glowSpec && glowColor) addFigureGlow(cv, layer, figures[k], glowSpec, glowColor);
     });
+    // Over the figures and under the scrim, as the photograph is under it: a
+    // picture uploaded to stand in for the frame gets the same darkening the
+    // frame would have had behind the title.
+    if (!titleUnderFigures) drawUploads();
     // Over the backdrop and the figures both, and under everything that has to
     // stay readable — see addScrim.
     //
@@ -1578,16 +1655,17 @@ async function paintFrame(cv, i, { interactive = false, renderId } = {}) {
     // ink is.
     if (!titleUnderFigures) drawTitle();
 
-    // In array order, so the stack on screen matches the stack in the record.
-    // Only the active one wears the selection chrome, and never on a composite:
-    // a thumbnail or a download with a dashed selection box baked into it is a
-    // ruined file.
+    // The assets, in array order, so the stack on screen matches the stack in
+    // the record. Only the active overlay wears the selection chrome, and
+    // never on a composite: a thumbnail or a download with a dashed selection
+    // box baked into it is a ruined file.
     const active = activeLogoFor(i);
-    for (const logo of logosFor(i)) {
-        const img = await loadLogoImage(logo).catch(() => null);
-        if (!live()) return null;
-        if (img) addLogoOverlay(cv, logo, img, interactive && logo === active);
-    }
+    assets.forEach(l => {
+        if (logoImg.get(l)) addLogoOverlay(cv, l, logoImg.get(l), interactive && l === active);
+    });
+    // ...and an active UPLOAD's chrome, which did not go down with it. Over
+    // the title and the assets both — see addLogoChrome.
+    if (interactive && active && !active.asset && logoImg.get(active)) addLogoChrome(cv, active);
     // The reorder arrows go on last of everything, on the preview only and
     // only when there is more than one copy to reorder — so they are never
     // buried under a layer stacked over the one they belong to, and never
