@@ -8,7 +8,7 @@ import {
 import { postImage, discardImage } from "./net.js";
 import {
     updatePreview, refreshThumb, refreshThumbLive, logoHitTest, clientToCanvasPoint,
-    addLogoOverlay, loadLogoImage, titleBounds,
+    addLogoOverlay, addLogoChrome, splitOverlays, loadLogoImage, titleBounds,
     cutoutHitTest, layerArrowHitTest, clampCutout, cutoutFitScale,
     photoPlate, openPlate, closePlate,
 } from "./compose.js";
@@ -22,6 +22,23 @@ let _logoDrag = null;
 // the title's is its own: it acts on a different thing and ends differently,
 // while behaving identically in between.
 let _cutoutDrag = null;
+
+/**
+ * Whether a press (or a hover) that `hit` overlay `logo` belongs to the title
+ * instead, because the title is drawn over it.
+ *
+ * Only an upload can be under the title — the assets are drawn over it (see
+ * compose.splitOverlays) — and only a title that can be dragged has any use
+ * for the press; a fixed title lets it through to the picture beneath, which
+ * is how a picture covering the whole frame stays movable at all. The
+ * selected upload's handles are drawn over everything, so a press on one of
+ * them is the handle's wherever it lands.
+ */
+function blocksUpload(f, logo, hit, cx, cy) {
+    if (logo.asset || !titleStyle().movable) return false;
+    if (hit !== "move" && f.logos[f.activeLogo] === logo) return false;
+    return !!titleHitTest(titleBounds(), cx, cy);
+}
 // The gesture moving or resizing the title, for a channel whose titles are
 // placed by hand (`movable`). Held apart from the logo's because the two act
 // on different things and end differently, not because they behave
@@ -305,6 +322,17 @@ export function setupReframeInteraction() {
         // previous window's subject over it would put two of the same person
         // on screen, one of whom is about to stop existing, and hide part of
         // the frame the user is trying to see.
+        //
+        // The overlays in the preview's order (see compose.splitOverlays):
+        // the user's uploads under the title, the assets over it, and the
+        // selected one's handles over everything. A snapshot that stacked
+        // them differently would hide the title for the length of every drag
+        // on a frame whose upload covers it.
+        const active = activeLogoFor(i);
+        const { under, over } = splitOverlays(logosFor(i));
+        for (const logo of under) {
+            if (logo._img) addLogoOverlay(overlayCanvas, logo, logo._img, false);
+        }
         if (linesFor(i).length) {
             // Every one of the frame's own answers about its title, because
             // this snapshot sits over the preview for the length of a drag
@@ -328,10 +356,10 @@ export function setupReframeInteraction() {
         // Selection chrome included, matching the preview underneath — the
         // handles disappearing for the length of a drag would read as the
         // overlay having been deselected.
-        const active = activeLogoFor(i);
-        for (const logo of logosFor(i)) {
+        for (const logo of over) {
             if (logo._img) addLogoOverlay(overlayCanvas, logo, logo._img, logo === active);
         }
+        if (active && !active.asset && active._img) addLogoChrome(overlayCanvas, active);
         overlayCanvas.renderAll();
     }
 
@@ -516,6 +544,15 @@ export function setupReframeInteraction() {
                 const logo = f.logos[i];
                 const hit = logoHitTest(logo, cx, cy);
                 if (!hit) continue;
+                // An upload is drawn under the title (see compose.
+                // splitOverlays), so a press on the words is aimed at the
+                // words — on a channel where the title can be dragged, it
+                // falls through to the title further down. Every overlay from
+                // here down is an upload too (the assets come last in the
+                // array), so there is nothing left to test. The one exception
+                // is the selected upload's own handles, which are drawn over
+                // the title and must stay grabbable wherever they land.
+                if (blocksUpload(f, logo, hit, cx, cy)) break;
                 // Pressing an overlay is also how it becomes the active one,
                 // so the handles follow the thing being dragged.
                 if (f.activeLogo !== i || f.titleActive) {
@@ -809,6 +846,7 @@ export function setupReframeInteraction() {
                 const [cx, cy] = clientToCanvasPoint(e, rect, rect.width / CW);
                 for (let i = f.logos.length - 1; i >= 0 && !hit; i--) {
                     hit = logoHitTest(f.logos[i], cx, cy);
+                    if (hit && blocksUpload(f, f.logos[i], hit, cx, cy)) { hit = null; break; }
                 }
                 // Same order as the press: whatever the click would act on is
                 // what the cursor promises it will.
