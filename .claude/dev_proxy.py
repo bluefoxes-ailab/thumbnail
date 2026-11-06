@@ -24,7 +24,7 @@ import sys
 import urllib.error
 import urllib.request
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 
 FRONTEND = Path(__file__).resolve().parent.parent / "frontend"
 REMOTE = sys.argv[1].rstrip("/") if len(sys.argv) > 1 else "http://34.13.214.196:3000"
@@ -65,7 +65,14 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         super().end_headers()
 
     def _local_file(self):
-        path = urlparse(self.path).path
+        # Unquoted, because the URL is and the disk is not. A face file with a
+        # space in its name ("Bebas Neue Cyrillic Regular.ttf") is requested
+        # as Bebas%20Neue%20..., which matches nothing on disk taken literally,
+        # so it was relayed to the remote - and a face this checkout has added
+        # but the remote has not been patched with yet came back 502 and
+        # tripped fontguard. SimpleHTTPRequestHandler unquotes when it serves
+        # the file; this check has to agree with it about what the file is.
+        path = unquote(urlparse(self.path).path)
         if path in ("", "/"):
             return True
         target = (FRONTEND / path.lstrip("/")).resolve()

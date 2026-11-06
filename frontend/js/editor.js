@@ -7,10 +7,12 @@ import {
     backendPresentation, setFrameImage, clearCutout, channelFor,
     titleAlignFor, layersFor, activeLayerFor, backgroundFor, figureGlowFor, cutoutModeFor,
     textColorFor, panelColorFor, highlightColorFor, positionOf, gridOrder,
+    newTextbox, textboxFor, textboxLinesFor,
 } from "./state.js";
 import {
     channels, activeChannelId, setActiveChannel, hasChannel, titleStyle, branding,
     decorFor, usesCutout, NO_CHANNEL, captureFor, textEffects, setTextEffects,
+    textboxFaces, textboxFace, defaultTextboxFace,
 } from "./channels.js";
 import {
     prepareTitleFont, prepareTitleTexture, wordsOf, wordKey, recolored, highlightFollowsBlock,
@@ -265,6 +267,8 @@ export function syncTitlePanelMode() {
     // a capture channel (see `capture` in channels.js); a thumbnail channel's
     // type is the brand's and nothing here would be drawn on it.
     el("textEffects").classList.toggle("hidden", !(hasChannel() && captureFor(activeChannelId())));
+    // The second textbox is Static Studio's too, for the same reason.
+    syncTextboxPanel();
     el("titleMoveHint").classList.toggle("hidden", !(hasChannel() && style.movable));
     const cutout = usesCutout(activeChannelId());
     el("cutoutHint").classList.toggle("hidden", !cutout);
@@ -305,8 +309,7 @@ export function syncTitlePanelMode() {
  * `height` includes the border while scrollHeight does not — without it the
  * field ends up 4px short of its own content and scrolls by a hairline.
  */
-function autoGrowBlock() {
-    const field = el(BLOCK_ID);
+function autoGrowBlock(field = el(BLOCK_ID)) {
     if (!field) return;
     field.style.height = "auto";
     // An EMPTY field is left at the height its one row gives it. Chrome
@@ -736,10 +739,10 @@ export function renderHlButtons() {
  * (text.wordsOf), so a click cannot put a box round the word next to the one
  * that was clicked.
  */
-function renderWordButtons(container, hl, highlightable, noHighlightMsg) {
+function renderWordButtons(container, hl, highlightable, noHighlightMsg, target = TITLE_HL) {
     container.className = "btn-col";
     const style = titleStyle();
-    const lines = linesFor(selectedIndex());
+    const lines = target.lines();
     const cased = (w) => (style.uppercase ? w.toUpperCase() : w);
 
     const keys = [];
@@ -757,11 +760,8 @@ function renderWordButtons(container, hl, highlightable, noHighlightMsg) {
             b.disabled = !highlightable;
             b.title = noHighlightMsg;
             b.onclick = () => {
-                const frame = current();
-                if (!frame) return;
-                const cur = hlFor(selectedIndex());
-                frame.hl = cur.includes(key) ? cur.filter(v => v !== key) : [...cur, key];
-                updateLines();
+                const cur = target.hl();
+                target.set(cur.includes(key) ? cur.filter(v => v !== key) : [...cur, key]);
             };
             row.appendChild(b);
         });
@@ -771,7 +771,7 @@ function renderWordButtons(container, hl, highlightable, noHighlightMsg) {
     if (!keys.length) {
         const hint = document.createElement("div");
         hint.className = "panel-hint";
-        hint.textContent = "Type a title, then click a word to highlight it.";
+        hint.textContent = target.emptyHint;
         container.appendChild(hint);
         return;
     }
@@ -784,13 +784,205 @@ function renderWordButtons(container, hl, highlightable, noHighlightMsg) {
     all.textContent = "Highlight All";
     all.disabled = !highlightable;
     all.title = noHighlightMsg;
-    all.onclick = () => {
+    all.onclick = () => target.set(allActive ? [] : keys);
+    container.appendChild(all);
+}
+
+/**
+ * What a set of word buttons picks words out OF, and where the picks go —
+ * the caption's, by default, and the second textbox's when it draws its own
+ * (see renderTextboxHlButtons). One description handed to one function,
+ * rather than a second copy of the buttons, so the two panels cannot come to
+ * offer the words differently.
+ */
+const TITLE_HL = {
+    lines: () => linesFor(selectedIndex()),
+    hl: () => hlFor(selectedIndex()),
+    set: (hl) => {
         const frame = current();
         if (!frame) return;
-        frame.hl = allActive ? [] : keys;
+        frame.hl = hl;
         updateLines();
+    },
+    emptyHint: "Type a title, then click a word to highlight it.",
+};
+
+// ── The second textbox ────────────────────────────────────────────────────
+//
+// Static Studio's "Add textbox" (see channels.textboxStyle for what it is and
+// why it looks the way it does). The panel half of it lives here: the button
+// that adds one, and — once there is one on the frame — its field, its
+// highlight buttons, its "Text font" list and the button that takes it off.
+//
+// One textbox per frame. The request was for a second block beside the
+// caption, and a third would want a way to tell the boxes apart in the panel
+// that a single one does not.
+
+/** Shows the textbox controls this frame and channel call for, filled in. */
+export function syncTextboxPanel() {
+    const offered = hasChannel() && !!captureFor(activeChannelId());
+    el("textboxControls").classList.toggle("hidden", !offered);
+    if (!offered) return;
+
+    const f = current();
+    const box = f && f.textbox;
+    el("addTextboxBtn").classList.toggle("hidden", !!box);
+    el("addTextboxBtn").disabled = !f;
+    el("textboxPanel").classList.toggle("hidden", !box);
+    if (!box) return;
+
+    // Written only when it differs, so a redraw arriving while the user types
+    // (an Undo, a font change) does not throw the caret to the end.
+    const field = el("textboxBlock");
+    if (field.value !== box.text) field.value = box.text;
+    autoGrowBlock(field);
+    renderTextboxFonts();
+    renderTextboxHlButtons();
+}
+
+/**
+ * Fills the "Text font" list with the faces this channel owns, the frame's
+ * choice selected — or the channel's default, which is the highlight's face,
+ * while the user has chosen nothing (see channels.defaultTextboxFace).
+ *
+ * Rebuilt on every sync rather than once per channel: it is two options at
+ * most, and a list kept from the last channel would offer a face the frame
+ * in front of the user cannot be set in.
+ */
+function renderTextboxFonts() {
+    const select = el("textboxFont");
+    const channel = activeChannelId();
+    const box = current() && current().textbox;
+    const chosen = textboxFace(channel, box ? box.face : null);
+    select.innerHTML = "";
+    for (const face of textboxFaces(channel)) {
+        const o = document.createElement("option");
+        o.value = face.family;
+        o.textContent = face.family;
+        select.appendChild(o);
+    }
+    select.value = chosen.family;
+    // A channel set in one face has nothing to choose between. Left visible
+    // so the panel says which face the box is in; disabled so it does not
+    // pretend to be a choice.
+    select.disabled = select.options.length < 2;
+}
+
+/**
+ * The textbox's highlight buttons — the caption's own buttons, pointed at
+ * the textbox's words and picks (see TITLE_HL), so a word is picked out of
+ * it exactly as one is picked out of the caption.
+ *
+ * Word buttons for a channel that highlights words, which is every channel
+ * under Static Studio; one button per line for one that highlights lines.
+ */
+function renderTextboxHlButtons() {
+    const c = el("textboxHlButtons");
+    c.innerHTML = "";
+    const style = titleStyle();
+    const highlightable = !!style.highlight;
+    const noHighlightMsg = highlightable
+        ? ""
+        : "This channel has no highlight — every line is set the same way.";
+    const target = {
+        lines: () => textboxLinesFor(selectedIndex()),
+        hl: () => { const b = textboxFor(selectedIndex()); return b ? b.hl : []; },
+        set: (hl) => {
+            const b = textboxFor(selectedIndex());
+            if (!b) return;
+            b.hl = hl;
+            textboxChanged();
+        },
+        emptyHint: "Type in the textbox, then click a word to highlight it.",
     };
-    container.appendChild(all);
+    if (wordHighlight()) {
+        renderWordButtons(c, target.hl(), highlightable, noHighlightMsg, target);
+        return;
+    }
+    c.className = "btn-row";
+    const lines = target.lines();
+    lines.forEach((line, k) => {
+        if (!line.trim()) return;
+        const b = document.createElement("button");
+        b.className = "btn " + (target.hl().includes(k) ? "btn-active" : "");
+        b.textContent = `Highlight Line ${k + 1}`;
+        b.disabled = !highlightable;
+        b.title = noHighlightMsg;
+        b.onclick = () => {
+            const cur = target.hl();
+            target.set(cur.includes(k) ? cur.filter(v => v !== k) : [...cur, k]);
+        };
+        c.appendChild(b);
+    });
+}
+
+/** Redraws everything a change to the textbox reaches: the panel, the canvas, its card. */
+function textboxChanged() {
+    const f = current();
+    if (f) f.edited = true;
+    syncTextboxPanel();
+    updatePreview();
+    refreshThumb(selectedIndex());
+}
+
+/**
+ * Puts a textbox on the frame in front of the user, selected, and the caret
+ * in its field — the next thing anyone who pressed the button does is type.
+ * Empty, so nothing is drawn until they do: a placeholder sentence on the
+ * canvas would be one more thing to delete before the frame is right.
+ */
+export function addTextboxToFrame() {
+    if (!guardChannel()) return;
+    const f = current();
+    if (!f || f.textbox) return;
+    f.textbox = newTextbox();
+    // It wears the handles from the start, so its first appearance on the
+    // canvas says it is the thing being worked on.
+    f.textboxActive = true;
+    f.titleActive = false;
+    f.activeLogo = -1;
+    f.activeLayer = -1;
+    syncLogoControls();
+    textboxChanged();
+    el("textboxBlock").focus();
+}
+
+/** Takes the frame's textbox off it, words, picks, place and face together. */
+export function removeTextbox() {
+    const f = current();
+    if (!f || !f.textbox) return;
+    f.textbox = null;
+    f.textboxActive = false;
+    textboxChanged();
+}
+
+/** The textbox's field was typed in. */
+export function updateTextboxText() {
+    const f = current();
+    if (!f || !f.textbox || !hasChannel()) return;
+    f.textbox.text = el("textboxBlock").value;
+    // The picks that still name something, by the rule the caption's follow
+    // (see survivingHighlights): a word key whose word is gone, or a line
+    // index past the end, is dropped rather than left to land on whatever
+    // moves into its place.
+    const lines = textboxLinesFor(selectedIndex());
+    f.textbox.hl = f.textbox.hl.filter((k) => {
+        if (typeof k !== "string") return k < lines.length;
+        const [li, wi] = k.split(":").map(Number);
+        return lines[li] !== undefined && wordsOf(lines[li])[wi] !== undefined;
+    });
+    textboxChanged();
+}
+
+/** The "Text font" list was changed. */
+export function setTextboxFont(family) {
+    const f = current();
+    if (!f || !f.textbox) return;
+    // Stored as null when it is the channel's default, so a frame that was
+    // never really given a choice goes on following its channel's default if
+    // it is moved to another one.
+    f.textbox.face = family === defaultTextboxFace(activeChannelId()).family ? null : family;
+    textboxChanged();
 }
 
 // ── Which way the title is set ────────────────────────────────────────────
@@ -1369,6 +1561,16 @@ export function syncGradientButton() {
     const acts = !!decor.scrim || (!decor.cutout && !decor.photo);
     btn.className = ["btn", on ? "btn-active" : "", acts ? "" : "hidden"]
         .filter(Boolean).join(" ");
+    // ...and on the body, for the same reason syncTitlePanelMode sets
+    // `cutout-channel`: Static Studio takes this button away with a rule
+    // about the RUN (a frame fetch has no title column for the backend's
+    // side gradient to darken), and a scrim is the case that rule does not
+    // cover. A scrim is drawn on the canvas, from the foot of the frame, and
+    // is exactly what a capture frame can use - and a channel that states
+    // one and then hides the only switch for it lays a shade over every
+    // still with no way to take it off. Set from the SELECTED frame's
+    // channel, because that is the channel the button acts on.
+    document.body.classList.toggle("scrim-frame", !!decor.scrim);
     btn.textContent = on ? "Gradient On" : "Gradient Off";
 }
 
@@ -2126,6 +2328,7 @@ export function selectLogo(i) {
     if (!f || !f.logos[i]) return;
     f.activeLogo = i;
     f.titleActive = false;   // one thing wears the handles — see reframe.selectTitle
+    f.textboxActive = false;
     f.activeLayer = -1;
     syncLogoControls();
     updatePreview();
@@ -2212,6 +2415,7 @@ function placeLogo(f, src, img, { asset = false } = {}) {
         asset,
     });
     f.activeLogo = at;   // the one just added is the one you want to place
+    f.textboxActive = false;
     syncLogoControls();
     updatePreview();
     refreshThumb(selectedIndex());

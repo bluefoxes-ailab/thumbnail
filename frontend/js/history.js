@@ -52,6 +52,7 @@ import {
     loadTextPanel, syncFlipButtons, syncGradientButton, syncBackgroundButton,
     syncFigureGlowButton, syncLogoControls, syncTextEffects, recomposeSelected,
 } from "./editor.js";
+import { syncFrameMaskButton } from "./framemask.js";
 
 /** How many actions can be undone — the five most recent. */
 export const HISTORY_LIMIT = 5;
@@ -76,6 +77,7 @@ const QUIET_MS = 500;
  */
 const FIELDS = [
     "lines", "hl", "titleBox", "titleActive", "titleAlign", "glow",
+    "textbox", "textboxActive", "frameMask", "frameMaskActive",
     "background", "figureGlow", "textColor", "panelColor", "highlightColor",
     "gradient", "gradientTouched", "flipImage", "flipText", "flipsTouched",
     "logos", "activeLogo", "layers", "activeLayer",
@@ -283,6 +285,7 @@ function apply(i, snap) {
     syncFigureGlowButton();
     syncLogoControls();
     syncTextEffects();
+    syncFrameMaskButton();
 
     // The photo's mirror and the backend's gradient are baked into the picture
     // the backend returns, so putting those flags back means asking for the

@@ -948,6 +948,37 @@ body.mask-open { overflow: hidden; }
 .mask-contour-row { display: flex; align-items: center; gap: 10px; }
 .mask-contour-row .btn { flex: 1; }
 .mask-contour-row:not(.on) .color-well { opacity: 0.45; }
+
+/* The frame mask step (js/framemask.js). Wider than the other mask cards,
+   because it holds two pictures side by side: the stage the window is drawn
+   on, and the miniature of the finished frame with the controls under it.
+   The stage's size is set in framemask.js from the canvas's own shape. */
+.frame-mask-card { width: 760px; }
+.frame-mask-body { display: flex; gap: 18px; align-items: flex-start; }
+.frame-mask-canvas {
+    display: block; flex: 0 0 auto; max-width: 100%;
+    border-radius: 8px; cursor: crosshair; touch-action: none;
+    border: 2px solid #026dff;
+    background: #0d1026;
+}
+.frame-mask-side {
+    display: flex; flex-direction: column; gap: 8px;
+    flex: 1 1 auto; min-width: 0;
+}
+.frame-mask-side .field-label { margin: 6px 0 0; }
+.frame-mask-side .field-label:first-child { margin-top: 0; }
+.frame-mask-thumb {
+    display: block; align-self: flex-start;
+    border-radius: 6px; border: 1px solid rgba(2, 109, 255, 0.5);
+    background: #0d1026;
+}
+.frame-mask-side .swatch-row { flex-wrap: wrap; gap: 8px; }
+.frame-mask-well-hint { margin: 0; opacity: 0.7; }
+/* On a narrow window the two halves stack, stage first. */
+@media (max-width: 720px) {
+    .frame-mask-body { flex-direction: column; align-items: center; }
+    .frame-mask-side { width: 100%; }
+}
 /* The title panel's shadow and outline (see #textEffects), built from the
    contour row above and the frame-count slider. Its own column with a
    tighter gap than the panel's, so the three rows read as one setting.
@@ -964,6 +995,15 @@ body.mask-open { overflow: hidden; }
 .text-effects .color-well-off { flex: 0 0 auto; width: 48px; height: 42px; }
 .text-effects .mask-contour-row:not(.on) .color-well,
 .text-effects .mask-contour-row.on .color-well-off { display: none; }
+/* The second textbox's controls (see #textboxControls): a column with the
+   same tight gap as the text effects, so its field, its words, its font and
+   its remove button read as one thing rather than four settings. The same
+   `:not(.hidden)` guard as the rule above, for the same reason. */
+.textbox-controls:not(.hidden),
+.textbox-panel:not(.hidden) { display: flex; flex-direction: column; gap: 10px; }
+.textbox-panel .field-label { margin: 0; }
+.textbox-controls > .btn-row .btn,
+.textbox-panel > .btn-row .btn { flex: 1; }
 .asset-toggle-row .btn { flex: 1; padding-left: 8px; padding-right: 8px; }
 .asset-hex { flex: 1 1 auto; text-transform: uppercase; font-family: Consolas, "Courier New", monospace; }
 /* The "video ready" notice (see js/notify.js): a message, not a tool, so
@@ -1116,11 +1156,18 @@ body.capture-mode:not(.captions-mode) .text-panel { display: none !important; }
    which is an ordinary compositional move and the only way to turn a
    subject to face the type. Told apart by a class set from the
    CHANNEL rather than from the run — see
-   editor.syncTitlePanelMode. */
+   editor.syncTitlePanelMode.
+
+   Gradient stays on a frame whose channel states a `scrim`, the other
+   case the first paragraph does not cover. "Nothing to darken the frame
+   for" is about the backend's side gradient; a scrim is a shade from the
+   foot of the frame drawn on the canvas, and this button is its only
+   switch. Hidden, the shade was on every still of such a channel for
+   good. Told apart by `scrim-frame` — see editor.syncGradientButton. */
 body.capture-mode:not(.cutout-channel) #flipImageBtn,
 body.capture-mode #flipTextBtn,
 body.capture-mode #frameUploadBtn,
-body.capture-mode #gradientBtn,
+body.capture-mode:not(.scrim-frame) #gradientBtn,
 body.capture-mode #bgBtn,
 body.capture-mode #figureGlowBtn { display: none !important; }
 

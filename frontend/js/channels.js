@@ -1445,7 +1445,121 @@ export function setActiveChannel(id) {
  * since addTextOverlay draws nothing without a channel, but a measurement
  * asked for early must not have to handle a null style.
  */
-export const titleStyle = () => styleFor(_activeId);
+export const titleStyle = () => _styleOverride || styleFor(_activeId);
+
+// A whole style standing in for the active channel's for the length of one
+// synchronous call — see usingStyle. Null the rest of the time.
+let _styleOverride = null;
+
+/**
+ * Runs `fn` with `style` answering every titleStyle() call, and puts back
+ * whatever was answering before — including when `fn` throws.
+ *
+ * What the second textbox is drawn through (see textboxStyle). It is the
+ * channel's style with a different face and a different starting place, and
+ * the renderer has to see it EVERYWHERE, not only at the top of
+ * addTextOverlay: half the measuring helpers in text.js default their style
+ * argument to titleStyle(), and one of them reached without it would lay a
+ * line out against the title's face while it is drawn in the textbox's.
+ * Swapping the answer for the length of the call is the same move
+ * usingChannel makes for the channel, and it carries the same rule: `fn`
+ * must be synchronous.
+ *
+ * Call it INSIDE usingChannel, never around it — the override is a finished
+ * style, so a channel swapped in underneath it would not be seen.
+ */
+export function usingStyle(style, fn) {
+    const previous = _styleOverride;
+    _styleOverride = style;
+    try {
+        return fn();
+    } finally {
+        _styleOverride = previous;
+    }
+}
+
+// ── The second textbox ────────────────────────────────────────────────────
+//
+// Static Studio's "Add textbox": a second block of text on the frame, set in
+// everything its channel sets the caption in — the colours, the highlight,
+// the card behind it, the user's shadow and outline — except the face, which
+// the user picks from the faces the channel already owns.
+//
+// From the faces it OWNS and from nowhere else, and that is the whole limit
+// on the choice. A channel's faces are the ones fontguard has checked and
+// text.js has loaded and measured; any other font would be a face nobody has
+// verified, laid out against metrics that may be a fallback's (see the font
+// section of installer/README.md). The block's face and the highlight's are
+// both already loaded the moment the channel is picked, so switching between
+// them costs nothing and can never draw against the wrong letters.
+
+/**
+ * The faces channel `id` is set in — the block's, then the highlight's where
+ * it has its own — deduplicated by family the way text.titleFaces is.
+ */
+export function textboxFaces(id) {
+    const style = styleFor(id);
+    const hl = style.highlight && style.highlight.face;
+    if (!hl || hl.family === style.face.family) return [style.face];
+    return [style.face, hl];
+}
+
+/**
+ * The face a textbox on channel `id` is set in when the user has picked none:
+ * the highlight's, which is the louder of a channel's two voices and the one
+ * that makes a second block read as something other than more caption. A
+ * channel with no highlight face of its own has only one face to give.
+ */
+export function defaultTextboxFace(id) {
+    const faces = textboxFaces(id);
+    return faces[faces.length - 1];
+}
+
+/**
+ * The face a textbox asking for `family` is set in on channel `id` — that
+ * face if the channel owns it, the default otherwise.
+ *
+ * Resolved at every draw rather than stored as a face, so a frame moved onto
+ * a channel that does not own the face it was given falls back to that
+ * channel's own default instead of drawing in a face from another brand.
+ */
+export function textboxFace(id, family) {
+    return textboxFaces(id).find(f => f.family === family) || defaultTextboxFace(id);
+}
+
+// Which end of the frame the textbox starts at, given the end the caption
+// stands at. The opposite one, so the two never arrive on top of each other:
+// a caption at the foot of a still puts the textbox at its head, and the
+// other way round. A centred caption sends it to the top.
+const OPPOSITE_END = { bottom: "top", top: "bottom", center: "top" };
+
+/**
+ * Channel style `base` as the second textbox is drawn in it: set in `face`,
+ * movable whatever the pack says, and starting at the other end of the frame
+ * from the caption.
+ *
+ * Movable because the textbox is the user's addition rather than the brand's:
+ * a pack that pins its caption in place has said nothing about a block it
+ * did not know would exist, and one that could not be moved could only ever
+ * sit where the layout put it. The margin it keeps from its edge is the one
+ * the caption keeps from its own, so the two read as one design.
+ */
+export function textboxStyle(base, face) {
+    const layout = base.layout;
+    const end = layout.vAlign || "center";
+    const margin = end === "top" ? layout.topRatio : layout.bottomRatio;
+    return {
+        ...base,
+        face,
+        movable: true,
+        layout: {
+            ...layout,
+            vAlign: OPPOSITE_END[end] || "top",
+            topRatio: margin,
+            bottomRatio: margin,
+        },
+    };
+}
 
 /**
  * The guidelines of one NAMED channel, whichever one happens to be active.

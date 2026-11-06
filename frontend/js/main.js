@@ -45,6 +45,7 @@ import {
 } from "./state.js";
 import { getJson, postJson, postFile, postBlobJson, loadImage } from "./net.js";
 import { openFrameCrop } from "./framecrop.js";
+import { openFrameMask, syncFrameMaskButton } from "./framemask.js";
 import { initCanvas, updatePreview, refreshThumb, refreshAllThumbs, forgetThumbSignatures } from "./compose.js";
 import {
     status, showProgress, hideProgress, syncBatchButton, resetPending,
@@ -62,6 +63,7 @@ import {
     handleFrameFile, syncVaryButton, syncLogoControls, ensureCutout, setTitleAlign, showChannel,
     cycleBackground, syncBackgroundButton, cycleFigureGlow, syncFigureGlowButton,
     warmCutouts, applyEditToAll,
+    addTextboxToFrame, removeTextbox, updateTextboxText, setTextboxFont,
 } from "./editor.js";
 import { hasChannel, activeChannelId, framingFor, captureFor, cleanupFor,
          selectionFor, NO_CHANNEL, textEffects } from "./channels.js";
@@ -502,6 +504,7 @@ async function presentGrid({ captions = false, announce = false } = {}) {
     loadTextPanel();
     syncFlipButtons();
     syncGradientButton();
+    syncFrameMaskButton();
     syncBackgroundButton();
     syncFigureGlowButton();
     syncVaryButton();
@@ -1576,6 +1579,7 @@ function selectFrame(i) {
     syncZoomSliderFor(frames()[i] && frames()[i].frame_id);
     syncFlipButtons();
     syncGradientButton();
+    syncFrameMaskButton();
     syncBackgroundButton();
     syncFigureGlowButton();
     syncVaryButton();  // Variation is unavailable on a frame the user uploaded
@@ -1771,6 +1775,8 @@ function setAppMode(mode) {
     if (modeToggle) modeToggle.classList.toggle("hidden", !isStatic);
     // Undo and Redo are a Static Studio feature (see history.js).
     el("historyBtns")?.classList.toggle("hidden", !isStatic);
+    // So is the frame mask (see framemask.js).
+    el("frameMaskBtn")?.classList.toggle("hidden", !isStatic);
 
     // The backend takes an Instagram link from either tab — it cannot tell
     // which one a run came from — but only Static Studio names it, because
@@ -1881,9 +1887,20 @@ TITLE_FIELD_IDS.forEach(id => {
     input.addEventListener("focus", dismissFigureHandles);
 });
 
+// The second textbox (see the textbox section of editor.js). Only ever shown
+// on a Static Studio channel; bound unconditionally for the reason the glow
+// button is. Focusing its field puts the figure buttons away, as focusing the
+// caption's does.
+el("addTextboxBtn").addEventListener("click", addTextboxToFrame);
+el("removeTextboxBtn").addEventListener("click", removeTextbox);
+el("textboxBlock").addEventListener("input", updateTextboxText);
+el("textboxBlock").addEventListener("focus", dismissFigureHandles);
+el("textboxFont").addEventListener("change", (e) => setTextboxFont(e.target.value));
+
 el("flipImageBtn").addEventListener("click", () => toggleFlip("flipImage"));
 el("flipTextBtn").addEventListener("click", () => toggleFlip("flipText"));
 el("gradientBtn").addEventListener("click", toggleGradient);
+el("frameMaskBtn").addEventListener("click", openFrameMask);
 // The other two that only a cutout channel ever shows (see
 // editor.syncBackgroundButton and editor.syncFigureGlowButton); bound
 // unconditionally for the reason the props button is.

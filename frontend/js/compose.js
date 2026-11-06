@@ -4,8 +4,11 @@ import {
     selectedIndex, channelFor, titleBoxFor, titleActiveFor, glowFor,
     layersFor, activeLayerFor, titleAlignFor, backgroundFor, figureGlowFor,
     textColorFor, panelColorFor, highlightColorFor,
+    textboxFor, textboxLinesFor, textboxActiveFor, frameMaskFor, frameMaskActiveFor,
 } from "./state.js";
-import { usingChannel, decorFor, textEffectsKey } from "./channels.js";
+import {
+    usingChannel, usingStyle, titleStyle, textboxStyle, textboxFace, decorFor, textEffectsKey,
+} from "./channels.js";
 import { addTextOverlay } from "./text.js";
 import { loadImage } from "./net.js";
 import { hideReframeWait } from "./ui.js";
@@ -984,6 +987,102 @@ function addPhotoPlate(canvas, plate, img) {
     }
 }
 
+// ── The frame mask ────────────────────────────────────────────────────────
+//
+// Static Studio's "Create mask": the photograph seen through a window — a
+// rectangle of any proportion, or a circle — with everything outside the
+// window painted one solid colour, and optionally an edge drawn round it.
+// The record is described at state.frameMaskFor.
+
+/**
+ * Draws `mask` onto `canvas`: the solid ground with the window cut out of it,
+ * then the edge, if it has one.
+ *
+ * Fabric objects rather than pixels, like everything else on this canvas, so
+ * the preview, the grid thumbnail and the download all draw it through the
+ * one path and none of them can drift. The ground is a canvas-sized rectangle
+ * with the window as an INVERTED clip — a hole — which keeps the window's
+ * edge as crisp as the shape that cuts it, round or square.
+ *
+ * Positioned from the centre, and that is not a style choice. Fabric places
+ * an object by the outside of its stroke when its origin is a corner, so a
+ * stroked shape anchored at (x, y) lands half a stroke away from where the
+ * same shape unstroked would — and the edge has to sit exactly against the
+ * hole. From the centre, a shape's size is simply its size.
+ *
+ * The edge is drawn OUTSIDE the window, on the ground, rather than across
+ * its boundary. The window is the picture the user framed, and a stroke
+ * straddling it would eat into the very part of the photograph they chose
+ * to keep, by an amount that changes every time they change the width. It
+ * reaches one pixel into the window, which nobody sees but which stops a
+ * hairline of photograph showing between the edge and the ground where the
+ * two antialias against each other.
+ */
+export function addFrameMask(canvas, mask) {
+    if (!mask || !(mask.w > 0) || !(mask.h > 0)) return;
+    const cx = mask.x + mask.w / 2;
+    const cy = mask.y + mask.h / 2;
+    const round = mask.shape === "round";
+    const shape = (w, h, extra) => {
+        const common = {
+            left: cx, top: cy, originX: "center", originY: "center",
+            selectable: false, evented: false, objectCaching: false,
+            ...extra,
+        };
+        return round
+            ? new fabric.Ellipse({ rx: w / 2, ry: h / 2, ...common })
+            : new fabric.Rect({ width: w, height: h, ...common });
+    };
+
+    const hole = shape(mask.w, mask.h, { strokeWidth: 0, absolutePositioned: true, inverted: true });
+    canvas.add(new fabric.Rect({
+        left: 0, top: 0, width: CW, height: CH,
+        fill: mask.fill || "#000000", strokeWidth: 0,
+        clipPath: hole,
+        selectable: false, evented: false, objectCaching: false,
+    }));
+
+    const sw = mask.outline ? Math.max(0, +mask.outlineWidth || 0) : 0;
+    if (sw > 0) {
+        // The path runs half a stroke outside the window, less the pixel of
+        // overlap described above, so the stroke's inner edge is on the hole.
+        const grow = sw - 2;
+        canvas.add(shape(mask.w + grow, mask.h + grow, {
+            fill: "", stroke: mask.outlineColor || "#ffffff", strokeWidth: sw,
+        }));
+    }
+}
+
+/**
+ * The selected mask's selection box: the window's box, dashed, with a handle
+ * on each of its four corners — dragging any of them reshapes the window
+ * from that corner (see reframe.js).
+ *
+ * Four handles where an overlay has one, because a window's proportions are
+ * the point of it: an overlay keeps its picture's shape and only gets bigger
+ * or smaller, but a window is pulled wider or taller from whichever side the
+ * subject needs more room on. Styled as the overlay's chrome is, so it reads
+ * as the same kind of selection. Never on a composite: see paintFrame.
+ */
+export function addFrameMaskChrome(canvas, mask) {
+    if (!mask) return;
+    canvas.add(new fabric.Rect({
+        left: mask.x, top: mask.y, width: mask.w, height: mask.h,
+        fill: "transparent", stroke: "#1b2fea", strokeWidth: 2, strokeDashArray: [6, 4],
+        strokeUniform: true, selectable: false, evented: false, objectCaching: false,
+    }));
+    const hs = HANDLE_SIZE;
+    for (const [x, y] of [[mask.x, mask.y], [mask.x + mask.w, mask.y],
+                          [mask.x, mask.y + mask.h], [mask.x + mask.w, mask.y + mask.h]]) {
+        canvas.add(new fabric.Rect({
+            left: x, top: y, originX: "center", originY: "center",
+            width: hs, height: hs,
+            fill: "#1b2fea", stroke: "#fff", strokeWidth: 2, rx: 3, ry: 3,
+            selectable: false, evented: false,
+        }));
+    }
+}
+
 /**
  * Draws a channel's scrim: a gradient laid over the backdrop AND over the
  * figures standing on it.
@@ -1406,6 +1505,43 @@ let _titleBounds = null;
 
 export const titleBounds = () => _titleBounds;
 
+// The same, for the second textbox — null while the frame has none, or has
+// one with nothing typed in it yet.
+let _textboxBounds = null;
+
+export const textboxBounds = () => _textboxBounds;
+
+/**
+ * Draws frame `i`'s second textbox onto `cv` and answers with where its ink
+ * landed, or null when there is nothing to draw.
+ *
+ * Through addTextOverlay with the title's own options, which is how it
+ * inherits everything: the colours the user picked for the caption, its halo,
+ * its alignment, which way round the frame sits. The only thing that differs
+ * is the style it is handed — the channel's, set in the face the user chose
+ * and starting at the other end of the frame (see channels.textboxStyle) —
+ * and the placement and the highlights, which are the textbox's own.
+ *
+ * Exported because the reframe drag's snapshot draws it too (see
+ * reframe.snapshotOverlays), and a second copy of this sequence there would
+ * be a textbox that changes look for the length of every drag.
+ */
+export function addTextbox(cv, i, interactive) {
+    const lines = textboxLinesFor(i);
+    if (!lines.length) return null;
+    const box = textboxFor(i);
+    const channel = channelFor(i);
+    return usingChannel(channel, () => {
+        const style = textboxStyle(titleStyle(), textboxFace(channel, box.face));
+        return usingStyle(style, () => addTextOverlay(
+            cv, lines, box.hl, framePresentation(i).flip_text, {
+                ...titleOpts(i, false),
+                placement: box.box,
+                interactive: interactive && textboxActiveFor(i),
+            }));
+    });
+}
+
 // ── Preview ───────────────────────────────────────────────────────────────
 
 // Bumped on every updatePreview call and captured by paintFrame — it awaits
@@ -1495,7 +1631,7 @@ function framePhoto(url, cached) {
  * whose id no longer matches stops where it is rather than laying a previous
  * frame layers over the current one.
  */
-async function paintFrame(cv, i, { interactive = false, renderId } = {}) {
+async function paintFrame(cv, i, { interactive = false, renderId, mask, baseOnly = false } = {}) {
     const live = () => renderId === undefined || renderId === _previewRenderId;
 
     const channel = channelFor(i);
@@ -1596,6 +1732,21 @@ async function paintFrame(cv, i, { interactive = false, renderId } = {}) {
     // the call, because everything about what gets drawn — the channel it is
     // set in, the hit-testable bounds it hands back — is the same either way
     // and only the moment differs.
+    // The mask goes straight onto the picture, before anything that stands on
+    // it: it is the photograph being cropped to a window, and the figures,
+    // the title and the overlays are all things placed ON the thumbnail
+    // rather than parts of the picture. `mask` lets the mask step preview a
+    // mask it has not saved yet (see framemask.js); left out, the frame's own
+    // is drawn.
+    //
+    // `baseOnly` stops here, before the mask: the picture alone, which is
+    // what the mask step shows the user to draw their window on.
+    if (baseOnly) {
+        cv.renderAll();
+        return cv;
+    }
+    addFrameMask(cv, mask === undefined ? frameMaskFor(i) : mask);
+
     const lines = linesFor(i);
     const drawTitle = () => {
         const bounds = lines.length
@@ -1603,6 +1754,13 @@ async function paintFrame(cv, i, { interactive = false, renderId } = {}) {
                 cv, lines, hlFor(i), framePresentation(i).flip_text, titleOpts(i, interactive)))
             : null;
         if (interactive) _titleBounds = bounds;
+        // The second textbox straight after, in the same layer: it is the
+        // caption's sibling and goes wherever the caption goes — under the
+        // figures on a channel that puts the caption there, over them
+        // everywhere else. Over the caption rather than under it, because it
+        // is the newer thing and the one the user is placing against it.
+        const textbox = addTextbox(cv, i, interactive);
+        if (interactive) _textboxBounds = textbox;
     };
     const titleUnderFigures = !!(decor.cutout && decor.cutout.overTitle);
     // The uploads go directly under the title wherever the title goes. On a
@@ -1666,6 +1824,9 @@ async function paintFrame(cv, i, { interactive = false, renderId } = {}) {
     // ...and an active UPLOAD's chrome, which did not go down with it. Over
     // the title and the assets both — see addLogoChrome.
     if (interactive && active && !active.asset && logoImg.get(active)) addLogoChrome(cv, active);
+    // ...and the selected mask's, over everything for the same reason: its
+    // corners have to stay grabbable wherever the title or an overlay lands.
+    if (interactive && frameMaskActiveFor(i)) addFrameMaskChrome(cv, frameMaskFor(i));
     // The reorder arrows go on last of everything, on the preview only and
     // only when there is more than one copy to reorder — so they are never
     // buried under a layer stacked over the one they belong to, and never
@@ -1692,12 +1853,14 @@ async function paintFrame(cv, i, { interactive = false, renderId } = {}) {
  * later clear() could wipe out the earlier call's in-progress composite —
  * observed as one frame's thumbnail briefly showing another frame's title.
  */
-export async function buildComposite(i) {
+export async function buildComposite(i, { mask, baseOnly = false } = {}) {
     if (!frames()[i]) return null;
     const element = document.createElement("canvas");
     element.width = CW; element.height = CH;
     const cv = new fabric.StaticCanvas(element, { width: CW, height: CH });
-    return paintFrame(cv, i, { interactive: false });
+    // `mask` and `baseOnly` are the mask step's (see paintFrame); every other
+    // caller leaves them out and gets the frame exactly as it is.
+    return paintFrame(cv, i, { interactive: false, mask, baseOnly });
 }
 
 // Everything a composite depends on. Regenerating a thumbnail is by far the
@@ -1723,6 +1886,12 @@ function thumbSignature(i) {
         // the active overlay is: selection chrome is never composited.
         glowFor(i) ? 1 : 0,
         titleBoxFor(i) ? `${titleBoxFor(i).dx}:${titleBoxFor(i).dy}:${titleBoxFor(i).scale}` : "",
+        // The second textbox, whole: its words, its highlights, where it has
+        // been dragged and which face it is set in all change the pixels.
+        // Whether it is selected is left out, as the title's is.
+        textboxFor(i) ? JSON.stringify({ ...textboxFor(i) }) : "",
+        // The mask, whole, for the same reason: every field of it is pixels.
+        frameMaskFor(i) ? JSON.stringify(frameMaskFor(i)) : "",
         // Every overlay, in order. Which one is ACTIVE is deliberately absent:
         // selection chrome is never baked into a composite, so a change of
         // selection cannot change one.

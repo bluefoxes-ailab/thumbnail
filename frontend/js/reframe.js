@@ -1,27 +1,56 @@
-import { CW, CH, el } from "./config.js";
+import { CW, CH, HANDLE_SIZE, el } from "./config.js";
 import {
     frames, current, selectedIndex, linesFor, hlFor, logosFor, activeLogoFor,
     framePresentation, backendPresentation, setFrameImage, titleBoxFor, titleActiveFor,
     glowFor, layersFor, activeLayerFor, titleAlignFor, channelFor,
-    textColorFor, panelColorFor, highlightColorFor,
+    textColorFor, panelColorFor, highlightColorFor, frameMaskFor,
 } from "./state.js";
 import { postImage, discardImage } from "./net.js";
 import {
     updatePreview, refreshThumb, refreshThumbLive, logoHitTest, clientToCanvasPoint,
     addLogoOverlay, addLogoChrome, splitOverlays, loadLogoImage, titleBounds,
     cutoutHitTest, layerArrowHitTest, clampCutout, cutoutFitScale,
-    photoPlate, openPlate, closePlate,
+    photoPlate, openPlate, closePlate, textboxBounds, addTextbox, addFrameMask,
 } from "./compose.js";
 import { addTextOverlay, titleHitTest } from "./text.js";
 import { titleStyle, decorFor } from "./channels.js";
 import { pending, showSpinner, hideReframeWait } from "./ui.js";
 import { fetchWide, loadWideImage, peek, viewStamp } from "./wide.js";
+import {
+    maskCornerAt, oppositeCorner, inWindow, moveMaskTo, resizeMask, roundMask,
+} from "./framemask.js";
 
 let _logoDrag = null;
 // The gesture moving or resizing the cutout subject. Its own, for the reason
 // the title's is its own: it acts on a different thing and ends differently,
 // while behaving identically in between.
 let _cutoutDrag = null;
+// The gesture moving or reshaping the frame's mask (Static Studio's "Create
+// mask") — see the press handler below for which press starts which.
+let _maskDrag = null;
+
+/**
+ * How near a corner of the mask, in canvas pixels, a press has to land to
+ * take that corner. Never less than the handle drawn there, and never less
+ * than a fingertip's worth of screen however small the canvas is displayed.
+ */
+const maskReach = (displayScale) => Math.max(HANDLE_SIZE, 12 / displayScale);
+
+/**
+ * Makes the frame's mask the selected thing: its box and corner handles go
+ * on, and the handles come off everything else — the same move selectTitle
+ * makes for the title.
+ */
+function selectMask(f) {
+    if (f.frameMaskActive && !f.titleActive && !f.textboxActive
+        && f.activeLogo === -1 && f.activeLayer === -1) return;
+    f.frameMaskActive = true;
+    f.titleActive = false;
+    f.textboxActive = false;
+    f.activeLogo = -1;
+    f.activeLayer = -1;
+    document.dispatchEvent(new CustomEvent("logo-selection-changed"));
+}
 
 /**
  * Whether a press (or a hover) that `hit` overlay `logo` belongs to the title
@@ -35,8 +64,13 @@ let _cutoutDrag = null;
  * them is the handle's wherever it lands.
  */
 function blocksUpload(f, logo, hit, cx, cy) {
-    if (logo.asset || !titleStyle().movable) return false;
+    if (logo.asset) return false;
     if (hit !== "move" && f.logos[f.activeLogo] === logo) return false;
+    // The second textbox is drawn over the uploads just as the title is, and
+    // it can always be dragged (see channels.textboxStyle), so a press on it
+    // is aimed at it whatever the channel says about its caption.
+    if (titleHitTest(textboxBounds(), cx, cy)) return true;
+    if (!titleStyle().movable) return false;
     return !!titleHitTest(titleBounds(), cx, cy);
 }
 // The gesture moving or resizing the title, for a channel whose titles are
@@ -81,11 +115,47 @@ function snapAngle(deg) {
  * announcement pressing an overlay makes, for the same reason.
  */
 function selectTitle(f) {
-    if (f.titleActive && f.activeLogo === -1 && f.activeLayer === -1) return;
+    if (f.titleActive && !f.textboxActive && f.activeLogo === -1 && f.activeLayer === -1) return;
     f.titleActive = true;
+    f.textboxActive = false;
     f.activeLogo = -1;
     f.activeLayer = -1;
     document.dispatchEvent(new CustomEvent("logo-selection-changed"));
+}
+
+/** The same, for the second textbox: it takes the handles off everything else. */
+function selectTextbox(f) {
+    if (f.textboxActive && !f.titleActive && f.activeLogo === -1 && f.activeLayer === -1) return;
+    f.textboxActive = true;
+    f.titleActive = false;
+    f.activeLogo = -1;
+    f.activeLayer = -1;
+    document.dispatchEvent(new CustomEvent("logo-selection-changed"));
+}
+
+/**
+ * Starts a drag of the title or of the second textbox — `target` says which,
+ * `bounds` is where the render put it.
+ *
+ * The two are dragged by ONE gesture, because they are dragged the same way —
+ * the same clamp, the same resize, the same limits — and differ only in which
+ * placement they write to. Two copies of the gesture would be two places for
+ * the next fix to the drag to be made in only one of.
+ */
+function startTextDrag(dragCanvas, f, target, hit, bounds, displayScale, e) {
+    const box = (target === "textbox" ? f.textbox.box : f.titleBox) || { dx: 0, dy: 0, scale: 1 };
+    dragCanvas.classList.remove("hover-move", "hover-resize", "hover-rotate");
+    _titleDrag = {
+        target, mode: hit, displayScale,
+        startClientX: e.clientX, startClientY: e.clientY,
+        startDx: box.dx, startDy: box.dy, startScale: box.scale,
+        // Where the block sits with nothing applied to it, and how wide it is
+        // at that size — both taken from the render the user is looking at,
+        // so the drag moves what they pressed.
+        homeLeft: bounds.left - box.dx, homeTop: bounds.top - box.dy,
+        baseW: bounds.baseW, baseH: bounds.baseH,
+    };
+    dragCanvas.classList.add(hit === "resize" ? "hover-resize" : "hover-move");
 }
 
 /**
@@ -328,6 +398,12 @@ export function setupReframeInteraction() {
         // selected one's handles over everything. A snapshot that stacked
         // them differently would hide the title for the length of every drag
         // on a frame whose upload covers it.
+        // The mask first, under everything else, as the preview draws it. It
+        // is pinned to the canvas and not to the photograph (see
+        // state.frameMaskFor), so it holds still here while the picture pans
+        // underneath — which is the gesture's whole use with a mask on: moving
+        // what shows through the window.
+        addFrameMask(overlayCanvas, frameMaskFor(i));
         const active = activeLogoFor(i);
         const { under, over } = splitOverlays(logosFor(i));
         for (const logo of under) {
@@ -353,6 +429,9 @@ export function setupReframeInteraction() {
                 interactive: titleActiveFor(i),
             });
         }
+        // The second textbox, over the title as the preview draws it, and
+        // through the same call so it cannot look different here.
+        addTextbox(overlayCanvas, i, true);
         // Selection chrome included, matching the preview underneath — the
         // handles disappearing for the length of a drag would read as the
         // overlay having been deselected.
@@ -529,6 +608,33 @@ export function setupReframeInteraction() {
         if (!f) return;
         const gesture = (_activeGesture = ++_gestureSeq);
 
+        // The mask's corners first of anything, while it is selected: they are
+        // drawn over everything (see compose.addFrameMaskChrome), and a press
+        // on one is aimed at the handle, not at what is under it. Dragging a
+        // corner reshapes the window from that corner, the opposite one held
+        // still — free proportions for a rectangle, a circle kept round.
+        //
+        // Any other press takes the selection off the mask; the branches
+        // further down put it back when the press turns out to be on the mask
+        // after all.
+        const mask = f.frameMask;
+        const rectM = dragCanvas.getBoundingClientRect();
+        const scaleM = rectM.width / CW;
+        const [mx, my] = clientToCanvasPoint(e, rectM, scaleM);
+        if (mask && f.frameMaskActive) {
+            const corner = maskCornerAt(mask, mx, my, maskReach(scaleM));
+            if (corner !== -1) {
+                const [ax, ay] = oppositeCorner(mask, corner);
+                _maskDrag = { mode: "resize", ax, ay };
+                dragCanvas.classList.remove("hover-move", "hover-resize", "hover-rotate");
+                dragCanvas.classList.add("hover-resize");
+                e.preventDefault();
+                return;
+            }
+            f.frameMaskActive = false;
+            updatePreview();
+        }
+
         // Logo hit-test runs first, synchronously — a click on the logo starts
         // a move/resize gesture instead of falling through to the background
         // reframe-pan drag (which would kick off an unnecessary fetch).
@@ -555,9 +661,10 @@ export function setupReframeInteraction() {
                 if (blocksUpload(f, logo, hit, cx, cy)) break;
                 // Pressing an overlay is also how it becomes the active one,
                 // so the handles follow the thing being dragged.
-                if (f.activeLogo !== i || f.titleActive) {
+                if (f.activeLogo !== i || f.titleActive || f.textboxActive) {
                     f.activeLogo = i;
                     f.titleActive = false;
+                    f.textboxActive = false;
                     // Announced rather than called: the side panel's list of
                     // overlays is editor.js's, and reaching for it directly
                     // from here would close an import cycle (editor already
@@ -579,6 +686,25 @@ export function setupReframeInteraction() {
                     natW: logo.natW, natH: logo.natH,
                 };
                 dragCanvas.classList.add(`hover-${hit}`);
+                e.preventDefault();
+                return;
+            }
+        }
+
+        // Then the second textbox, which is drawn over the figures and the
+        // caption both and can always be dragged. Before the figures for the
+        // reason the title would be: a press on the words is aimed at the
+        // words, not at whoever is standing behind them.
+        if (f.textbox) {
+            const rect0 = dragCanvas.getBoundingClientRect();
+            const displayScale0 = rect0.width / CW;
+            const [cx, cy] = clientToCanvasPoint(e, rect0, displayScale0);
+            const bounds = textboxBounds();
+            const hit = titleHitTest(bounds, cx, cy);
+            if (hit) {
+                selectTextbox(f);
+                startTextDrag(dragCanvas, f, "textbox", hit, bounds, displayScale0, e);
+                updatePreview();
                 e.preventDefault();
                 return;
             }
@@ -675,23 +801,29 @@ export function setupReframeInteraction() {
             const hit = titleHitTest(bounds, cx, cy);
             if (hit) {
                 selectTitle(f);
-                const box = f.titleBox || { dx: 0, dy: 0, scale: 1 };
-                dragCanvas.classList.remove("hover-move", "hover-resize", "hover-rotate");
-                _titleDrag = {
-                    mode: hit, displayScale: displayScale0,
-                    startClientX: e.clientX, startClientY: e.clientY,
-                    startDx: box.dx, startDy: box.dy, startScale: box.scale,
-                    // Where the block sits with nothing applied to it, and how
-                    // wide it is at that size — both taken from the render the
-                    // user is looking at, so the drag moves what they pressed.
-                    homeLeft: bounds.left - box.dx, homeTop: bounds.top - box.dy,
-                    baseW: bounds.baseW, baseH: bounds.baseH,
-                };
-                dragCanvas.classList.add(hit === "resize" ? "hover-resize" : "hover-move");
+                startTextDrag(dragCanvas, f, "title", hit, bounds, displayScale0, e);
                 // Pressing the title is also how it becomes the selected
                 // thing, so the handles have to appear on the press rather
                 // than on the first movement.
                 updatePreview();
+                e.preventDefault();
+                return;
+            }
+        }
+
+        // Then the mask itself. A press on its ground — the solid colour round
+        // the window — selects it and drags it, window and all, which is what
+        // grabbing the mask means. A press INSIDE the window selects it too,
+        // so its box and handles come up, but goes on to the pan below: what
+        // is inside the window is the photograph, and dragging there is how
+        // the user chooses which part of it shows through.
+        if (mask) {
+            selectMask(f);
+            updatePreview();
+            if (!inWindow(mask, mx, my)) {
+                _maskDrag = { mode: "move", sx: mx, sy: my, ox: mask.x, oy: mask.y };
+                dragCanvas.classList.remove("hover-move", "hover-resize", "hover-rotate");
+                dragCanvas.classList.add("hover-move");
                 e.preventDefault();
                 return;
             }
@@ -738,13 +870,32 @@ export function setupReframeInteraction() {
     });
 
     window.addEventListener("mousemove", (e) => {
+        if (_maskDrag) {
+            const s = _maskDrag;
+            const f = current();
+            // A mask taken off mid-drag (Undo, the step's Remove button) has
+            // nothing left to move.
+            if (!f || !f.frameMask) { _maskDrag = null; return; }
+            const rect = dragCanvas.getBoundingClientRect();
+            const [cx, cy] = clientToCanvasPoint(e, rect, rect.width / CW);
+            if (s.mode === "move") moveMaskTo(f.frameMask, s.ox + cx - s.sx, s.oy + cy - s.sy);
+            else resizeMask(f.frameMask, s.ax, s.ay, cx, cy, e.shiftKey);
+            f.edited = true;
+            updatePreview();
+            refreshThumbLive(selectedIndex());
+            return;
+        }
+
         if (_titleDrag) {
             const s = _titleDrag;
             const f = current();
-            if (!f) { _titleDrag = null; return; }
+            // A textbox removed mid-drag (Undo, the panel's Remove button) has
+            // nothing left to move.
+            if (!f || (s.target === "textbox" && !f.textbox)) { _titleDrag = null; return; }
             const dx = (e.clientX - s.startClientX) / s.displayScale;
             const dy = (e.clientY - s.startClientY) / s.displayScale;
-            const box = { ...(f.titleBox || { dx: 0, dy: 0, scale: 1 }) };
+            const held = s.target === "textbox" ? f.textbox.box : f.titleBox;
+            const box = { ...(held || { dx: 0, dy: 0, scale: 1 }) };
             if (s.mode === "move") {
                 // Clamped by where the BLOCK would land rather than by the
                 // offset itself: the same offset means something different for
@@ -762,7 +913,8 @@ export function setupReframeInteraction() {
                 const width = Math.max(1, s.baseW * s.startScale + dx);
                 box.scale = Math.max(TITLE_MIN_SCALE, Math.min(width / s.baseW, TITLE_MAX_SCALE));
             }
-            f.titleBox = box;
+            if (s.target === "textbox") f.textbox.box = box;
+            else f.titleBox = box;
             f.edited = true;
             updatePreview();
             // ...and the card in the grid with it. The preview and the
@@ -841,7 +993,8 @@ export function setupReframeInteraction() {
             // user can tell where to click before they do.
             const f = current();
             let hit = null;
-            if (f && (f.logos.length || layersFor(selectedIndex()).length || titleStyle().movable)) {
+            if (f && (f.logos.length || layersFor(selectedIndex()).length || titleStyle().movable
+                      || f.textbox || f.frameMask)) {
                 const rect = dragCanvas.getBoundingClientRect();
                 const [cx, cy] = clientToCanvasPoint(e, rect, rect.width / CW);
                 for (let i = f.logos.length - 1; i >= 0 && !hit; i--) {
@@ -850,8 +1003,15 @@ export function setupReframeInteraction() {
                 }
                 // Same order as the press: whatever the click would act on is
                 // what the cursor promises it will.
+                if (!hit && f.textbox) hit = titleHitTest(textboxBounds(), cx, cy);
                 if (!hit && layerUnder(selectedIndex(), cx, cy) !== -1) hit = "move";
                 if (!hit && titleStyle().movable) hit = titleHitTest(titleBounds(), cx, cy);
+                // The mask last, as the press tests it — except its corners,
+                // which the press tests first and so does this.
+                const m = f.frameMask;
+                if (m && f.frameMaskActive
+                    && maskCornerAt(m, cx, cy, maskReach(rect.width / CW)) !== -1) hit = "resize";
+                else if (!hit && m && !inWindow(m, cx, cy)) hit = "move";
             }
             dragCanvas.classList.toggle("hover-move", hit === "move");
             dragCanvas.classList.toggle("hover-resize", hit === "resize");
@@ -884,6 +1044,14 @@ export function setupReframeInteraction() {
         // First, and unconditionally: whatever gesture the button was holding
         // is over, including one whose setup hasn't finished awaiting yet.
         _activeGesture = 0;
+        if (_maskDrag) {
+            _maskDrag = null;
+            const f = current();
+            if (f && f.frameMask) roundMask(f.frameMask);
+            updatePreview();
+            refreshThumb(selectedIndex());
+            return;
+        }
         if (_cutoutDrag) {
             _cutoutDrag = null;
             refreshThumb(selectedIndex());

@@ -272,6 +272,11 @@
                     <input type="file" id="frameFileInput" accept="image/*" class="hidden">
                     <button class="btn" id="frameUploadBtn" title="Replace this frame with an image from your computer">Upload frame</button>
                     <button class="btn" id="gradientBtn" title="Dark gradient behind the text, for contrast">Gradient On</button>
+                    <!-- Static Studio only (see setAppMode in main.js): a
+                         window the photo is seen through, with a solid
+                         ground around it (see js/framemask.js). Reads "Edit
+                         mask" on a frame that already has one. -->
+                    <button class="btn hidden" id="frameMaskBtn" type="button" title="Show this frame through a rectangular or round window on a solid colour">Create mask</button>
                     <!-- Shown only on a channel that owns more than one
                          backdrop (see editor.syncBackgroundButton). One button
                          that wraps rather than a picker: two stages are
@@ -381,6 +386,32 @@
                     <textarea class="line-block hidden" id="lineBlock" rows="1"
                               placeholder="Press Enter for a new line"></textarea>
                     <div class="btn-row" id="hlButtons"></div>
+                    <!-- A second block of text on the frame, Static Studio
+                         only (see the textbox section of js/editor.js). It
+                         takes everything below this point from the caption -
+                         the colours, the highlight, the card, the effects -
+                         so its own controls are only what differs: the words,
+                         which of them are picked out, and the face, chosen
+                         from the faces this channel already owns (see
+                         channels.textboxStyle). Here, next to the caption's
+                         field, so the two things the user types sit together
+                         and everything that styles both sits under them. -->
+                    <div class="textbox-controls hidden" id="textboxControls">
+                        <div class="btn-row">
+                            <button type="button" class="btn" id="addTextboxBtn" title="Add a second block of text, styled like the caption">Add textbox</button>
+                        </div>
+                        <div class="textbox-panel hidden" id="textboxPanel">
+                            <label class="field-label" for="textboxBlock">Textbox</label>
+                            <textarea class="line-block" id="textboxBlock" rows="1"
+                                      placeholder="Press Enter for a new line"></textarea>
+                            <div class="btn-col" id="textboxHlButtons"></div>
+                            <label class="field-label" for="textboxFont">Text font</label>
+                            <select class="channel-select" id="textboxFont"></select>
+                            <div class="btn-row">
+                                <button type="button" class="btn" id="removeTextboxBtn" title="Take the textbox off this frame">Remove textbox</button>
+                            </div>
+                        </div>
+                    </div>
                     <!-- The colours this channel lets the user choose between
                          (see `title.colors` in channels.js), one swatch per
                          colour. Empty and hidden for every channel that
@@ -553,6 +584,57 @@
             <button type="button" class="btn" id="maskCancelBtn">Cancel</button>
             <button type="button" class="btn" id="maskSkipBtn" title="Place the image as it is, uncropped">No mask</button>
             <button type="button" class="btn" id="maskApplyBtn">Apply mask</button>
+        </div>
+    </div>
+</div>
+
+<!-- The frame mask step, Static Studio's "Create mask" (see
+     js/framemask.js). The mask step's card again, because it is the same
+     kind of moment: a shape chosen on a picture before it is applied. The
+     stage is the frame's picture alone, which is what the window cuts; the
+     miniature beside it is the whole frame, title and all, with the mask on. -->
+<div class="mask-step hidden" id="frameMaskStep" role="dialog" aria-modal="true" aria-labelledby="frameMaskLabel">
+    <div class="mask-card frame-mask-card">
+        <h2 id="frameMaskLabel">Create mask</h2>
+        <div class="panel-hint mask-hint">Drag the mask to move it, drag a corner to reshape it, or drag anywhere outside it to draw a new one. Hold Shift for a square.</div>
+        <div class="btn-row mask-shape-row">
+            <button type="button" class="btn btn-active" id="frameMaskRectBtn" aria-pressed="true">
+                <span class="mask-glyph mask-glyph-square" aria-hidden="true"></span>Rectangle
+            </button>
+            <button type="button" class="btn" id="frameMaskRoundBtn" aria-pressed="false">
+                <span class="mask-glyph mask-glyph-round" aria-hidden="true"></span>Round
+            </button>
+        </div>
+        <div class="frame-mask-body">
+            <canvas class="frame-mask-canvas" id="frameMaskCanvas"></canvas>
+            <div class="frame-mask-side">
+                <label class="field-label">Preview</label>
+                <canvas class="frame-mask-thumb" id="frameMaskThumb"></canvas>
+
+                <label class="field-label" for="frameMaskFill">Background colour</label>
+                <div class="btn-row swatch-row" id="frameMaskFillSwatches"></div>
+                <div class="mask-contour-row on">
+                    <input type="color" id="frameMaskFill" class="color-well" value="#000000" title="Background colour" aria-label="Background colour">
+                    <span class="panel-hint frame-mask-well-hint">Any colour</span>
+                </div>
+
+                <label class="field-label" for="frameMaskOutlineColor">Outline</label>
+                <div class="mask-contour-row" id="frameMaskOutlineRow">
+                    <button type="button" class="btn" id="frameMaskOutlineBtn" aria-pressed="false">Outline off</button>
+                    <input type="color" id="frameMaskOutlineColor" class="color-well" value="#ffffff" title="Outline colour" aria-label="Outline colour">
+                </div>
+                <div class="btn-row swatch-row" id="frameMaskOutlineSwatches"></div>
+                <label class="field-label" for="frameMaskOutlineWidth">Outline size</label>
+                <div class="count-control">
+                    <input type="range" id="frameMaskOutlineWidth" class="count-slider" min="1" max="40" step="1" value="6">
+                    <output class="count-value" id="frameMaskOutlineWidthValue" for="frameMaskOutlineWidth">6px</output>
+                </div>
+            </div>
+        </div>
+        <div class="btn-row mask-actions">
+            <button type="button" class="btn" id="frameMaskCancelBtn">Cancel</button>
+            <button type="button" class="btn hidden" id="frameMaskRemoveBtn" title="Take the mask off this frame">Remove mask</button>
+            <button type="button" class="btn" id="frameMaskApplyBtn">Apply mask</button>
         </div>
     </div>
 </div>
