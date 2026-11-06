@@ -492,7 +492,7 @@ class FrameMaskSession {
         f.frameMaskActive = !!mask;
         if (mask) {
             f.titleActive = false;
-            f.textboxActive = false;
+            f.activeTextbox = -1;
             f.activeLogo = -1;
             f.activeLayer = -1;
             document.dispatchEvent(new CustomEvent("logo-selection-changed"));

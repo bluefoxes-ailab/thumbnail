@@ -1480,10 +1480,10 @@ export function usingStyle(style, fn) {
 
 // ── The second textbox ────────────────────────────────────────────────────
 //
-// Static Studio's "Add textbox": a second block of text on the frame, set in
-// everything its channel sets the caption in — the colours, the highlight,
-// the card behind it, the user's shadow and outline — except the face, which
-// the user picks from the faces the channel already owns.
+// Static Studio's "Add textbox": up to three more blocks of text on the
+// frame, each set in its channel's card and highlight treatment, with its own
+// face — picked from the faces the channel already owns — and its own
+// colours, shadow, outline and alignment (see state.textboxFor).
 //
 // From the faces it OWNS and from nowhere else, and that is the whole limit
 // on the choice. A channel's faces are the ones fontguard has checked and
@@ -1588,11 +1588,16 @@ export const styleFor = (id) => {
 // whether the letters need lifting off it is a question about the footage,
 // which the brand cannot answer in advance.
 //
-// One setting for the whole page rather than one per frame, and that is the
-// point of it: a set of forty stills is read as one sequence, and a shadow
-// on some captions and not others reads as a mistake, not as a choice. Every
-// frame on every capture channel draws with it, including the ones that
-// arrive after it was set.
+// The CAPTION's are one setting for the whole page rather than one per
+// frame, and that is the point of it: a set of forty stills is read as one
+// sequence, and a shadow on some captions and not others reads as a mistake,
+// not as a choice. Every frame on every capture channel draws its caption
+// with it, including the ones that arrive after it was set.
+//
+// The textboxes each carry their own (see state.textboxFor), drawn through
+// applyTextEffects over the pack's style rather than over the caption's: a
+// textbox is a second voice the user sets apart on purpose, and a shadow
+// asked for on the caption arriving on it as well was the opposite of that.
 //
 // Applied HERE, in the style itself, rather than handed to addTextOverlay as
 // one more option, because the outline is ink: it widens every line, and the
@@ -1648,8 +1653,28 @@ export const textEffectsKey = () => {
  */
 export function setTextEffects(patch) {
     const before = textEffectsKey();
-    const next = structuredClone(_textEffects);
+    _textEffects = mergeTextEffects(_textEffects, patch);
+    if (textEffectsKey() === before) return false;
+    _effectStyles = new Map();
+    return true;
+}
+
+/** A fresh set of effects, both off: what a new textbox starts with. */
+export const defaultTextEffects = () => structuredClone(DEFAULT_TEXT_EFFECTS);
+
+/**
+ * `fx` with `patch` merged into it, as a new object — anything in the patch
+ * that is not a colour or a size in range is ignored. The one rule for every
+ * set of effects there is: the caption's, held here for the page, and each
+ * textbox's, held on the textbox (see state.textboxFor).
+ *
+ * A missing or partial `fx` is filled from the defaults first, so a textbox
+ * stored before it had effects reads as one with both switched off.
+ */
+export function mergeTextEffects(fx, patch = {}) {
+    const next = defaultTextEffects();
     for (const part of ["shadow", "outline"]) {
+        Object.assign(next[part], (fx && fx[part]) || {});
         const p = patch[part];
         if (!p) continue;
         if (p.on !== undefined) next[part].on = !!p.on;
@@ -1659,10 +1684,7 @@ export function setTextEffects(patch) {
         const w = Math.round(Number(patch.outline.width));
         if (w >= OUTLINE_RANGE.min && w <= OUTLINE_RANGE.max) next.outline.width = w;
     }
-    _textEffects = next;
-    if (textEffectsKey() === before) return false;
-    _effectStyles = new Map();
-    return true;
+    return next;
 }
 
 /**
@@ -1681,7 +1703,21 @@ function withTextEffects(c) {
     const { shadow, outline } = _textEffects;
     if (!shadow.on && !outline.on) return c.title;
     if (_effectStyles.has(c.id)) return _effectStyles.get(c.id);
-    const style = { ...c.title };
+    const style = applyTextEffects(c.title, _textEffects);
+    _effectStyles.set(c.id, style);
+    return style;
+}
+
+/**
+ * Title style `title` with effects `fx` laid over it — withTextEffects'
+ * arithmetic, uncached, for any set of effects. The textboxes are drawn
+ * through it with their own (see compose.addTextbox), which is what keeps a
+ * shadow on the caption off every textbox and the other way round.
+ */
+export function applyTextEffects(title, fx) {
+    const { shadow, outline } = mergeTextEffects(fx);
+    if (!shadow.on && !outline.on) return title;
+    const style = { ...title };
     if (outline.on) style.outline = { width: outline.width, color: outline.color, opacity: 1 };
     if (shadow.on) {
         const spec = { ...SHADOW_SHAPE, color: shadow.color };
@@ -1690,9 +1726,18 @@ function withTextEffects(c) {
             style.highlight = { ...style.highlight, shadow: spec };
         }
     }
-    _effectStyles.set(c.id, style);
     return style;
 }
+
+/**
+ * The active channel's title style as the pack states it — WITHOUT the
+ * caption's effects (see withTextEffects). What a textbox starts from, so
+ * the caption's shadow and outline are the caption's alone.
+ */
+export const packTitleStyle = () => {
+    const c = CHANNELS.find(ch => ch.id === _activeId);
+    return c ? c.title : BASE_TITLE_STYLE;
+};
 
 /** The active channel's non-type brand defaults (see BASE_BRANDING). */
 export const branding = () => (activeChannel() || { branding: BASE_BRANDING }).branding;

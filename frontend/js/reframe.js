@@ -10,7 +10,7 @@ import {
     updatePreview, refreshThumb, refreshThumbLive, logoHitTest, clientToCanvasPoint,
     addLogoOverlay, addLogoChrome, splitOverlays, loadLogoImage, titleBounds,
     cutoutHitTest, layerArrowHitTest, clampCutout, cutoutFitScale,
-    photoPlate, openPlate, closePlate, textboxBounds, addTextbox, addFrameMask,
+    photoPlate, openPlate, closePlate, allTextboxBounds, addTextboxes, addFrameMask,
 } from "./compose.js";
 import { addTextOverlay, titleHitTest } from "./text.js";
 import { titleStyle, decorFor } from "./channels.js";
@@ -45,11 +45,11 @@ const maskReach = (displayScale) => Math.max(HANDLE_SIZE, 12 / displayScale);
  * makes for the title.
  */
 function selectMask(f) {
-    if (f.frameMaskActive && !f.titleActive && !f.textboxActive
+    if (f.frameMaskActive && !f.titleActive && f.activeTextbox === -1
         && f.activeLogo === -1 && f.activeLayer === -1) return;
     f.frameMaskActive = true;
     f.titleActive = false;
-    f.textboxActive = false;
+    f.activeTextbox = -1;
     f.activeLogo = -1;
     f.activeLayer = -1;
     document.dispatchEvent(new CustomEvent("logo-selection-changed"));
@@ -69,10 +69,10 @@ function selectMask(f) {
 function blocksUpload(f, logo, hit, cx, cy) {
     if (logo.asset) return false;
     if (hit !== "move" && f.logos[f.activeLogo] === logo) return false;
-    // The second textbox is drawn over the uploads just as the title is, and
-    // it can always be dragged (see channels.textboxStyle), so a press on it
-    // is aimed at it whatever the channel says about its caption.
-    if (titleHitTest(textboxBounds(), cx, cy)) return true;
+    // The textboxes are drawn over the uploads just as the title is, and
+    // they can always be dragged (see channels.textboxStyle), so a press on
+    // one is aimed at it whatever the channel says about its caption.
+    if (textboxAt(cx, cy)) return true;
     if (!titleStyle().movable) return false;
     return !!titleHitTest(titleBounds(), cx, cy);
 }
@@ -118,18 +118,18 @@ function snapAngle(deg) {
  * announcement pressing an overlay makes, for the same reason.
  */
 function selectTitle(f) {
-    if (f.titleActive && !f.textboxActive && f.activeLogo === -1 && f.activeLayer === -1) return;
+    if (f.titleActive && f.activeTextbox === -1 && f.activeLogo === -1 && f.activeLayer === -1) return;
     f.titleActive = true;
-    f.textboxActive = false;
+    f.activeTextbox = -1;
     f.activeLogo = -1;
     f.activeLayer = -1;
     document.dispatchEvent(new CustomEvent("logo-selection-changed"));
 }
 
-/** The same, for the second textbox: it takes the handles off everything else. */
-function selectTextbox(f) {
-    if (f.textboxActive && !f.titleActive && f.activeLogo === -1 && f.activeLayer === -1) return;
-    f.textboxActive = true;
+/** The same, for textbox `k`: it takes the handles off everything else. */
+function selectTextbox(f, k) {
+    if (f.activeTextbox === k && !f.titleActive && f.activeLogo === -1 && f.activeLayer === -1) return;
+    f.activeTextbox = k;
     f.titleActive = false;
     f.activeLogo = -1;
     f.activeLayer = -1;
@@ -137,8 +137,29 @@ function selectTextbox(f) {
 }
 
 /**
- * Starts a drag of the title or of the second textbox — `target` says which,
- * `bounds` is where the render put it.
+ * The textbox under (cx, cy), as { k, hit, bounds }, or null. Topmost first:
+ * they are drawn in order, so the one the user sees under the cursor is the
+ * LAST that covers it — as with the overlays. The selected one's resize
+ * handle is tested before anything, because it is the one wearing handles.
+ */
+function textboxAt(cx, cy, f = current()) {
+    const all = allTextboxBounds();
+    const order = all.map((_, k) => k).reverse();
+    if (f && f.activeTextbox >= 0) order.sort((a, b) => (b === f.activeTextbox) - (a === f.activeTextbox));
+    for (const k of order) {
+        const bounds = all[k];
+        const hit = bounds && titleHitTest(bounds, cx, cy);
+        if (hit) return { k, hit, bounds };
+    }
+    return null;
+}
+
+/**
+ * Starts a drag of the title or of a textbox — `target` is "title" or the
+ * textbox's own record, `bounds` is where the render put it. The record is
+ * held rather than its index, as an overlay is: a textbox removed mid-drag
+ * would shift every index after it, and the gesture must not silently carry
+ * on with its neighbour.
  *
  * The two are dragged by ONE gesture, because they are dragged the same way —
  * the same clamp, the same resize, the same limits — and differ only in which
@@ -146,7 +167,7 @@ function selectTextbox(f) {
  * the next fix to the drag to be made in only one of.
  */
 function startTextDrag(dragCanvas, f, target, hit, bounds, displayScale, e) {
-    const box = (target === "textbox" ? f.textbox.box : f.titleBox) || { dx: 0, dy: 0, scale: 1 };
+    const box = (target === "title" ? f.titleBox : target.box) || { dx: 0, dy: 0, scale: 1 };
     dragCanvas.classList.remove("hover-move", "hover-resize", "hover-rotate");
     _titleDrag = {
         target, mode: hit, displayScale,
@@ -434,9 +455,9 @@ export function setupReframeInteraction() {
                 interactive: titleActiveFor(i),
             });
         }
-        // The second textbox, over the title as the preview draws it, and
-        // through the same call so it cannot look different here.
-        addTextbox(overlayCanvas, i, true);
+        // The textboxes, over the title as the preview draws them, and
+        // through the same call so they cannot look different here.
+        addTextboxes(overlayCanvas, i, true);
         // Selection chrome included, matching the preview underneath — the
         // handles disappearing for the length of a drag would read as the
         // overlay having been deselected.
@@ -669,10 +690,10 @@ export function setupReframeInteraction() {
                 if (blocksUpload(f, logo, hit, cx, cy)) break;
                 // Pressing an overlay is also how it becomes the active one,
                 // so the handles follow the thing being dragged.
-                if (f.activeLogo !== i || f.titleActive || f.textboxActive) {
+                if (f.activeLogo !== i || f.titleActive || f.activeTextbox !== -1) {
                     f.activeLogo = i;
                     f.titleActive = false;
-                    f.textboxActive = false;
+                    f.activeTextbox = -1;
                     // Announced rather than called: the side panel's list of
                     // overlays is editor.js's, and reaching for it directly
                     // from here would close an import cycle (editor already
@@ -703,15 +724,14 @@ export function setupReframeInteraction() {
         // caption both and can always be dragged. Before the figures for the
         // reason the title would be: a press on the words is aimed at the
         // words, not at whoever is standing behind them.
-        if (f.textbox) {
+        if (f.textboxes.length) {
             const rect0 = dragCanvas.getBoundingClientRect();
             const displayScale0 = rect0.width / CW;
             const [cx, cy] = clientToCanvasPoint(e, rect0, displayScale0);
-            const bounds = textboxBounds();
-            const hit = titleHitTest(bounds, cx, cy);
-            if (hit) {
-                selectTextbox(f);
-                startTextDrag(dragCanvas, f, "textbox", hit, bounds, displayScale0, e);
+            const at = textboxAt(cx, cy, f);
+            if (at) {
+                selectTextbox(f, at.k);
+                startTextDrag(dragCanvas, f, f.textboxes[at.k], at.hit, at.bounds, displayScale0, e);
                 updatePreview();
                 e.preventDefault();
                 return;
@@ -904,10 +924,10 @@ export function setupReframeInteraction() {
             const f = current();
             // A textbox removed mid-drag (Undo, the panel's Remove button) has
             // nothing left to move.
-            if (!f || (s.target === "textbox" && !f.textbox)) { _titleDrag = null; return; }
+            if (!f || (s.target !== "title" && !f.textboxes.includes(s.target))) { _titleDrag = null; return; }
             const dx = (e.clientX - s.startClientX) / s.displayScale;
             const dy = (e.clientY - s.startClientY) / s.displayScale;
-            const held = s.target === "textbox" ? f.textbox.box : f.titleBox;
+            const held = s.target === "title" ? f.titleBox : s.target.box;
             const box = { ...(held || { dx: 0, dy: 0, scale: 1 }) };
             if (s.mode === "move") {
                 // Clamped by where the BLOCK would land rather than by the
@@ -926,8 +946,8 @@ export function setupReframeInteraction() {
                 const width = Math.max(1, s.baseW * s.startScale + dx);
                 box.scale = Math.max(TITLE_MIN_SCALE, Math.min(width / s.baseW, TITLE_MAX_SCALE));
             }
-            if (s.target === "textbox") f.textbox.box = box;
-            else f.titleBox = box;
+            if (s.target === "title") f.titleBox = box;
+            else s.target.box = box;
             f.edited = true;
             updatePreview();
             // ...and the card in the grid with it. The preview and the
@@ -1007,7 +1027,7 @@ export function setupReframeInteraction() {
             const f = current();
             let hit = null;
             if (f && (f.logos.length || layersFor(selectedIndex()).length || titleStyle().movable
-                      || f.textbox || f.frameMask)) {
+                      || f.textboxes.length || f.frameMask)) {
                 const rect = dragCanvas.getBoundingClientRect();
                 const [cx, cy] = clientToCanvasPoint(e, rect, rect.width / CW);
                 for (let i = f.logos.length - 1; i >= 0 && !hit; i--) {
@@ -1016,7 +1036,7 @@ export function setupReframeInteraction() {
                 }
                 // Same order as the press: whatever the click would act on is
                 // what the cursor promises it will.
-                if (!hit && f.textbox) hit = titleHitTest(textboxBounds(), cx, cy);
+                if (!hit) hit = (textboxAt(cx, cy, f) || {}).hit || null;
                 if (!hit && layerUnder(selectedIndex(), cx, cy) !== -1) hit = "move";
                 if (!hit && titleStyle().movable) hit = titleHitTest(titleBounds(), cx, cy);
                 // The mask last, as the press tests it — except its corners,

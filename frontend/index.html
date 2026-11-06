@@ -447,57 +447,12 @@
                     <div class="btn-row hidden" id="glowRow">
                         <button class="btn" id="glowBtn" title="A soft halo behind the whole title">Glow Off</button>
                     </div>
-                </div>
-
-                <!-- The caption's column, continued: the second textbox and
-                     the effects both blocks share. One run with the caption's
-                     controls everywhere but Static Studio (`display:
-                     contents`, its heading hidden); there it is a column of
-                     its own, so the caption's controls are not one column
-                     tall enough to scroll past while the other two stand
-                     half empty. -->
-                <div class="panel-group panel-group-more">
-                    <h2>More text</h2>
-                    <!-- A second block of text on the frame, Static Studio
-                         only (see the textbox section of js/editor.js). Its
-                         own controls are what differs from the caption: the
-                         words, which of them are picked out, the face, chosen
-                         from the faces this channel already owns (see
-                         channels.textboxStyle), and its own colours, from the
-                         same palette as the caption's but stored apart (see
-                         state.textboxFor). The highlight's treatment, the
-                         card's shape and the effects below are shared. -->
-                    <div class="textbox-controls hidden" id="textboxControls">
-                        <div class="btn-row">
-                            <button type="button" class="btn" id="addTextboxBtn" title="Add a second block of text, styled like the caption">Add textbox</button>
-                        </div>
-                        <div class="textbox-panel hidden" id="textboxPanel">
-                            <label class="field-label" for="textboxBlock">Textbox</label>
-                            <textarea class="line-block" id="textboxBlock" rows="1"
-                                      placeholder="Press Enter for a new line"></textarea>
-                            <div class="btn-col" id="textboxHlButtons"></div>
-                            <label class="field-label" for="textboxFont">Text font</label>
-                            <select class="channel-select" id="textboxFont"></select>
-                            <!-- The caption's three colour rows, again, for
-                                 this block alone (see editor.renderColorRows). -->
-                            <div class="color-rows hidden" id="textboxColorRows">
-                                <label class="field-label" id="textboxTextColorLabel">Text colour</label>
-                                <div class="btn-row swatch-row" id="textboxTextColorRow"></div>
-                                <label class="field-label" id="textboxHighlightColorLabel">Highlight colour</label>
-                                <div class="btn-row swatch-row" id="textboxHighlightColorRow"></div>
-                                <label class="field-label" id="textboxPanelColorLabel">Background colour</label>
-                                <div class="btn-row swatch-row" id="textboxPanelColorRow"></div>
-                            </div>
-                            <div class="btn-row">
-                                <button type="button" class="btn" id="removeTextboxBtn" title="Take the textbox off this frame">Remove textbox</button>
-                            </div>
-                        </div>
-                    </div>
-                    <!-- The user's own drop shadow and outline, Static Studio
-                         only (see setTextEffects in channels.js). One setting
-                         for the page, not for this frame: every caption on
-                         every frame takes it, including frames that arrive
-                         after it was set.
+                    <!-- The caption's own drop shadow and outline, Static
+                         Studio only (see setTextEffects in channels.js). One
+                         setting for the page, not for this frame: every
+                         caption on every frame takes it, including frames
+                         that arrive after it was set. The caption's alone -
+                         each textbox has its own, in its own card.
 
                          The mask step's contour row, twice: a switch with its
                          colour beside it. While the switch is off the colour
@@ -509,7 +464,7 @@
                          switches the outline on: nobody sizes an outline they
                          do not want. -->
                     <div class="text-effects hidden" id="textEffects">
-                        <label class="field-label">Text effects (all frames)</label>
+                        <label class="field-label">Caption effects (all frames)</label>
                         <div class="mask-contour-row" id="shadowRow">
                             <button type="button" class="btn" id="shadowBtn" aria-pressed="false" title="A drop shadow under every caption">Drop shadow</button>
                             <input type="color" id="shadowColor" class="color-well" value="#000000" title="Shadow colour" aria-label="Shadow colour">
@@ -526,6 +481,80 @@
                             <output class="count-value" id="outlineWidthValue" for="outlineWidth">3px</output>
                         </div>
                     </div>
+                </div>
+
+                <!-- The caption's column, continued: the textboxes. One run
+                     with the caption's controls everywhere but Static Studio
+                     (`display: contents`, its heading hidden); there it is a
+                     column of its own, so the caption's controls are not one
+                     column tall enough to scroll past while the other two
+                     stand half empty. -->
+                <div class="panel-group panel-group-more">
+                    <h2>More text</h2>
+                    <!-- Up to three more blocks of text on the frame, Static
+                         Studio only (see the textbox section of js/editor.js).
+                         One card per textbox, built from the template below,
+                         with everything that is the block's own: the words,
+                         which of them are picked out, the face (from the faces
+                         this channel already owns, see channels.textboxStyle),
+                         the colours, the alignment, the shadow and the
+                         outline. All of it stored on the textbox (see
+                         state.textboxFor), so nothing set on the caption or on
+                         another textbox reaches this one. -->
+                    <div class="textbox-controls hidden" id="textboxControls">
+                        <div class="textbox-list" id="textboxList"></div>
+                        <div class="btn-row">
+                            <button type="button" class="btn" id="addTextboxBtn" title="Add another block of text, in this channel's style">Add textbox</button>
+                        </div>
+                    </div>
+                    <template id="textboxTemplate">
+                        <div class="textbox-panel">
+                            <label class="field-label textbox-title" data-role="label">Textbox</label>
+                            <textarea class="line-block" data-role="text" rows="1"
+                                      placeholder="Press Enter for a new line"></textarea>
+                            <div class="btn-col" data-role="hl"></div>
+                            <label class="field-label">Text font</label>
+                            <select class="channel-select" data-role="font"></select>
+                            <!-- The caption's three colour rows, again, for this
+                                 block alone (see editor.renderColorRows). -->
+                            <div class="color-rows hidden" data-role="colorRows">
+                                <label class="field-label" data-role="textColorLabel">Text colour</label>
+                                <div class="btn-row swatch-row" data-role="textColorRow"></div>
+                                <label class="field-label" data-role="highlightColorLabel">Highlight colour</label>
+                                <div class="btn-row swatch-row" data-role="highlightColorRow"></div>
+                                <label class="field-label" data-role="panelColorLabel">Background colour</label>
+                                <div class="btn-row swatch-row" data-role="panelColorRow"></div>
+                            </div>
+                            <div class="btn-row hidden" data-role="alignRow">
+                                <button type="button" class="btn" data-align="left" title="Set this textbox against the left of its block">Align left</button>
+                                <button type="button" class="btn" data-align="center" title="Centre this textbox in its block">Centre</button>
+                                <button type="button" class="btn" data-align="right" title="Set this textbox against the right of its block">Align right</button>
+                            </div>
+                            <!-- The caption's effect rows, for this block alone
+                                 (see editor.syncTextboxEffects). -->
+                            <div class="text-effects">
+                                <label class="field-label">Text effects</label>
+                                <div class="mask-contour-row" data-role="shadowRow">
+                                    <button type="button" class="btn" data-role="shadowBtn" aria-pressed="false" title="A drop shadow under this textbox">Drop shadow</button>
+                                    <input type="color" data-role="shadowColor" class="color-well" value="#000000" title="Shadow colour" aria-label="Shadow colour">
+                                    <button type="button" class="btn-swatch btn-swatch-none color-well-off" data-role="shadowNoneBtn" title="No shadow - click to add one" aria-label="No shadow - click to add one"></button>
+                                </div>
+                                <div class="mask-contour-row" data-role="outlineRow">
+                                    <button type="button" class="btn" data-role="outlineBtn" aria-pressed="false" title="An outline around every letter of this textbox">Outline</button>
+                                    <input type="color" data-role="outlineColor" class="color-well" value="#000000" title="Outline colour" aria-label="Outline colour">
+                                    <button type="button" class="btn-swatch btn-swatch-none color-well-off" data-role="outlineNoneBtn" title="No outline - click to add one" aria-label="No outline - click to add one"></button>
+                                </div>
+                                <label class="field-label">Outline size</label>
+                                <div class="count-control">
+                                    <input type="range" data-role="outlineWidth" class="count-slider" min="1" max="12" step="1" value="3" aria-label="Outline size">
+                                    <output class="count-value" data-role="outlineWidthValue">3px</output>
+                                </div>
+                            </div>
+                            <div class="btn-row">
+                                <button type="button" class="btn" data-role="remove" title="Take this textbox off this frame">Remove textbox</button>
+                            </div>
+                        </div>
+                    </template>
                     <div class="panel-hint hidden" id="titleMoveHint">Drag the text on the canvas to move it; drag its corner handle to resize.</div>
                     <!-- Shown only for a channel that composes its thumbnails from
                          a cutout, because for every other one the zoom control

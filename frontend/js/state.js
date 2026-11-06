@@ -1,5 +1,5 @@
 import { DEFAULT_PRESET } from "./config.js";
-import { branding, activeChannelId, styleFor, captureFor, decorFor } from "./channels.js";
+import { branding, activeChannelId, styleFor, captureFor, decorFor, defaultTextEffects } from "./channels.js";
 
 // [{frame_id, plainUrl, enhancedUrl, lines, hl, titleBox, titleActive, glow,
 //   flipImage, flipText, gradient, gradientTouched, logos, activeLogo,
@@ -105,7 +105,7 @@ export function discardFrame(i) {
     f.picked = false;
     f.caption = "";
     f.lines = f.lines.map(() => "");
-    f.textbox = null;
+    f.textboxes = [];
     store.order = gridOrder().filter(k => k !== i);
 }
 
@@ -215,8 +215,17 @@ export function titleActiveFor(i) {
 }
 
 /**
- * Frame `i`'s second textbox (Static Studio's "Add textbox"), or null while
- * it has none.
+ * How many textboxes "Add textbox" puts on one frame, at most, beside the
+ * caption. Three because that is what was asked for; a limit at all because
+ * every one of them is a column of controls in the panel, and an unbounded
+ * list of them would be a panel nobody can find anything in.
+ */
+export const MAX_TEXTBOXES = 3;
+
+/**
+ * Frame `i`'s textboxes (Static Studio's "Add textbox"), in the order they
+ * were added, which is also the order they are drawn in — the last one on
+ * top. Empty while it has none. Each one is:
  *
  *   text  what was typed, as one block — the breaks in it are the user's,
  *         exactly as in a freeform title (see textboxLinesFor).
@@ -230,39 +239,48 @@ export function titleActiveFor(i) {
  *         a name rather than as a face, so the channel the frame is drawn
  *         under decides what that name resolves to.
  *   textColor, highlightColor, panelColor
- *         the textbox's OWN colours, in exactly the shape the frame's
- *         fields of the same names hold the caption's (see textColorFor):
- *         an index into the channel's palette, NO_PANEL for the card, or
- *         null for the channel's own colour.
+ *         its OWN colours, in exactly the shape the frame's fields of the
+ *         same names hold the caption's (see textColorFor): an index into
+ *         the channel's palette, NO_PANEL for the card, or null for the
+ *         channel's own colour.
+ *   effects
+ *         its own drop shadow and outline, in the shape the caption's page
+ *         setting has (see channels.mergeTextEffects).
+ *   align
+ *         its own alignment, "left" / "center" / "right", or null for the
+ *         channel's — the shape of titleAlignFor.
  *
- * The colours are the textbox's own and not the caption's, on purpose: the
- * user sets the two blocks apart by colour as often as by face, and a
- * textbox that changed whenever the caption did could never be a second
- * voice. Null — the channel's own colour — rather than a copy of the
- * caption's, so a new textbox starts in the brand, not in whatever the
- * caption happened to be wearing.
+ * All of that is the textbox's own and none of it the caption's or another
+ * textbox's, on purpose: the user sets a block apart by colour, face, effect
+ * and alignment, and a block that changed whenever another did could never
+ * be a second voice. A new one starts in the brand — null colours, no
+ * effects, the channel's alignment — not in whatever the caption happened to
+ * be wearing.
  *
- * Everything else about how it looks is NOT here, and that is the feature:
- * the highlight's treatment, the card's shape and the effects are read from
- * the same places the caption reads them from, so the two blocks cannot
- * drift apart.
+ * What is shared is the treatment that makes it the channel's at all: the
+ * card's shape and the highlight's kind, read from the pack.
  */
-export function textboxFor(i) {
+export function textboxesFor(i) {
     const f = store.frames[i];
-    return (f && f.textbox) || null;
+    return (f && Array.isArray(f.textboxes)) ? f.textboxes : [];
+}
+
+/** Frame `i`'s textbox number `k` (from 0), or null. */
+export function textboxFor(i, k) {
+    return textboxesFor(i)[k] || null;
 }
 
 /**
- * The lines of frame `i`'s textbox, as the renderer will set them — the
+ * The lines of frame `i`'s textbox `k`, as the renderer will set them — the
  * freeform rule from linesFor, whatever the channel's own caption uses: blank
  * lines dropped from the two ends and kept between two others.
  *
- * Freeform always, because the textbox has one field whatever its channel
+ * Freeform always, because a textbox has one field whatever its channel
  * does with the caption: it is something the user writes as a block, and
  * there are no slots for it to be counted in.
  */
-export function textboxLinesFor(i) {
-    const box = textboxFor(i);
+export function textboxLinesFor(i, k) {
+    const box = textboxFor(i, k);
     if (!box || !box.text) return [];
     const lines = box.text.split("\n");
     while (lines.length && !lines[0].trim()) lines.shift();
@@ -270,22 +288,33 @@ export function textboxLinesFor(i) {
     return lines;
 }
 
-/** Whether the frame's textbox carries the on-canvas handles (see titleActiveFor). */
-export function textboxActiveFor(i) {
+/**
+ * Whether textbox `k` of frame `i` carries the on-canvas handles (see
+ * titleActiveFor). One at a time, like everything else on the canvas:
+ * `activeTextbox` is the index of the one wearing them, or -1.
+ */
+export function textboxActiveFor(i, k) {
     const f = store.frames[i];
-    return !!(f && f.textbox && f.textboxActive);
+    return !!(f && f.activeTextbox === k && textboxFor(i, k));
 }
 
 /** A fresh, empty textbox — what "Add textbox" puts on a frame. */
 export const newTextbox = () => ({
     text: "", hl: [], box: null, face: null,
     textColor: null, highlightColor: null, panelColor: null,
+    effects: defaultTextEffects(), align: null,
 });
 
 /** A copy of `box` that shares nothing with it, or null. */
 export const copyTextbox = (box) => (box
-    ? { ...box, hl: [...box.hl], box: box.box ? { ...box.box } : null }
+    ? {
+        ...box, hl: [...box.hl], box: box.box ? { ...box.box } : null,
+        effects: box.effects ? structuredClone(box.effects) : defaultTextEffects(),
+    }
     : null);
+
+/** A copy of a frame's whole list of textboxes. */
+export const copyTextboxes = (list) => (Array.isArray(list) ? list.map(copyTextbox) : []);
 
 /**
  * Frame `i`'s mask (Static Studio's "Create mask"), or null while it has none.
@@ -659,10 +688,10 @@ export function makeFrame(frame_id, plainUrl, moment = null, caption = "") {
         // the block sits exactly where the channel's layout puts it.
         titleBox: null,
         titleActive: false,             // whether the title wears the canvas handles
-        // The second textbox, Static Studio only — null until the user adds
-        // one (see textboxFor) — and whether it is wearing the handles.
-        textbox: null,
-        textboxActive: false,
+        // The textboxes, Static Studio only — none until the user adds one
+        // (see textboxesFor) — and which of them wears the handles, or -1.
+        textboxes: [],
+        activeTextbox: -1,
         // The mask the photograph is seen through, Static Studio only — null
         // until the user creates one (see frameMaskFor).
         frameMask: null,
@@ -801,7 +830,7 @@ function contentSource(i) {
     // rearranged (see gridOrder): the neighbour is the card beside this one
     // on screen, not the one that happened to arrive next to it.
     const has = (f) => f && ((f.lines && f.lines.some(Boolean)) || (f.logos && f.logos.length)
-        || (f.textbox && f.textbox.text.trim()));
+        || (f.textboxes || []).some(b => b.text.trim()));
     const order = gridOrder();
     const p = order.indexOf(i);
     const at = (q) => store.frames[order[q]];
@@ -900,13 +929,13 @@ export function carryOverSettings(i, onPresetChanged) {
     if (wordsBelongToFrame(to)) {
         to.logos = (from.logos || []).map(l => ({ ...l }));
         to.activeLogo = from.activeLogo;
-        // The second textbox travels with the overlay, and for its reason:
-        // it is something the user wrote and placed by hand, not what was
-        // said over this frame, so it is the same answer on the next frame
-        // in a way the caption never is. Never selected on arrival — the
-        // handles are the frame's own business.
-        to.textbox = copyTextbox(from.textbox);
-        to.textboxActive = false;
+        // The textboxes travel with the overlay, and for its reason: they
+        // are something the user wrote and placed by hand, not what was
+        // said over this frame, so they are the same answer on the next
+        // frame in a way the caption never is. Never selected on arrival —
+        // the handles are the frame's own business.
+        to.textboxes = copyTextboxes(from.textboxes);
+        to.activeTextbox = -1;
         // The colours travel too, and they are the one thing here besides the
         // overlay that does. Everything the short path withholds is withheld
         // because it describes THESE words — which of them are picked out,
@@ -929,8 +958,8 @@ export function carryOverSettings(i, onPresetChanged) {
     // there because of what the title says, and a new frame inheriting the
     // words without the position would put them back over the face.
     to.titleBox = from.titleBox ? { ...from.titleBox } : null;
-    to.textbox = copyTextbox(from.textbox);
-    to.textboxActive = false;
+    to.textboxes = copyTextboxes(from.textboxes);
+    to.activeTextbox = -1;
     // The mask is deliberately NOT among them. It is a window cut round what
     // is in ONE photograph — this face, this object — and the next frame's
     // subject is somewhere else; a copy would arrive framing nothing in

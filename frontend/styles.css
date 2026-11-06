@@ -995,15 +995,24 @@ body.mask-open { overflow: hidden; }
 .text-effects .color-well-off { flex: 0 0 auto; width: 48px; height: 42px; }
 .text-effects .mask-contour-row:not(.on) .color-well,
 .text-effects .mask-contour-row.on .color-well-off { display: none; }
-/* The second textbox's controls (see #textboxControls): a column with the
-   same tight gap as the text effects, so its field, its words, its font and
-   its remove button read as one thing rather than four settings. The same
-   `:not(.hidden)` guard as the rule above, for the same reason. */
+/* The textboxes' controls (see #textboxControls): a column with the same
+   tight gap as the text effects, so each card's field, words, font, colours,
+   alignment, effects and remove button read as one thing rather than seven
+   settings. The same `:not(.hidden)` guard as the rule above, for the same
+   reason. */
 .textbox-controls:not(.hidden),
 .textbox-panel:not(.hidden) { display: flex; flex-direction: column; gap: 10px; }
 .textbox-panel .field-label { margin: 0; }
 .textbox-controls > .btn-row .btn,
 .textbox-panel > .btn-row .btn { flex: 1; }
+/* One card per textbox, each ruled off from the next, so three of them
+   stacked read as three blocks and not as one long list of controls. */
+.textbox-list { display: flex; flex-direction: column; gap: 18px; }
+.textbox-list:empty { display: none; }
+.textbox-list .textbox-panel + .textbox-panel {
+    padding-top: 18px; border-top: 1px solid rgba(255, 255, 255, 0.14);
+}
+.textbox-title { color: #fffa00; }
 .asset-toggle-row .btn { flex: 1; padding-left: 8px; padding-right: 8px; }
 .asset-hex { flex: 1 1 auto; text-transform: uppercase; font-family: Consolas, "Courier New", monospace; }
 /* The "video ready" notice (see js/notify.js): a message, not a tool, so

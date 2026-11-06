@@ -63,7 +63,7 @@ import {
     handleFrameFile, syncVaryButton, syncLogoControls, ensureCutout, setTitleAlign, showChannel,
     cycleBackground, syncBackgroundButton, cycleFigureGlow, syncFigureGlowButton,
     warmCutouts, applyEditToAll,
-    addTextboxToFrame, removeTextbox, updateTextboxText, setTextboxFont,
+    addTextboxToFrame,
 } from "./editor.js";
 import { hasChannel, activeChannelId, framingFor, captureFor, cleanupFor,
          selectionFor, NO_CHANNEL, textEffects } from "./channels.js";
@@ -1887,15 +1887,16 @@ TITLE_FIELD_IDS.forEach(id => {
     input.addEventListener("focus", dismissFigureHandles);
 });
 
-// The second textbox (see the textbox section of editor.js). Only ever shown
-// on a Static Studio channel; bound unconditionally for the reason the glow
-// button is. Focusing its field puts the figure buttons away, as focusing the
-// caption's does.
+// The textboxes (see the textbox section of editor.js). Only ever shown on a
+// Static Studio channel; bound unconditionally for the reason the glow button
+// is. Each card's own controls are wired as the card is built; what is bound
+// here is the button that adds one, and — listened for on the list, since
+// the cards come and go — focusing any card's field puts the figure buttons
+// away, as focusing the caption's does.
 el("addTextboxBtn").addEventListener("click", addTextboxToFrame);
-el("removeTextboxBtn").addEventListener("click", removeTextbox);
-el("textboxBlock").addEventListener("input", updateTextboxText);
-el("textboxBlock").addEventListener("focus", dismissFigureHandles);
-el("textboxFont").addEventListener("change", (e) => setTextboxFont(e.target.value));
+el("textboxList").addEventListener("focusin", (e) => {
+    if (e.target.matches('[data-role="text"]')) dismissFigureHandles();
+});
 
 el("flipImageBtn").addEventListener("click", () => toggleFlip("flipImage"));
 el("flipTextBtn").addEventListener("click", () => toggleFlip("flipText"));

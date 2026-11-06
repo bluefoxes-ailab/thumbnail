@@ -4,10 +4,11 @@ import {
     selectedIndex, channelFor, titleBoxFor, titleActiveFor, glowFor,
     layersFor, activeLayerFor, titleAlignFor, backgroundFor, figureGlowFor,
     textColorFor, panelColorFor, highlightColorFor,
-    textboxFor, textboxLinesFor, textboxActiveFor, frameMaskFor, frameMaskActiveFor,
+    textboxesFor, textboxLinesFor, textboxActiveFor, frameMaskFor, frameMaskActiveFor,
 } from "./state.js";
 import {
     usingChannel, usingStyle, titleStyle, textboxStyle, textboxFace, decorFor, textEffectsKey,
+    packTitleStyle, applyTextEffects,
 } from "./channels.js";
 import { addTextOverlay } from "./text.js";
 import { loadImage } from "./net.js";
@@ -1542,47 +1543,59 @@ let _titleBounds = null;
 
 export const titleBounds = () => _titleBounds;
 
-// The same, for the second textbox — null while the frame has none, or has
+// The same, for the textboxes — one entry per textbox, by index, null for
 // one with nothing typed in it yet.
-let _textboxBounds = null;
+let _textboxBounds = [];
 
-export const textboxBounds = () => _textboxBounds;
+/** Where textbox `k`'s ink landed in the last preview render, or null. */
+export const textboxBounds = (k) => _textboxBounds[k] || null;
+
+/** Every textbox's bounds, by index — what the canvas hit-tests (see reframe.js). */
+export const allTextboxBounds = () => _textboxBounds;
 
 /**
- * Draws frame `i`'s second textbox onto `cv` and answers with where its ink
+ * Draws frame `i`'s textbox `k` onto `cv` and answers with where its ink
  * landed, or null when there is nothing to draw.
  *
- * Through addTextOverlay with the title's own options, which is how it
- * inherits everything: the colours the user picked for the caption, its halo,
- * its alignment, which way round the frame sits. The only thing that differs
- * is the style it is handed — the channel's, set in the face the user chose
- * and starting at the other end of the frame (see channels.textboxStyle) —
- * and the placement and the highlights, which are the textbox's own.
+ * Through addTextOverlay with the title's options for what is the frame's
+ * — its halo, which way round it sits — and the textbox's own for everything
+ * that is the block's: its colours, its alignment, where it was dragged, its
+ * picks. The style it is handed is the PACK's, not the caption's, with the
+ * textbox's own shadow and outline laid over it (see
+ * channels.applyTextEffects), set in the face the user chose and starting at
+ * the other end of the frame (see channels.textboxStyle). So nothing set on
+ * the caption, or on another textbox, reaches this one.
  *
- * Exported because the reframe drag's snapshot draws it too (see
+ * Exported because the reframe drag's snapshot draws them too (see
  * reframe.snapshotOverlays), and a second copy of this sequence there would
  * be a textbox that changes look for the length of every drag.
  */
-export function addTextbox(cv, i, interactive) {
-    const lines = textboxLinesFor(i);
+export function addTextbox(cv, i, k, interactive) {
+    const lines = textboxLinesFor(i, k);
     if (!lines.length) return null;
-    const box = textboxFor(i);
+    const box = textboxesFor(i)[k];
     const channel = channelFor(i);
     return usingChannel(channel, () => {
-        const style = textboxStyle(titleStyle(), textboxFace(channel, box.face));
+        const base = applyTextEffects(packTitleStyle(), box.effects);
+        const style = textboxStyle(base, textboxFace(channel, box.face));
         return usingStyle(style, () => addTextOverlay(
             cv, lines, box.hl, framePresentation(i).flip_text, {
                 ...titleOpts(i, false),
-                // Its own colours, never the caption's (see
-                // state.textboxFor). `?? null` for a textbox made before it
-                // had any: the channel's colour, as a fresh one starts.
+                // `?? null` for a textbox made before it had any of these:
+                // the channel's own answer, as a fresh one starts.
                 textColor: box.textColor ?? null,
                 highlightColor: box.highlightColor ?? null,
                 panelColor: box.panelColor ?? null,
+                align: box.align ?? null,
                 placement: box.box,
-                interactive: interactive && textboxActiveFor(i),
+                interactive: interactive && textboxActiveFor(i, k),
             }));
     });
+}
+
+/** Every textbox of frame `i`, in order — the last on top — and their bounds. */
+export function addTextboxes(cv, i, interactive) {
+    return textboxesFor(i).map((_, k) => addTextbox(cv, i, k, interactive));
 }
 
 // ── Preview ───────────────────────────────────────────────────────────────
@@ -1802,13 +1815,13 @@ async function paintFrame(cv, i, { interactive = false, renderId, mask, baseOnly
                 cv, lines, hlFor(i), framePresentation(i).flip_text, titleOpts(i, interactive)))
             : null;
         if (interactive) _titleBounds = bounds;
-        // The second textbox straight after, in the same layer: it is the
-        // caption's sibling and goes wherever the caption goes — under the
+        // The textboxes straight after, in the same layer: they are the
+        // caption's siblings and goes wherever the caption goes — under the
         // figures on a channel that puts the caption there, over them
         // everywhere else. Over the caption rather than under it, because it
         // is the newer thing and the one the user is placing against it.
-        const textbox = addTextbox(cv, i, interactive);
-        if (interactive) _textboxBounds = textbox;
+        const textboxes = addTextboxes(cv, i, interactive);
+        if (interactive) _textboxBounds = textboxes;
     };
     const titleUnderFigures = !!(decor.cutout && decor.cutout.overTitle);
     // The uploads go directly under the title wherever the title goes. On a
@@ -1934,10 +1947,10 @@ function thumbSignature(i) {
         // the active overlay is: selection chrome is never composited.
         glowFor(i) ? 1 : 0,
         titleBoxFor(i) ? `${titleBoxFor(i).dx}:${titleBoxFor(i).dy}:${titleBoxFor(i).scale}` : "",
-        // The second textbox, whole: its words, its highlights, where it has
-        // been dragged and which face it is set in all change the pixels.
-        // Whether it is selected is left out, as the title's is.
-        textboxFor(i) ? JSON.stringify({ ...textboxFor(i) }) : "",
+        // The textboxes, whole: their words, highlights, places, faces,
+        // colours, effects and alignment all change the pixels. Which one is
+        // selected is left out, as the title's selection is.
+        textboxesFor(i).length ? JSON.stringify(textboxesFor(i)) : "",
         // The mask, whole, for the same reason: every field of it is pixels.
         frameMaskFor(i) ? JSON.stringify(frameMaskFor(i)) : "",
         // Every overlay, in order. Which one is ACTIVE is deliberately absent:

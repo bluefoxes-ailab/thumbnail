@@ -77,7 +77,7 @@ const QUIET_MS = 500;
  */
 const FIELDS = [
     "lines", "hl", "titleBox", "titleActive", "titleAlign", "glow",
-    "textbox", "textboxActive", "frameMask", "frameMaskActive",
+    "textboxes", "activeTextbox", "frameMask", "frameMaskActive",
     "background", "figureGlow", "textColor", "panelColor", "highlightColor",
     "gradient", "gradientTouched", "flipImage", "flipText", "flipsTouched",
     "logos", "activeLogo", "layers", "activeLayer",
