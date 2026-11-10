@@ -1,0 +1,33 @@
+{
+    "_comment": [
+        "The ready-made pictures behind the image overlay's Assets button (see",
+        "js/assets.js). Adding one is a PNG dropped into this folder and an",
+        "entry below; nothing else has to change.",
+        "",
+        "`file` is the PNG's name in this folder. `name` is what the picker",
+        "shows under it. `color` is the one colour the asset is painted in,",
+        "and it does two jobs: it is the colour the picker opens on, and it is",
+        "the colour that gets REPLACED when the user chooses another.",
+        "",
+        "That second job is why it has to be right. The recolouring treats",
+        "every pixel as some amount of `color` laid over a neutral grey, so a",
+        "drop shadow, a white highlight, or the soft edge where the paint",
+        "meets either keeps its shading and only the paint changes. An asset",
+        "drawn in two different colours would have the second one shifted",
+        "along with the first, so an asset is one colour plus greys, black",
+        "and white — and `color` names that one colour exactly.",
+        "",
+        "And no shadow of its own. The colour step has a Drop shadow switch",
+        "and draws the shadow itself (see assets.js), so a shadow baked into",
+        "the PNG is one the user could not switch off, and doubled when they",
+        "switch the other on. ring.png and both arrows arrived with one and",
+        "had it taken out; the arrows' black outline is a grey like any other",
+        "to the recolouring, so it stays black whatever colour is picked."
+    ],
+    "assets": [
+        { "file": "ring.png", "name": "Ring", "color": "#FF0000" },
+        { "file": "arrow-curved-right.png", "name": "Arrow right", "color": "#FF0000" },
+        { "file": "arrow-curved-down.png", "name": "Arrow down", "color": "#FF0000" },
+        { "file": "censored.png", "name": "Censored", "color": "#FF0000" }
+    ]
+}

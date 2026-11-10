@@ -66,7 +66,34 @@ export async function postJson(path, body) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
     });
-    if (!res.ok) throw new Error(await readDetail(res) || "Error");
+    if (!res.ok) {
+        // The status rides along so a caller can tell an answer it knows how
+        // to act on (a 409 from /process-video: a run is already going) from
+        // a failure, without matching on the wording of the message.
+        const error = new Error(await readDetail(res) || "Error");
+        error.status = res.status;
+        throw error;
+    }
+    return res.json();
+}
+
+/**
+ * POSTs a Blob's raw bytes and reads the JSON the backend answers with —
+ * postJson's answer, with a binary body. For /add-frame, whose answer is a
+ * frame in the shape a run's frames arrive in rather than a bare image, so
+ * neither postImageFile nor postFile (which waits for an upload_id) fits it.
+ */
+export async function postBlobJson(path, blob) {
+    const res = await fetch(`${API}${path}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/octet-stream" },
+        body: blob,
+    });
+    if (!res.ok) {
+        const error = new Error(await readDetail(res) || "Error");
+        error.status = res.status;
+        throw error;
+    }
     return res.json();
 }
 
@@ -103,10 +130,17 @@ export function loadImage(src) {
  * only of a response. A video takes long enough to send that a bar sitting at
  * zero for two minutes reads as a hung app, and the upload is the one stage
  * whose progress the backend cannot report — it hasn't received it yet.
+ *
+ * `signal`, an AbortSignal, calls the upload off part-way: the user starting
+ * a different video over the one still crossing (see main.startFresh).
  */
-export function postFile(path, file, onProgress) {
+export function postFile(path, file, onProgress, signal = null) {
     return new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();
+        if (signal) {
+            if (signal.aborted) return reject(new Error("Upload cancelled"));
+            signal.addEventListener("abort", () => xhr.abort(), { once: true });
+        }
         // The name travels in the query string, not the body: the body is the
         // file itself, byte for byte (see /upload-video).
         xhr.open("POST", `${API}${path}?name=${encodeURIComponent(file.name)}`);

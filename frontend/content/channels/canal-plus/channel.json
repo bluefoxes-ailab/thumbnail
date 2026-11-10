@@ -1,0 +1,284 @@
+{
+    "schema": 1,
+    "id": "canal-plus",
+    "name": "CANAL+",
+
+    "_comment_group": [
+        "One more show in Static Studio. Everything that makes it a Static",
+        "Studio pack is taken from the same presets every sibling uses and is",
+        "not restated: the frame fetch, the 540x960 vertical output, the",
+        "transcription and its rewrite, the framing, the freeform text box,",
+        "the twenty characters to a line, the drag, and the margin the",
+        "caption stands on at the foot of the frame. The show asked for its",
+        "TEXT to be its own and for nothing about the pictures to change, and",
+        "that is exactly the line between this file and the presets.",
+
+        "What makes it CANAL+ is written in the show's own guidelines (a",
+        "three-page Canva brief), and each number below says which line of",
+        "that brief it comes from: Futura Bold, leaned and tightened, in",
+        "capitals; white; a soft drop shadow on a line set over the picture;",
+        "and a flat CANAL+ blue box, square-cornered, behind the lines picked",
+        "out of it.",
+
+        "The id is kebab-case ASCII because it is also the folder name and",
+        "the key everything else refers to; the name is the brand, plus sign",
+        "and all."
+    ],
+    "order": 900,
+    "group": "Snapchat",
+
+    "capture": { "use": "snapchat-capture" },
+
+    "framing": { "use": "snapchat-framing" },
+
+    "_comment_title": [
+        "The brief sets its captions as two different treatments stacked:",
+        "a line in white straight on the picture, held off it by a drop",
+        "shadow, over lines in white on a solid blue box. Both of its worked",
+        "examples open that way - 'UN JOUEUR DE D2' over 'APPELE EN EQUIPE /",
+        "DE FRANCE !', 'ET POURTANT...' over 'TOUT AVAIT SI / BIEN",
+        "COMMENCE...' - and which lines go on the blue is a decision about",
+        "the sentence, not a rule a renderer can apply: the opening beat is",
+        "one line in one caption and none in the next.",
+
+        "So the blue is the HIGHLIGHT, picked line by line, and the plain",
+        "treatment is the block's. A frame arrives with every line white on",
+        "the picture, and the 'Highlight Line' buttons put whichever lines",
+        "the user picks on the box. That reproduces both examples, with one",
+        "thing the renderer had to learn for it: boxes laid behind lines",
+        "that are spaced as type (see `joined` under `highlight` below).",
+
+        "No card. The preset's caption design is a card behind the whole",
+        "sentence, and on this show the ground is the box behind the picked",
+        "lines and nothing else, so `panel` is null. With no card there is",
+        "also no palette to offer for one, and the show's colours are fixed",
+        "by its brief anyway - white and one blue - so `colors` is left out",
+        "and no swatch rows are drawn (see `colors` in js/channels.js).",
+
+        "Uppercased, inherited from the preset, and stated by the brief as",
+        "well: 'Bold, italic, uppercase'."
+    ],
+    "title": {
+        "use": "snapchat-caption",
+
+        "_comment_face": [
+            "Futura Bold with the brief's italic and its letter spacing of",
+            "-50 baked into the file - see content/faces/",
+            "futura-bold-oblique-canal.json for how, and for why the file",
+            "carries both rather than the renderer. The brief names the face",
+            "'Canalp'; the show supplied Futura Bold to set it in."
+        ],
+        "face": "futura-bold-oblique-canal",
+
+        "_comment_color": [
+            "White, #FFFFFF, for every line: the brief gives the same white",
+            "for the line over the picture and for the lines on the box."
+        ],
+        "color": "#FFFFFF",
+
+        "_comment_shadow": [
+            "The brief's drop shadow for the line over the picture: black, an",
+            "angle of -45 (down and to the right), offset 20, blur 10,",
+            "'transparency' 30.",
+
+            "That last number is an opacity, not a transparency, whatever the",
+            "editor calls it - its background effect on the same page is",
+            "'transparency 100' and comes out solid - so the shadow is black",
+            "at 0.3.",
+
+            "The offset and the blur are the editor's own relative units and",
+            "do not convert exactly; 3px each way and a 6px blur on a 540px",
+            "still is the same soft lift the brief's screenshots show at",
+            "this size. It is the BLOCK's shadow, so it falls only on the",
+            "lines that are not on the box. A boxed line is drawn without",
+            "one, which is also what the brief does (see `highlight` below)."
+        ],
+        "shadow": { "color": "rgba(0,0,0,0.3)", "blur": 6, "offsetX": 3, "offsetY": 3 },
+
+        "_comment_highlight": [
+            "The brief's 'Background' effect for the lines on the blue:",
+            "Bright Blue #002DF1, corner rounding 0, fully opaque, spacing 15.",
+
+            "Box mode at LINE scope, overriding the preset's colour at word",
+            "scope. The brief puts whole lines on the blue and never a word",
+            "inside one, and a line-scope box is one rectangle per line, the",
+            "width of that line - so a short line has a short box, as in both",
+            "worked examples.",
+
+            "`joined` true, and it is what the rest of this block depends",
+            "on. The brief's boxes are its editor's 'background' effect,",
+            "laid BEHIND lines that are spaced as type at a line spacing of",
+            "1: two picked lines in a row are one blue shape stepping in",
+            "and out, and the plain opening line sits right on the blue",
+            "under it. Unjoined, a box is what its row is stacked by, and",
+            "that cannot be had - the gap between two boxes and the gap",
+            "between two plain lines are then the same `lineGap`, so boxes",
+            "that meet mean plain lines that touch. Worse, an accented",
+            "capital (the acute on an E stands 0.29em above the capitals in",
+            "this face) pushed its row down off the box above, opening a",
+            "stripe of photograph on half of all French captions. Joined,",
+            "the rows are stacked by their capitals, the boxes go behind",
+            "afterwards, and an accent overhangs into the blue above. See",
+            "`highlight.joined` in js/channels.js and joinedHighlight in",
+            "js/text.js; this is the one pack that sets it.",
+
+            "Two paddings, because the brief's box is not the same distance",
+            "from the type on every side. Measured on its screenshots at 1000",
+            "dpi, in ems of the type: 0.37-0.39 from the top of the capitals",
+            "up to the box, 0.33-0.35 from the baseline down to it, and",
+            "0.12-0.19 out from the ends of a line. Its editor draws the",
+            "background round the LINE's box, as tall as the line is spaced,",
+            "and adds the spacing only across it.",
+
+            "`padRatio` 0.15 is the sides - the brief's spacing of 15 read as",
+            "a fraction of the type, and what the ends of its lines measure:",
+            "7px at the size below.",
+
+            "`padYRatio` 0.36 is the top and bottom - the mean of what the",
+            "screenshots measure: 17px. It does more than make the box",
+            "taller. The lines are spaced as type (`joined` above, and",
+            "`lineGap` in `layout`), so a box 17px proud of its capitals",
+            "behind lines 12px apart rises 5px up behind the plain line over",
+            "it - which is exactly what the brief does: its box overlaps the",
+            "foot of the opening line by 0.10-0.14em, the white letters",
+            "standing on the blue. It also covers every accent and cedilla in",
+            "the file, so nothing a French caption carries pokes out of the",
+            "top or bottom of the blue.",
+
+            "`radius` 0 is the brief's corner rounding, stated because the",
+            "brief states it, though it is also the skeleton's own default.",
+
+            "The letters on the box are the block's white, and no shadow: a",
+            "boxed highlight's shadow would be the BOX's (see addBoxes in",
+            "js/text.js), and the brief's blue casts none. Null is the",
+            "preset's answer already and is not restated.",
+
+            "No face of its own, so the box lines are set in the block's",
+            "face and the textboxes Static Studio adds are too (see",
+            "channels.textboxFaces): the brief has one face."
+        ],
+        "highlight": {
+            "mode": "box",
+            "scope": "line",
+            "fill": "#002DF1",
+            "color": "#FFFFFF",
+            "padRatio": 0.15,
+            "padYRatio": 0.36,
+            "radius": 0,
+            "joined": true
+        },
+
+        "panel": null,
+
+        "layout": {
+            "_comment": [
+                "The preset's block with three of the brief's numbers in it.",
+
+                "`fontSize` 48. The brief asks for body text between 60 and",
+                "75 in its editor's units, and both worked examples are set",
+                "at about 70 (69.7 and 71.5). Those units are not 540ths of",
+                "the frame: measured against Futura, the examples' lines fill",
+                "the frame as text of 48-49px does on a 540px still, so the",
+                "brief's canvas is about 790 units wide and its whole range",
+                "of 60-75 lands at 41-51px here. 48 is its examples. Stated",
+                "rather than fitted, for the preset's reason: forty stills",
+                "cut from one video are one set of type, not forty sizes.",
+
+                "The brief also asks for the second line to be larger than",
+                "the first, by up to 2 of those units - about 3%. The",
+                "renderer sets a caption at one size, and that difference is",
+                "smaller than the step between two of its pixel sizes at",
+                "this scale, so it is left out rather than faked.",
+
+                "`align` left, where the preset centres: every line in both",
+                "worked examples starts on one edge, and the boxes step out",
+                "to the right with the sentence.",
+
+                "`lineGap` 12, which is the brief's line spacing of 1. Under",
+                "the joined highlight it is the leading between capitals on",
+                "every row with a box beside it, and the box plays no part in",
+                "it: 36px of capital in this face plus 12 is 48px baseline to",
+                "baseline, the type set solid, which is what both of the",
+                "brief's examples measure (1.00em, box or no box). The blue",
+                "then lies behind that spacing and reaches up behind the line",
+                "above - see `padYRatio` under `highlight`.",
+
+                "One cost, and it is the brief's own. At solid leading the",
+                "acute on an E (0.29em over the capitals) reaches about 2px",
+                "above the baseline of the line over it, so an accented",
+                "capital can graze the foot of a letter there. The brief's",
+                "editor does the same, and both its examples are written",
+                "without accents ('APPELE EN EQUIPE'). 15 cleared them, and",
+                "was tried, but it moved every line off the brief's spacing to",
+                "do it and dropped the blue below the opening line instead of",
+                "behind it.",
+
+                "Between two plain lines it is measured from their ink",
+                "instead, so 12px there is the gap the brief's leading leaves",
+                "under a line with no accent in it.",
+
+                "Everything else is the preset's: the width, the twenty",
+                "characters to a line, `freeform`, and the 120px the block",
+                "stands on at the foot of the frame - the examples sit about",
+                "there. The brief's 'always at least 2 lines' is what a",
+                "rewritten caption at this size comes out as on its own; it",
+                "is not something the renderer enforces."
+            ],
+            "fontSize": 48,
+            "align": "left",
+            "lineGap": 12
+        }
+    },
+
+    "_comment_scrim": [
+        "A heavy shade thrown up from the foot of the frame, over the",
+        "photograph and under the caption. It is not written anywhere in the",
+        "brief's text, but every worked example in it has one, and it is",
+        "half of the look: the picture runs clean down to about the middle",
+        "of the frame, darkens over the next fifth, and the bottom third is",
+        "nearly black, with the photograph only just showing through it -",
+        "the legs under the shirt in the PSG example are still there, faint,",
+        "so it is not a solid fill. The caption stands in that dark band,",
+        "which is what lets plain white type with only a 30% shadow read at",
+        "all.",
+
+        "The numbers are read off those screenshots. `heightRatio` 0.52:",
+        "the shade starts at 48% of the frame height, where the examples'",
+        "pictures are still untouched. The stops run from the floor up -",
+        "0.9 black at the bottom edge, 0.85 at 0.6 of the span (the top of",
+        "the near-black band, about 69% down the frame), then 0.5 at 0.8",
+        "and nothing at the top. The middle stop bends the ramp, so the",
+        "fade is soft where it meets the picture and steep where it meets",
+        "the band, which is how the examples fall off; a straight line",
+        "from 0.85 to 0 showed its top edge as a line across the frame.",
+
+        "It is the same mechanism conspiracy-central's shade uses (see",
+        "`scrim` in js/channels.js): drawn on the canvas, not baked into",
+        "the photograph, so nothing in the image pipeline changes and the",
+        "Gradient button switches it per frame - see `branding` below."
+    ],
+    "scrim": {
+        "heightRatio": 0.52,
+        "stops": [
+            { "at": 0, "color": "rgba(0,0,0,0.9)" },
+            { "at": 0.6, "color": "rgba(0,0,0,0.85)" },
+            { "at": 0.8, "color": "rgba(0,0,0,0.5)" },
+            { "at": 1, "color": "rgba(0,0,0,0)" }
+        ]
+    },
+
+    "_comment_branding": [
+        "`gradient` true, and on this channel it means the SCRIM above",
+        "rather than the backend's side gradient - as on conspiracy-central",
+        "and laugh-society-snapchat. A channel with a scrim draws its own",
+        "shade on the canvas; the Gradient button (Gradient On / Gradient",
+        "Off, under the caption's frame) switches it per frame with no",
+        "round trip, and the backend is never asked for its ramp as well",
+        "(see state.backendPresentation).",
+
+        "On arrival, because every example in the brief has it. The button",
+        "is for the frame whose foot is already dark, or where the shade",
+        "would bury something that has to stay visible."
+    ],
+    "branding": { "gradient": true }
+}

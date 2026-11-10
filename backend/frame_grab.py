@@ -37,11 +37,16 @@ not chosen still to hand, and substitute:
                  nearest following moment that is a different scene.
   open_eyes      a slot with a face whose eyes are shut is swapped for the
                  nearest moment of the SAME scene where they are open.
+  clear_faces    a slot whose burned-in caption lies across a face is swapped
+                 for the nearest moment of the same scene where it does not,
+                 because painting the caption out would take the face with it.
 
 In that order, and the order matters: the scene pass moves a slot to a
 different moment of the video, and the eye pass then fixes the expression
 wherever the scene pass left it. Running them the other way round would fix an
-expression on a frame about to be thrown away.
+expression on a frame about to be thrown away. The caption pass comes last
+because it is the narrowest move of the three, and it only accepts frames that
+keep what the eye pass achieved.
 
 Both are substitutions, never insertions or deletions: the grid keeps exactly
 the frames it was asked for, and a pass that cannot find a better candidate
@@ -78,6 +83,7 @@ import numpy as np
 
 from image_utils import imread, color_hist, hist_similarity
 from face_detector import detect_faces, eyes_open
+from subtitle_remover import painted_boxes
 from frame_extractor import (
     MIN_INTERVAL, MAX_INTERVAL, get_video_duration, extract_window, full_frame_path,
 )
@@ -201,6 +207,42 @@ DENSE_FOCUS_FLOOR_FRAC = 0.75
 EYES_NO_FACE = "no-face"   # nobody in shot — nothing to check, and most frames
 EYES_OPEN = "open"         # a face, and two plausible open eyes on it
 EYES_SHUT = "shut"         # a face, and no such pair — blinking, squinting or turned away
+
+# ── Captions across a face ────────────────────────────────────────────────
+# How much of a face the painted caption boxes must cover before the slot is
+# moved. Not "any overlap": a box grazing the hairline or the edge of a jaw is
+# filled from the hair and the background beside it and nobody can tell, and
+# moving a slot for that would trade a good moment for nothing.
+FACE_OVERLAP_FRAC = 0.05
+# Faces at least this fraction of the largest one's width count as subjects.
+# Two people in an interview are both the picture; a face on a poster behind
+# them is not, and moving the slot to clear a caption off it would be a search
+# paid for nothing.
+SUBJECT_MIN_FRAC = 0.5
+# A candidate is judged against the SLOT's faces, not its own: a face the
+# caption is lying across is often not found at all, and the slot's has
+# already been found once — through the words if need be (see
+# _faces_under_caption). Grown by this much on each side, for a subject who
+# has moved a little in the second between the two frames.
+FACE_DRIFT_FRAC = 0.15
+
+# Same search shape as the eyes: the sample first, then a dense window.
+#
+# Wider than the eye window, because the thing being waited out is longer. A
+# blink is a fifth of a second; a caption line stays up for one to three, and
+# what is being looked for is the gap between two of them, or a line short
+# enough to leave the face alone.
+CAPTION_SEARCH_SECONDS = 3.0
+CAPTION_SEARCH_MAX_TRIES = 6
+CAPTION_WINDOW_SECONDS = 2.0
+CAPTION_WINDOW_INTERVAL = 0.12
+CAPTION_WINDOW_MAX_TRIES = 14
+# A video whose captions sit across a face from first word to last has no
+# clear moment to offer ANY slot, and every window searched for one is a few
+# seconds of text detection spent learning that again. After this many dense
+# searches without a single success the pass stops looking; the slots it did
+# not reach keep their frames and are painted, as before.
+CAPTION_GIVE_UP_AFTER = 4
 
 # How many candidates to extract per frame the user asked for. The selection
 # below can only choose from what was sampled, and it throws away everything
@@ -334,15 +376,18 @@ def eye_state(image: np.ndarray) -> str:
     return EYES_OPEN if eyes_open(image, max(faces, key=lambda f: f[2] * f[3])) else EYES_SHUT
 
 
-def _measure_one(item: tuple[str, float]) -> Grab | None:
-    path, timestamp = item
-    image = imread(path)
-    if image is None:
-        return None
+def _measured(path: str, timestamp: float, image: np.ndarray) -> Grab:
+    """A Grab for a frame already decoded."""
     focus, motion, contrast = measure(image)
     return Grab(path=path, timestamp=timestamp, focus=focus, motion=motion, contrast=contrast,
                 score=_grab_score(focus, motion, contrast), sharp=False,
                 signature=scene_signature(image))
+
+
+def _measure_one(item: tuple[str, float]) -> Grab | None:
+    path, timestamp = item
+    image = imread(path)
+    return None if image is None else _measured(path, timestamp, image)
 
 
 def measure_frames(paths: list[str], interval: float) -> list[Grab]:
@@ -535,6 +580,40 @@ def _eye_state_of(grab: Grab) -> str:
     return EYES_NO_FACE if image is None else eye_state(image)
 
 
+def _dense_window(slot: Grab, video_path: str, tag: str, index: int,
+                  seconds: float, interval: float) -> list[tuple[str, float]]:
+    """
+    A freshly-extracted dense window of the video either side of `slot`, as
+    (path, timestamp) pairs nearest-first. Empty when there is no video to cut
+    it from or the extraction fails.
+
+    `tag` keeps one pass's window out of another's directory: the eye search
+    and the caption search look at different radii around the same slot.
+    """
+    if not video_path:
+        return []
+
+    video_id = os.path.splitext(os.path.basename(video_path))[0]
+    out_dir = os.path.join(TEMP_DIR, f"{tag}_{video_id}_{index}")
+    try:
+        window = extract_window(video_path, slot.timestamp, seconds, interval, out_dir)
+    except Exception as e:
+        log.warning("capture: could not extract a %s-search window at %s (%s)",
+                    tag, timecode(slot.timestamp), e)
+        return []
+
+    # extract_window hands back the overlay-cropped frames; a capture slot is
+    # made of the uncropped ones, so every path is taken to its full sibling
+    # (see api's capture path for why).
+    start = max(0.0, slot.timestamp - seconds)
+    paths = []
+    for i, cropped in enumerate(window):
+        full = full_frame_path(cropped)
+        paths.append((full if os.path.exists(full) else cropped, start + i * interval))
+    paths.sort(key=lambda pt: abs(pt[1] - slot.timestamp))
+    return paths
+
+
 def _dense_open_eyed(slot: Grab, video_path: str, index: int) -> Grab | None:
     """
     The nearest moment to `slot`, out of a freshly-extracted dense window of
@@ -546,38 +625,12 @@ def _dense_open_eyed(slot: Grab, video_path: str, index: int) -> Grab | None:
     a slot that came back as a different shot has stopped being the moment the
     selection chose.
     """
-    if not video_path:
-        return None
-
-    video_id = os.path.splitext(os.path.basename(video_path))[0]
-    out_dir = os.path.join(TEMP_DIR, f"eyes_{video_id}_{index}")
-    try:
-        window = extract_window(video_path, slot.timestamp, EYE_WINDOW_SECONDS,
-                                EYE_WINDOW_INTERVAL, out_dir)
-    except Exception as e:
-        log.warning("capture: could not extract an eye-search window at %s (%s)",
-                    timecode(slot.timestamp), e)
-        return None
-
-    # extract_window hands back the overlay-cropped frames; a capture slot is
-    # made of the uncropped ones, so every path is taken to its full sibling
-    # (see api's capture path for why).
-    start = max(0.0, slot.timestamp - EYE_WINDOW_SECONDS)
-    paths = []
-    for i, cropped in enumerate(window):
-        full = full_frame_path(cropped)
-        paths.append((full if os.path.exists(full) else cropped,
-                      start + i * EYE_WINDOW_INTERVAL))
-    paths.sort(key=lambda pt: abs(pt[1] - slot.timestamp))
-
+    paths = _dense_window(slot, video_path, "eyes", index, EYE_WINDOW_SECONDS, EYE_WINDOW_INTERVAL)
     for path, timestamp in paths[:EYE_WINDOW_MAX_TRIES]:
         image = imread(path)
         if image is None:
             continue
-        focus, motion, contrast = measure(image)
-        candidate = Grab(path=path, timestamp=timestamp, focus=focus, motion=motion,
-                         contrast=contrast, score=_grab_score(focus, motion, contrast),
-                         sharp=False, signature=scene_signature(image))
+        candidate = _measured(path, timestamp, image)
         # Everything the slot it replaces had to clear: the same shot, and not
         # a smeared or out-of-focus frame. An open-eyed blur is not an
         # improvement on a sharp blink.
@@ -640,7 +693,179 @@ def open_eyes(chosen: list[Grab], candidates: list[Grab], video_path: str = "") 
     return swapped
 
 
-def select(paths: list[str], interval: float, count: int, video_path: str = "") -> list[Grab]:
+def _overlap(a: tuple[int, int, int, int], b: tuple[int, int, int, int]) -> int:
+    """Area two (x, y, w, h) rectangles share."""
+    w = min(a[0] + a[2], b[0] + b[2]) - max(a[0], b[0])
+    h = min(a[1] + a[3], b[1] + b[3]) - max(a[1], b[1])
+    return max(0, w) * max(0, h)
+
+
+def _covered(boxes: list, face: tuple[int, int, int, int]) -> bool:
+    """Whether painting `boxes` would take enough of `face` to show — see FACE_OVERLAP_FRAC."""
+    return sum(_overlap(b, face) for b in boxes) >= FACE_OVERLAP_FRAC * face[2] * face[3]
+
+
+def _without_captions(image: np.ndarray, boxes: list) -> np.ndarray:
+    """
+    `image` with `boxes` smudged out by Telea — a stand-in, never a result.
+
+    Used only to MEASURE the frame as it will be once its caption is gone,
+    which this cheap fill is good enough for and LaMa would be wasted on. Two
+    measurements need it. A face with a line of type across its nose is often
+    not a face at all to the cascade, and smudged it is one again. And the
+    caption's hard-edged lettering is the sharpest thing in the frame, so its
+    focus figure is inflated by exactly the words about to be removed; a clear
+    candidate measured honestly would lose to it every time.
+    """
+    mask = np.zeros(image.shape[:2], dtype=np.uint8)
+    for x, y, w, h in boxes:
+        mask[max(0, y):max(0, y + h), max(0, x):max(0, x + w)] = 255
+    return cv2.inpaint(image, mask, 3, cv2.INPAINT_TELEA)
+
+
+def _faces_under_caption(image: np.ndarray, boxes: list) -> list[tuple[int, int, int, int]]:
+    """The subjects of `image` that painting `boxes` would take enough of to show."""
+    if not boxes:
+        return []
+    faces = detect_faces(image) or detect_faces(_without_captions(image, boxes))
+    if not faces:
+        return []
+    widest = max(f[2] for f in faces)
+    subjects = [f for f in faces if f[2] >= widest * SUBJECT_MIN_FRAC]
+    return [f for f in subjects if _covered(boxes, f)]
+
+
+def face_under_caption(image: np.ndarray, bands: list | None) -> bool:
+    """
+    Whether removing this frame's captions would paint over somebody's face.
+
+    False for every video without burned-in captions, at no cost — there are
+    no bands, so no text is looked for.
+    """
+    return bool(bands) and bool(_faces_under_caption(image, painted_boxes(image, bands)))
+
+
+def _drifted(face: tuple[int, int, int, int], shape: tuple) -> tuple[int, int, int, int]:
+    """`face` grown by FACE_DRIFT_FRAC on every side, kept inside the frame."""
+    x, y, w, h = face
+    dx, dy = int(w * FACE_DRIFT_FRAC), int(h * FACE_DRIFT_FRAC)
+    x0, y0 = max(0, x - dx), max(0, y - dy)
+    x1, y1 = min(shape[1], x + w + dx), min(shape[0], y + h + dy)
+    return x0, y0, x1 - x0, y1 - y0
+
+
+def _clear_candidate(path: str, timestamp: float, slot: Grab, faces: list, bands: list,
+                     focus_floor: float, wants_eyes: bool, grab: Grab | None = None) -> Grab | None:
+    """
+    The frame at `path` as a replacement for `slot`, or None if it is not one.
+
+    It has to be everything the slot was apart from the caption: the same shot,
+    no softer once both have lost their words, and open-eyed if the slot was.
+    The checks run cheapest first, so a frame from another shot never pays for
+    text detection.
+    """
+    image = imread(path)
+    if image is None:
+        return None
+    candidate = grab or _measured(path, timestamp, image)
+    if not same_scene(candidate, slot):
+        return None
+    boxes = painted_boxes(image, bands)
+    if any(_covered(boxes, _drifted(f, image.shape)) for f in faces):
+        return None
+    if measure(_without_captions(image, boxes))[0] < focus_floor:
+        return None
+    if wants_eyes and eye_state(image) != EYES_OPEN:
+        return None
+    return candidate
+
+
+def clear_faces(chosen: list[Grab], candidates: list[Grab], video_path: str,
+                bands: list | None) -> int:
+    """
+    Replaces any slot whose burned-in caption lies across a face with the
+    nearest moment of the same scene where it does not. Returns how many were
+    moved; `chosen` is modified in place.
+
+    The reason is in subtitle_remover's header: a caption across a wall is
+    painted out and nobody can tell, and a caption across a nose is painted out
+    and the nose goes with it. There is no better fill for that, because what
+    is missing is not texture but this person's face — the only place it
+    exists is the frames where the words were somewhere else.
+
+    Last of the substitution passes, after the eyes, and it keeps their work:
+    a slot is only ever moved to a frame whose subject's eyes are open if the
+    slot's were. Run in the loop rather than in a pool because text detection
+    shares one network between calls.
+
+    Nothing to do for a video with no burned-in captions, which is most of
+    them: `bands` is empty and not a frame is opened.
+    """
+    if not bands:
+        return 0
+
+    taken = {g.path for g in chosen}
+    covered = moved = searched = found = 0
+    for i, slot in enumerate(chosen):
+        image = imread(slot.path)
+        if image is None:
+            continue
+        boxes = painted_boxes(image, bands)
+        faces = _faces_under_caption(image, boxes)
+        if not faces:
+            continue
+        covered += 1
+
+        # The slot as it will be once its caption is gone — see
+        # _without_captions for why both figures are taken from that and not
+        # from the frame as it stands.
+        cleared = _without_captions(image, boxes)
+        focus_floor = measure(cleared)[0] * DENSE_FOCUS_FLOOR_FRAC
+        wants_eyes = eye_state(cleared) == EYES_OPEN
+
+        def judge(path, timestamp, grab=None):
+            return _clear_candidate(path, timestamp, slot, faces, bands, focus_floor,
+                                    wants_eyes, grab)
+
+        replacement = None
+        near = sorted(
+            (c for c in candidates
+             if c.path not in taken and abs(c.timestamp - slot.timestamp) <= CAPTION_SEARCH_SECONDS),
+            key=lambda c: abs(c.timestamp - slot.timestamp),
+        )
+        for c in near[:CAPTION_SEARCH_MAX_TRIES]:
+            replacement = judge(c.path, c.timestamp, c)
+            if replacement is not None:
+                break
+
+        if replacement is None and not (searched >= CAPTION_GIVE_UP_AFTER and found == 0):
+            searched += 1
+            window = _dense_window(slot, video_path, "clear", i,
+                                   CAPTION_WINDOW_SECONDS, CAPTION_WINDOW_INTERVAL)
+            for path, timestamp in window[:CAPTION_WINDOW_MAX_TRIES]:
+                if path in taken:
+                    continue
+                replacement = judge(path, timestamp)
+                if replacement is not None:
+                    found += 1
+                    break
+
+        if replacement is None:
+            continue
+        taken.discard(slot.path)
+        taken.add(replacement.path)
+        chosen[i] = replacement
+        moved += 1
+
+    log.info("capture: %d of %d frames had a caption across a face, %d moved clear of it%s",
+             covered, len(chosen), moved,
+             " (stopped looking: this video's captions never leave the face)"
+             if searched >= CAPTION_GIVE_UP_AFTER and found == 0 else "")
+    return moved
+
+
+def select(paths: list[str], interval: float, count: int, video_path: str = "",
+           caption_bands: list | None = None) -> list[Grab]:
     """
     `count` frames from the extracted sample, quality-filtered and spread
     across the video, in the order they occur in it.
@@ -665,16 +890,18 @@ def select(paths: list[str], interval: float, count: int, video_path: str = "") 
     chosen = _backfill(chosen, leftovers, count, span)
     chosen.sort(key=lambda g: g.timestamp)
 
-    # The second half of selection — see the module header. Both draw from
-    # every usable candidate, not just the ones the first half passed over,
-    # and both leave the grid exactly the size it already is.
+    # The second half of selection — see the module header. All three draw
+    # from every usable candidate, not just the ones the first half passed
+    # over, and all three leave the grid exactly the size it already is.
     duplicates = spread_scenes(chosen, usable)
     blinks = open_eyes(chosen, usable, video_path)
+    captions = clear_faces(chosen, usable, video_path, caption_bands)
     log.info("capture: %d frames selected of %d asked for, spanning %s to %s "
-             "(%d moved off a repeated scene, %d moved off a blink)",
+             "(%d moved off a repeated scene, %d moved off a blink, "
+             "%d moved off a caption across a face)",
              len(chosen), count,
              timecode(chosen[0].timestamp), timecode(chosen[-1].timestamp),
-             duplicates, blinks)
+             duplicates, blinks, captions)
     return chosen
 
 

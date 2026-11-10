@@ -1,0 +1,4 @@
+# The YouTube login. It reaches the container through the volume in
+# docker-compose.yml, never through COPY: an image layer is not a place a
+# credential can be taken back out of.
+secrets/

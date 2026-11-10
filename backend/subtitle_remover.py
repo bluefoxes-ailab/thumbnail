@@ -59,6 +59,16 @@ and half a sentence removed is worse than none — so unlike logo_remover, which
 rejects any candidate touching face territory outright, this paints where the
 text is.
 
+What it paints there is skin. An inpainter rebuilds a wall or a sky from the
+picture around the hole, but a nose is not texture: no model can know what
+THIS person's nose looked like under the words, and the result is a smooth
+patch where it should be. It is invisible on a frame that gets a new caption
+drawn over the same place and glaring on one that does not. So a frame fetch
+does not lean on this for faces at all where it can help it — it moves the
+slot to a nearby moment where the caption is off the face, and only paints a
+face when the video never offers one (see frame_grab.clear_faces, which asks
+painted_boxes below before anything is painted).
+
 ## When the model is missing
 
 Nothing happens. There is no classical fallback, and that is a decision rather
@@ -369,14 +379,43 @@ def remove_subtitles(scaled: np.ndarray, source: np.ndarray, scale: float,
     if not boxes:
         return scaled
 
-    # Grown per box, since the padding is a multiple of each line's own height
-    # (see BOX_PADDING_LINES). inpaint_boxes takes one padding for the lot, so
-    # the growing happens here and it is handed rectangles already the right
-    # size.
-    floor = max(BOX_PADDING_MIN_PX, int(scaled.shape[1] * BOX_PADDING_FRAC))
+    return inpaint_boxes(scaled, _grown(boxes, scale, scaled.shape[1]))
+
+
+def _grown(boxes: list[tuple[int, int, int, int]], scale: float,
+           width: int) -> list[tuple[int, int, int, int]]:
+    """
+    `boxes`, multiplied by `scale` and grown to what is actually painted.
+
+    Grown per box, since the padding is a multiple of each line's own height
+    (see BOX_PADDING_LINES). inpaint_boxes takes one padding for the lot, so
+    the growing happens here and it is handed rectangles already the right
+    size.
+    """
+    floor = max(BOX_PADDING_MIN_PX, int(width * BOX_PADDING_FRAC))
     grown = []
     for x, y, w, h in boxes:
         pad = max(floor, int(h * scale * BOX_PADDING_LINES))
         grown.append((int(x * scale) - pad, int(y * scale) - pad,
                       int(w * scale) + 2 * pad, int(h * scale) + 2 * pad))
-    return inpaint_boxes(scaled, _merge_boxes(grown))
+    return _merge_boxes(grown)
+
+
+def painted_boxes(image: np.ndarray,
+                  bands: list[SubtitleBand] | None) -> list[tuple[int, int, int, int]]:
+    """
+    The rectangles remove_subtitles would paint out of this uncropped frame,
+    padding included, in its own pixel coordinates. Empty when it would paint
+    nothing.
+
+    For asking BEFORE anything is painted what painting would cost — which is
+    the question frame_grab.clear_faces asks of a frame fetch's slots. A box
+    across a wall is a fill nobody notices; a box across a nose is a nose
+    replaced with skin, because no inpainter can know what that particular nose
+    looked like. The only real fix for the second is a moment of the video
+    where the caption is not there, and that needs this answer first.
+    """
+    if not bands:
+        return []
+    boxes = text_boxes(image, bands, 0.0, 0.0, from_full_frame=True)
+    return _grown(boxes, 1.0, image.shape[1]) if boxes else []

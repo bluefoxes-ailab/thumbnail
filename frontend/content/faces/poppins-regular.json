@@ -1,0 +1,72 @@
+{
+    "schema": 1,
+    "id": "poppins-regular",
+
+    "_comment_family": [
+        "Poppins Regular, from the Google Fonts repository (ofl/poppins), under",
+        "the SIL Open Font License like the other Google faces in fonts/.",
+        "",
+        "Poppins ships as eighteen cuts - nine weights and their italics - and",
+        "every one of them carries 'Poppins' as name ID 1, with the cut in the",
+        "subfamily. Only the Regular is in this folder, so a request for",
+        "'Poppins' inside the app can only reach this file: the FontFace",
+        "registered from this JSON is the one face under that family the",
+        "browser holds, at the weight the canvas asks for. That is why the",
+        "family is declared plainly here rather than as a full name the way",
+        "syne-regular.json has to - there is no second cut in the app for the",
+        "request to land on.",
+        "",
+        "The danger is on the machine instead, and it is handled in `local`",
+        "below: a designer's PC may well have the whole family installed.",
+        "",
+        "Weight 400, the file's own usWeightClass. It is a static cut, not an",
+        "instance of a variable font - there is no fvar table - so nothing is",
+        "interpolated, and asking for 400 asks for exactly these outlines.",
+        "",
+        "Unlike the Bebas it is set beside, Poppins has a real lower case. The",
+        "preset uppercases every caption under the Snapchat heading (see",
+        "`uppercase` in presets/snapchat-caption.json), so a picked word is in",
+        "Poppins' capitals like the rest of the block."
+    ],
+    "family": "Poppins",
+    "weight": "400",
+
+    "file": "fonts/Poppins-Regular.ttf",
+    "format": "truetype",
+
+    "_comment_css": [
+        "Not declared in styles.css. This face arrived with a channel and is",
+        "registered from this JSON at load time (see registerFace in",
+        "js/channels.js), which is the route content/README.md describes -",
+        "nothing has to be added to the stylesheet for it."
+    ],
+    "css": false,
+
+    "_comment_local": [
+        "What the machine may already know the face by, tried after the file",
+        "and used by the installer as the name it registers this face under",
+        "(see engine.install_fonts, which takes the first).",
+        "",
+        "The PostScript name first, then the full name. Both name this one",
+        "cut, so a machine answering to either is answering with this file.",
+        "'Poppins' on its own is deliberately absent: it is the name all",
+        "eighteen cuts answer to, and a machine with the family installed",
+        "could hand back the Bold or the Light under it."
+    ],
+    "local": ["Poppins-Regular", "Poppins Regular"],
+
+    "_comment_stack": [
+        "Damage limitation, never a design choice - a block laid out against",
+        "the wrong metrics is broken rather than merely different, which is",
+        "what fontguard exists to catch before anything is drawn.",
+        "",
+        "Chosen all the same, and written as the opposite of the block's",
+        "stack. This is the HIGHLIGHT face on a channel set in Bebas Neue",
+        "Cyrillic (see conspiracy-central), so it falls through the",
+        "ordinary-width sans faces Windows can be relied on to have, and",
+        "never through Anton or Impact: a substitute in the block's condensed",
+        "register would take away the one thing that sets a picked word",
+        "apart."
+    ],
+    "stack": "'Poppins', 'Segoe UI', Arial, sans-serif"
+}

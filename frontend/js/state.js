@@ -1,5 +1,5 @@
 import { DEFAULT_PRESET } from "./config.js";
-import { branding, activeChannelId, styleFor, captureFor, decorFor } from "./channels.js";
+import { branding, activeChannelId, styleFor, captureFor, decorFor, defaultTextEffects } from "./channels.js";
 
 // [{frame_id, plainUrl, enhancedUrl, lines, hl, titleBox, titleActive, glow,
 //   flipImage, flipText, gradient, gradientTouched, logos, activeLogo,
@@ -11,12 +11,103 @@ import { branding, activeChannelId, styleFor, captureFor, decorFor } from "./cha
 export const store = {
     frames: [],
     selected: 0,
+    // The order the grid SHOWS the frames in — see gridOrder — and the frames
+    // array it was built for, so an order outlives no run.
+    order: null,
+    orderOf: null,
 };
 
 export const frames = () => store.frames;
 export const current = () => store.frames[store.selected];
 export const selectedIndex = () => store.selected;
 export const setSelectedIndex = (i) => { store.selected = i; };
+
+/**
+ * The frames in the order the grid shows them, as indices into store.frames.
+ *
+ * A frame fetch's grid can be rearranged by dragging (see reorder.js), and
+ * that is done HERE rather than by reordering store.frames itself. Everything
+ * that works on a frame in the background — the edit pass, a Variation, a
+ * cutout — holds on to the frame's index across its awaits and writes its
+ * answer back to that index when it lands. A drag in the middle of the edit
+ * pass is exactly what the user is allowed to do, and moving the records
+ * under those calls would hand each answer to whatever frame had slid into
+ * the old place. So a frame's index never changes for the life of a run, and
+ * the user's arrangement is a separate list laid over it.
+ *
+ * What reads it is everything where the ORDER is the point: the grid and its
+ * numbers, the arrows beside the canvas, the file names and the order of a
+ * zip, and the split of the user's own text. Starts as the order the frames
+ * arrived in, which is the order they happen in the video.
+ *
+ * A frame the user has DISCARDED (see discardFrame) is not in it, and that
+ * one omission is the whole of how a discard reaches all of those: none of
+ * them has to learn what a discarded frame is, because none of them is ever
+ * shown one. So this list is not always every index — read its length, not
+ * store.frames', wherever the question is "how many frames are there".
+ */
+export function gridOrder() {
+    if (!store.order || store.orderOf !== store.frames) {
+        store.order = [...store.frames.keys()].filter(i => !store.frames[i].discarded);
+        store.orderOf = store.frames;
+    }
+    return store.order;
+}
+
+/** Where frame `i` sits in the grid, counting from 0. */
+export const positionOf = (i) => gridOrder().indexOf(i);
+
+/** Replaces the grid's order with `order`, a rearrangement of the frames in it. */
+export function setGridOrder(order) {
+    const now = gridOrder();
+    const valid = order.length === now.length && new Set(order).size === now.length
+        && order.every(i => now.includes(i));
+    if (valid) store.order = [...order];
+}
+
+/**
+ * Puts a frame the user added (see main.addOwnFrame) on the end of the grid,
+ * and returns its index.
+ *
+ * Appended to store.frames rather than placed into it, for the reason a drag
+ * never moves a record (see gridOrder): every index already handed out has to
+ * go on naming the frame it named. Where it SITS is the order's business, and
+ * the order is written here because the cache in gridOrder would not notice —
+ * the frames array is the same array, one longer.
+ */
+export function addFrame(frame) {
+    const order = gridOrder();
+    store.frames.push(frame);
+    const i = store.frames.length - 1;
+    store.order = [...order, i];
+    return i;
+}
+
+/**
+ * Takes frame `i` out of the run for good: off the grid, out of the edit
+ * pass if it has not been reached, out of "Split the text", the downloads and
+ * the arrows — and whatever text it carried goes with it rather than to any
+ * other frame.
+ *
+ * The record itself stays where it is in store.frames, for the reason the
+ * grid's order is a separate list at all (see gridOrder): an edit or a cutout
+ * in flight for this frame is holding its index, and must land on this record
+ * — harmlessly, unseen — and not on whichever frame would have slid into its
+ * place. What makes it gone is its absence from the order.
+ *
+ * The text is cleared rather than left on a record nobody sees, so that
+ * nothing that walks every frame (capture.applyCaptions) can bring it back.
+ */
+export function discardFrame(i) {
+    const f = store.frames[i];
+    if (!f || f.discarded) return;
+    f.discarded = true;
+    f.picked = false;
+    f.caption = "";
+    f.lines = f.lines.map(() => "");
+    f.textboxes = [];
+    store.order = gridOrder().filter(k => k !== i);
+}
 
 /**
  * The lines of frame `i`'s title, as the renderer will set them.
@@ -122,6 +213,146 @@ export function titleActiveFor(i) {
     const f = store.frames[i];
     return !!(f && f.titleActive);
 }
+
+/**
+ * How many textboxes "Add textbox" puts on one frame, at most, beside the
+ * caption. Three because that is what was asked for; a limit at all because
+ * every one of them is a column of controls in the panel, and an unbounded
+ * list of them would be a panel nobody can find anything in.
+ */
+export const MAX_TEXTBOXES = 3;
+
+/**
+ * Frame `i`'s textboxes (Static Studio's "Add textbox"), in the order they
+ * were added, which is also the order they are drawn in — the last one on
+ * top. Empty while it has none. Each one is:
+ *
+ *   text  what was typed, as one block — the breaks in it are the user's,
+ *         exactly as in a freeform title (see textboxLinesFor).
+ *   hl    what is picked out of it, in the shape hlFor describes: word keys
+ *         for a channel that highlights words, line indices for one that
+ *         highlights lines.
+ *   box   where it has been dragged and how far resized, as an offset from
+ *         where it starts — the shape and the meaning of titleBox.
+ *   face  the family the user picked from the "Text font" list, or null for
+ *         the channel's default (see channels.defaultTextboxFace). Stored as
+ *         a name rather than as a face, so the channel the frame is drawn
+ *         under decides what that name resolves to.
+ *   textColor, highlightColor, panelColor
+ *         its OWN colours, in exactly the shape the frame's fields of the
+ *         same names hold the caption's (see textColorFor): an index into
+ *         the channel's palette, NO_PANEL for the card, or null for the
+ *         channel's own colour.
+ *   effects
+ *         its own drop shadow and outline, in the shape the caption's page
+ *         setting has (see channels.mergeTextEffects).
+ *   align
+ *         its own alignment, "left" / "center" / "right", or null for the
+ *         channel's — the shape of titleAlignFor.
+ *
+ * All of that is the textbox's own and none of it the caption's or another
+ * textbox's, on purpose: the user sets a block apart by colour, face, effect
+ * and alignment, and a block that changed whenever another did could never
+ * be a second voice. A new one starts in the brand — null colours, no
+ * effects, the channel's alignment — not in whatever the caption happened to
+ * be wearing.
+ *
+ * What is shared is the treatment that makes it the channel's at all: the
+ * card's shape and the highlight's kind, read from the pack.
+ */
+export function textboxesFor(i) {
+    const f = store.frames[i];
+    return (f && Array.isArray(f.textboxes)) ? f.textboxes : [];
+}
+
+/** Frame `i`'s textbox number `k` (from 0), or null. */
+export function textboxFor(i, k) {
+    return textboxesFor(i)[k] || null;
+}
+
+/**
+ * The lines of frame `i`'s textbox `k`, as the renderer will set them — the
+ * freeform rule from linesFor, whatever the channel's own caption uses: blank
+ * lines dropped from the two ends and kept between two others.
+ *
+ * Freeform always, because a textbox has one field whatever its channel
+ * does with the caption: it is something the user writes as a block, and
+ * there are no slots for it to be counted in.
+ */
+export function textboxLinesFor(i, k) {
+    const box = textboxFor(i, k);
+    if (!box || !box.text) return [];
+    const lines = box.text.split("\n");
+    while (lines.length && !lines[0].trim()) lines.shift();
+    while (lines.length && !lines[lines.length - 1].trim()) lines.pop();
+    return lines;
+}
+
+/**
+ * Whether textbox `k` of frame `i` carries the on-canvas handles (see
+ * titleActiveFor). One at a time, like everything else on the canvas:
+ * `activeTextbox` is the index of the one wearing them, or -1.
+ */
+export function textboxActiveFor(i, k) {
+    const f = store.frames[i];
+    return !!(f && f.activeTextbox === k && textboxFor(i, k));
+}
+
+/** A fresh, empty textbox — what "Add textbox" puts on a frame. */
+export const newTextbox = () => ({
+    text: "", hl: [], box: null, face: null,
+    textColor: null, highlightColor: null, panelColor: null,
+    effects: defaultTextEffects(), align: null,
+});
+
+/** A copy of `box` that shares nothing with it, or null. */
+export const copyTextbox = (box) => (box
+    ? {
+        ...box, hl: [...box.hl], box: box.box ? { ...box.box } : null,
+        effects: box.effects ? structuredClone(box.effects) : defaultTextEffects(),
+    }
+    : null);
+
+/** A copy of a frame's whole list of textboxes. */
+export const copyTextboxes = (list) => (Array.isArray(list) ? list.map(copyTextbox) : []);
+
+/**
+ * Frame `i`'s mask (Static Studio's "Create mask"), or null while it has none.
+ *
+ *   shape         "rect" or "round". A round mask is always a circle: its box
+ *                 is kept square by the step that draws it (see framemask.js).
+ *   x, y, w, h    the window the photograph shows through, in canvas pixels
+ *                 (CW x CH), top-left corner and size.
+ *   fill          the solid colour everything outside the window is painted.
+ *   outline       whether an edge is drawn round the window, and
+ *   outlineColor  in which colour,
+ *   outlineWidth  at what width, in canvas pixels.
+ *   place         optional { s, tx, ty }: where the masked picture — window
+ *                 and photograph together — has been moved and scaled to on
+ *                 the canvas. Absent is where it was cut. See `place` in
+ *                 framemask.js.
+ *
+ * The window is measured on the photograph as it fills the canvas, and it is
+ * cut in the step and only there; the canvas moves and scales what was cut,
+ * as one piece, through `place`. The zoom slider still reframes the
+ * photograph behind the window — the one way left to change what shows
+ * through it without reopening the step.
+ */
+export function frameMaskFor(i) {
+    const f = store.frames[i];
+    return (f && f.frameMask) || null;
+}
+
+/** Whether the frame's mask wears its selection box (see titleActiveFor). */
+export function frameMaskActiveFor(i) {
+    const f = store.frames[i];
+    return !!(f && f.frameMask && f.frameMaskActive);
+}
+
+/** A copy of `mask` that shares nothing with it, or null. */
+export const copyFrameMask = (mask) => (mask
+    ? { ...mask, ...(mask.place ? { place: { ...mask.place } } : {}) }
+    : null);
 
 /**
  * The figures frame `i` shows, bottom of the stack first — array order IS
@@ -408,6 +639,8 @@ export function releaseFrames() {
         clearCutout(f);
     }
     store.frames = [];
+    store.order = null;   // an arrangement of frames that no longer exist
+    store.orderOf = null;
 }
 
 /**
@@ -455,6 +688,16 @@ export function makeFrame(frame_id, plainUrl, moment = null, caption = "") {
         // the block sits exactly where the channel's layout puts it.
         titleBox: null,
         titleActive: false,             // whether the title wears the canvas handles
+        // The textboxes, Static Studio only — none until the user adds one
+        // (see textboxesFor) — and which of them wears the handles, or -1.
+        textboxes: [],
+        activeTextbox: -1,
+        // The mask the photograph is seen through, Static Studio only — null
+        // until the user creates one (see frameMaskFor).
+        frameMask: null,
+        // Whether the mask wears its selection box on the canvas (see
+        // reframe.js), the way titleActive does for the title.
+        frameMaskActive: false,
         // The optional halo, for a channel that offers one (`glow.toggle`).
         // Off to begin with: it is an effect the user reaches for on a frame
         // that needs it, not a look every frame arrives wearing.
@@ -541,6 +784,9 @@ export function makeFrame(frame_id, plainUrl, moment = null, caption = "") {
         // carried over to other frames: it describes which picture this one
         // holds, which is the one thing a carry-over must never copy.
         uploaded: false,
+        // Set once the user throws this frame out of the run with the X on
+        // its card — see discardFrame. Never unset: there is no undo.
+        discarded: false,
         picked: false,
         edited: false,                  // flips true on the user's first real edit — see carryOverSettings
         version: 0,
@@ -579,11 +825,19 @@ function contentSource(i) {
     // meant. The `edited` scan stays as the fallback, because the other things
     // carried over — the edit preset above all — are worth taking from a
     // worked-on neighbour even when nobody has typed anything yet.
-    const has = (f) => f && ((f.lines && f.lines.some(Boolean)) || (f.logos && f.logos.length));
-    for (let k = i - 1; k >= 0; k--) if (has(store.frames[k])) return store.frames[k];
-    for (let k = i + 1; k < store.frames.length; k++) if (has(store.frames[k])) return store.frames[k];
-    for (let k = i - 1; k >= 0; k--) if (store.frames[k] && store.frames[k].edited) return store.frames[k];
-    for (let k = i + 1; k < store.frames.length; k++) if (store.frames[k] && store.frames[k].edited) return store.frames[k];
+    //
+    // "Before" and "after" are places in the GRID, which the user may have
+    // rearranged (see gridOrder): the neighbour is the card beside this one
+    // on screen, not the one that happened to arrive next to it.
+    const has = (f) => f && ((f.lines && f.lines.some(Boolean)) || (f.logos && f.logos.length)
+        || (f.textboxes || []).some(b => b.text.trim()));
+    const order = gridOrder();
+    const p = order.indexOf(i);
+    const at = (q) => store.frames[order[q]];
+    for (let q = p - 1; q >= 0; q--) if (has(at(q))) return at(q);
+    for (let q = p + 1; q < order.length; q++) if (has(at(q))) return at(q);
+    for (let q = p - 1; q >= 0; q--) if (at(q) && at(q).edited) return at(q);
+    for (let q = p + 1; q < order.length; q++) if (at(q) && at(q).edited) return at(q);
     return null;
 }
 
@@ -600,7 +854,8 @@ function contentSource(i) {
  * typed something.
  */
 function channelSource(i) {
-    return store.frames[i - 1] || contentSource(i);
+    const order = gridOrder();
+    return store.frames[order[order.indexOf(i) - 1]] || contentSource(i);
 }
 
 /**
@@ -674,6 +929,13 @@ export function carryOverSettings(i, onPresetChanged) {
     if (wordsBelongToFrame(to)) {
         to.logos = (from.logos || []).map(l => ({ ...l }));
         to.activeLogo = from.activeLogo;
+        // The textboxes travel with the overlay, and for its reason: they
+        // are something the user wrote and placed by hand, not what was
+        // said over this frame, so they are the same answer on the next
+        // frame in a way the caption never is. Never selected on arrival —
+        // the handles are the frame's own business.
+        to.textboxes = copyTextboxes(from.textboxes);
+        to.activeTextbox = -1;
         // The colours travel too, and they are the one thing here besides the
         // overlay that does. Everything the short path withholds is withheld
         // because it describes THESE words — which of them are picked out,
@@ -696,6 +958,12 @@ export function carryOverSettings(i, onPresetChanged) {
     // there because of what the title says, and a new frame inheriting the
     // words without the position would put them back over the face.
     to.titleBox = from.titleBox ? { ...from.titleBox } : null;
+    to.textboxes = copyTextboxes(from.textboxes);
+    to.activeTextbox = -1;
+    // The mask is deliberately NOT among them. It is a window cut round what
+    // is in ONE photograph — this face, this object — and the next frame's
+    // subject is somewhere else; a copy would arrive framing nothing in
+    // particular, and every frame after it would need it taken off again.
     to.glow = from.glow;
     // The stage and the contour ride along for the reason the halo does: a
     // user who moved this video onto the second backdrop, or put a gold

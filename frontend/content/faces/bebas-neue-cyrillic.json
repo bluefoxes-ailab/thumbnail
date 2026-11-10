@@ -1,0 +1,77 @@
+{
+    "schema": 1,
+    "id": "bebas-neue-cyrillic",
+
+    "_comment_family": [
+        "Bebas Neue with a Cyrillic added to it by a second hand, and a",
+        "different file from the Bebas Neue beside it in fonts/ - which is the",
+        "first thing to know, because the two are easy to mistake for one face",
+        "asked for twice.",
+        "",
+        "The family is what this file's name table says (ID 1), 'Bebas Neue",
+        "Cyrillic', and that is what keeps the two apart. bebas-neue.json",
+        "declares 'Bebas Neue', so the browser holds two families, each",
+        "answering with its own outlines and its own metrics, and fontguard",
+        "verifies each by its own name. Had this one been declared as 'Bebas",
+        "Neue' too, `registerFace` in js/channels.js would skip it as a family",
+        "already present and the channel set in it would quietly be drawn in",
+        "the other file.",
+        "",
+        "One cut, so the family alone names it - the same argument",
+        "bebas-neue.json makes for itself. Weight 400 is the file's own",
+        "usWeightClass, and there is no fvar table, so nothing is interpolated",
+        "or synthesised.",
+        "",
+        "Like the original it is a capitals face, and the preset uppercases",
+        "every caption under the Snapchat heading anyway (see `uppercase` in",
+        "presets/snapchat-caption.json). The Latin accents a French, German or",
+        "Portuguese caption needs are all in the file.",
+        "",
+        "It carries no GPOS and no kern table: the pairs are spaced by their",
+        "advances alone. At 40px in capitals that is the condensed face doing",
+        "what it was drawn to do, not a loss worth reaching for another file",
+        "over."
+    ],
+    "family": "Bebas Neue Cyrillic",
+    "weight": "400",
+
+    "file": "fonts/Bebas Neue Cyrillic Regular.ttf",
+    "format": "truetype",
+
+    "_comment_css": [
+        "Not declared in styles.css. This face arrived with a channel and is",
+        "registered from this JSON at load time (see registerFace in",
+        "js/channels.js), which is the route content/README.md describes -",
+        "nothing has to be added to the stylesheet for it."
+    ],
+    "css": false,
+
+    "_comment_local": [
+        "What the machine may already know the face by, tried after the file",
+        "and used by the installer as the name it registers this face under",
+        "(see engine.install_fonts, which takes the first).",
+        "",
+        "The PostScript name first, then the full name, which in this file is",
+        "the family itself (name ID 4 carries no 'Regular'). 'Bebas Neue' is",
+        "deliberately absent: it is the other face's name, and a machine",
+        "answering to it would hand back the other file."
+    ],
+    "local": ["BebasNeueCyrillic", "Bebas Neue Cyrillic"],
+
+    "_comment_stack": [
+        "Damage limitation, never a design choice - a block laid out against",
+        "the wrong metrics is broken rather than merely different, which is",
+        "what fontguard exists to catch before anything is drawn.",
+        "",
+        "Chosen all the same, and written as the opposite of the stack of the",
+        "face used beside it. This is the BLOCK face on two channels whose",
+        "highlight is an ordinary-width sans - Poppins on conspiracy-central,",
+        "Montserrat on noisy-dish - so it falls through the original Bebas",
+        "Neue, Anton and Impact - tall condensed capitals - while",
+        "poppins-regular.json and montserrat-regular.json fall through",
+        "ordinary-width sans faces.",
+        "Whatever a machine is missing, the block stays the narrow one and the",
+        "picked word the round one."
+    ],
+    "stack": "'Bebas Neue Cyrillic', 'Bebas Neue', 'Anton', Impact, 'Arial Black', sans-serif"
+}

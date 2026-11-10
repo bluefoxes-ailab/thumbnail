@@ -4,24 +4,41 @@
     "name": "Noisy Dish",
 
     "_comment_group": [
-        "Another show under the Snapchat heading, built to Hall of Femme's",
-        "brief. Everything that makes it a Snapchat pack is Hall of Femme's and",
-        "is stated in the same two references: the frame fetch, the vertical",
-        "output, the transcription, the rewrite, and how the caption is set.",
-        "",
-        "Where it parts company with its neighbours is not the type at all, it",
-        "is the PICTURE. Every other channel under this heading delivers the",
-        "still edge to edge and puts a card of type on it. This one delivers",
-        "the still as a card of its own, lying on a ground the channel paints",
-        "- see `photo` below - and then sets the caption in nothing but white",
-        "letters, because the picture is now carrying all the graphic the frame",
-        "can hold.",
-        "",
-        "Written as its own folder rather than as an override of a sibling, for",
-        "the reason content/README.md gives: a channel is a folder that gets",
-        "dropped in. The prose below points at hall-of-femme wherever the",
-        "reasoning is the same and states its own where this pack decides",
-        "something."
+        "A show under the Snapchat heading, cut to Conspiracy Central's",
+        "design, with its own faces and colours. Shared with that pack: the",
+        "frame fetch, the 540x960 vertical output, the transcription, the",
+        "rewrite that turns speech into report, the stated 40px, the twenty",
+        "characters to a line, the freeform text box, the drag, the card, and",
+        "a dark shade from the foot of the frame that the Gradient button",
+        "switches per frame.",
+
+        "The faces and the colours are this show's own. The block is set in",
+        "Bebas Neue Cyrillic like its model's, but a picked word comes out in",
+        "Montserrat Regular rather than Poppins; and the palette is black,",
+        "white, a cyan, a deep red, a pink and a yellow, which the user pairs",
+        "between the type and the card. Each is argued where it is stated.",
+
+        "One thing of Conspiracy Central's the show did NOT ask for, and it",
+        "is left out on purpose rather than forgotten: the shade arrives",
+        "OFF. It is there for the frame that needs it, a press away, rather",
+        "than laid over every still by default; argued at `branding` below.",
+        "The caption stands where every Snapchat caption stands, on the foot",
+        "of the frame at the preset's margin (see `layout` below).",
+
+        "It used to be a different design altogether: the still shrunk to 85%",
+        "and laid as a rounded card on a crimson-to-amber ground, tinted brick",
+        "along its foot, with white Bebas Neue under it held off the amber by",
+        "an opaque shadow and no palette at all. The show asked to look like",
+        "Conspiracy Central instead, so the `photo` key, its backdrop and its",
+        "tint are gone and the pack was rewritten from that one rather than",
+        "edited from its own past. git history has the old numbers and the",
+        "argument for each of them, if the show ever asks for the ground back.",
+
+        "Written as its own folder rather than as an override of a sibling,",
+        "for the reason content/README.md gives: a channel is a folder that",
+        "gets dropped in, and a pack that leans on another one's file for its",
+        "look breaks the day that other show changes its mind - which is",
+        "exactly what Conspiracy Central has already done once."
     ],
     "order": 900,
     "group": "Snapchat",
@@ -29,182 +46,197 @@
     "_comment_capture": [
         "The frame fetch, whole, from content/presets/snapchat-capture.json:",
         "the slider's range, the 540x960 output, the transcription, and the",
-        "rewrite that turns the transcript from speech into report.",
-        "",
-        "Stated as a reference and not as numbers, because this channel has",
-        "nothing to say about any of it that its neighbours do not - and a pack",
-        "that restates a shared answer is a pack that can be missing a piece of",
-        "it."
+        "rewrite that turns it from speech into report. This channel has",
+        "nothing to say about any of it that its neighbours do not."
     ],
     "capture": { "use": "snapchat-capture" },
 
     "framing": { "use": "snapchat-framing" },
 
-    "_comment_photo": [
-        "The still, resized and laid on a painted ground. This is the whole of",
-        "what makes the channel look like itself, and the three parts of it are",
-        "one composition rather than three effects - see `photo` in",
-        "js/channels.js for what each key means and why the geometry is stated",
-        "the way it is.",
-        "",
-        "85% of the frame, centred. Both dimensions by the same fraction, which",
-        "is the only scaling that leaves the picture the picture: the still",
-        "arrives already cut to 540x960 (see snapchat-capture), so 0.85 is",
-        "459x816 and the crop the backend chose survives it intact. What the",
-        "margin is for is the ground: 41px of it down each side and 72px top",
-        "and bottom, which is a band of the gradient rather than a field of it",
-        "- enough to read as the frame's colour and as a deliberate edge, and",
-        "not so much that the still stops being the thing on screen.",
-        "",
-        "13px of corner radius, the same 13 the caption cards elsewhere under",
-        "this heading are rounded by (see snapchat-caption). Same reason, too:",
-        "a square-cornered picture inset on a coloured ground reads as a",
-        "letterbox, something the player did, and a rounded one reads as a",
-        "graphic somebody made.",
-        "",
-        "The backdrop runs on the diagonal: crimson in the bottom-left corner,",
-        "amber in the top-right. [0,1] to [1,0] is that corner to that corner,",
-        "measured across the canvas - the ramp is stated as the two ends of the",
-        "line it travels along and nothing about the size of what it crosses,",
-        "so it is the same statement whatever the card is sized to.",
-        "",
-        "A diagonal rather than a fall down the frame, and it is what makes the",
-        "margin worth having at 85%: a band this narrow crossed by a top-to-",
-        "bottom ramp is two flat stripes, one down each side, because the sides",
-        "are where nearly all of it is and each side is a single height. Run",
-        "corner to corner, every edge of that band travels through the whole",
-        "ramp instead, and the frame reads as one field of colour with a",
-        "picture lying on it.",
-        "",
-        "The tint is one colour and it is the join between the two halves of",
-        "the composition: a brick that is what the crimson and the amber have",
-        "in common, laid over the picture so the card looks lit by the ground",
-        "it is lying on instead of pasted onto it. Full strength along the",
-        "bottom edge of the card and gone by the top, which is the direction",
-        "every shade in this app is thrown in (see `scrim`) and the one that",
-        "puts the deepest colour where the picture meets the caption. It is a",
-        "treatment OF the photograph and is clipped to it, corners included -",
-        "that is what `tint` is for and what separates it from a scrim, which",
-        "would run out across the ground.",
-        "",
-        "To wash the whole picture evenly instead, give both stops the same",
-        "alpha; the direction and the fade are these two stops and nothing",
-        "else."
-    ],
-    "photo": {
-        "fillRatio": 0.85,
-        "radius": 13,
-        "backdrop": {
-            "from": [0, 1],
-            "to": [1, 0],
-            "stops": [
-                { "at": 0, "color": "#C2183A" },
-                { "at": 1, "color": "#F5A623" }
-            ]
-        },
-        "tint": {
-            "from": [0, 1],
-            "to": [0, 0],
-            "stops": [
-                { "at": 0, "color": "rgba(139,63,47,0.9)" },
-                { "at": 1, "color": "rgba(139,63,47,0)" }
-            ]
-        }
-    },
-
     "_comment_title": [
-        "Bebas Neue, white, and nothing else. Every other decision about how a",
-        "caption is set under this heading - the size, where the lines break,",
-        "the capitals, where the block stands, that the user can drag it off a",
-        "face - is the Snapchat caption design and is stated once in",
+        "Bebas Neue Cyrillic, with picked words in Montserrat Regular, in six",
+        "colours the user pairs per frame, on a card. The card, its shape,",
+        "the size, where the lines break and the capitals are the Snapchat",
+        "caption design and are stated once, in",
         "content/presets/snapchat-caption.json.",
-        "",
-        "Bebas has no lower case of its own, so the preset's capitals are the",
-        "face's own answer rather than a transformation laid over it (see",
-        "content/faces/bebas-neue.json).",
-        "",
-        "At the preset's 120px bottom margin the block sits inside the card,",
-        "48px up from its bottom edge, and grows upward from there however",
-        "long the caption runs. That is the deepest part of the tint, which is",
-        "what makes a card of its own unnecessary: the letters are on the one",
-        "band of the picture this channel has already painted a known colour,",
-        "rather than on an unknown photograph - which is the whole of the",
-        "argument the preset makes for a card in the first place.",
-        "",
-        "It is a margin the card can lose, though, and that is worth knowing",
-        "before either number is touched. The block is measured off the FRAME",
-        "and not off the card, so shrinking the picture moves the card's foot",
-        "up while the type stays where it is: at 0.70 the same caption crossed",
-        "the bottom edge and stood half in the ground. Nothing breaks when it",
-        "does - the amber below is the palest thing in the frame and the type",
-        "carries an opaque black shadow - but the two numbers are related and",
-        "the relation is not in either of them."
+
+        "What changing the design meant for this pack in particular is that",
+        "the card came back, and what follows from a card is written once, in",
+        "content/README.md, under 'A channel that set its caption on the",
+        "photograph may take the card back'. Here it meant one thing more:",
+        "the shadow this pack stated was OPAQUE black, chosen against a known",
+        "amber ground that no longer exists, and it goes with the ground -",
+        "removing the key lets the preset's `null` through, which is right",
+        "for type on a solid card somebody chose.",
+
+        "Like Conspiracy Central, and unlike the nine packs that README",
+        "section is about, this show REPLACED its look rather than adding",
+        "colours to it: its old white is in the list only because the show",
+        "asked for an absolute white, not as a swatch kept to undo a choice.",
+        "The list is the six colours in the order they were asked for.",
+
+        "Uppercased, inherited from the preset, and this pack could not",
+        "sensibly turn it off: Bebas has no lower case of its own, so a",
+        "caption in Montserrat's lower case would have its block in capitals",
+        "and its picked words not, and the highlight would be carrying a",
+        "difference nobody chose."
     ],
     "title": {
         "use": "snapchat-caption",
 
-        "face": "bebas-neue",
+        "_comment_face": [
+            "Bebas Neue Cyrillic - the face Conspiracy Central is set in, and",
+            "a different file from the Bebas Neue this pack used to state,",
+            "with a family name of its own. content/faces/bebas-neue-cyrillic.json",
+            "says why that name is what keeps the two from being drawn as one",
+            "another.",
+
+            "A tall condensed display face whose capitals fill the em. On a",
+            "card it needs nothing else to hold it, which is the job the",
+            "opaque shadow was doing when the type stood on the amber ground."
+        ],
+        "face": "bebas-neue-cyrillic",
 
         "_comment_color": [
-            "Pure white, on every frame, with no palette offered beside it.",
-            "That is a brand decision rather than a missing feature: the",
-            "colour in this channel is the ground and the tint, and a second",
-            "colour in the type would be a third thing competing with them.",
-            "Hall of Femme hands two of its colours to the user because the",
-            "PAIRING of card and letters is what that show is; here there is",
-            "no card, so there is no pairing to offer."
+            "White, and the channel's own answer: what every frame is set in",
+            "until somebody presses a swatch, since a frame stores no colour",
+            "of its own until it is given one (see state.textColorFor).",
+
+            "True #FFFFFF - the absolute white the show asked for, and the",
+            "same white this pack has always been set in. It is also the",
+            "colour of a picked word - see `highlight` - so the whole caption",
+            "is one colour until the highlight row is pressed, and what",
+            "separates a picked word is the face."
         ],
         "color": "#FFFFFF",
 
-        "_comment_shadow": [
-            "Absolute black, at the app's own shadow geometry, and it is doing",
-            "real work rather than decorating. The preset drops the shadow",
-            "because its caption sits on a solid card in a colour somebody",
-            "picked; this one has no card and stands on the amber foot of the",
-            "gradient, so white letters need something under them again.",
-            "",
-            "Opaque rather than the 0.8 black everywhere else in this app: the",
-            "ground it has to hold the type against is a bright warm colour of",
-            "known contrast, not an unknown photograph, and against amber a",
-            "translucent shadow reads as a muddy edge instead of as a shadow."
-        ],
-        "shadow": { "color": "#000000", "blur": 12, "offsetX": 3, "offsetY": 3 },
+        "_comment_colors": [
+            "Absolute black, absolute white, the cyan #5DF9ED, the deep red",
+            "#A70B0B, the pink #FF75D1 and the yellow #FAFF00, in the order the",
+            "show gave them, offered for the letters and for the card behind",
+            "them - six buttons each in the title panel (see",
+            "editor.renderColorButtons). Written in capitals because every hex",
+            "in these packs is; the colours are exactly the ones asked for.",
 
-        "_comment_panel": [
-            "None. The preset's card is exactly what this channel does not",
-            "have: the still has already been shrunk to make room for a",
-            "coloured ground, and a slab of a third colour laid over that",
-            "ground would be a background in front of a background.",
-            "",
-            "Stated as null rather than left out, because the preset states",
-            "one and a pack that says nothing inherits it whole."
+            "The same six in both lists and in one order, which is what Hall",
+            "of Femme and Conspiracy Central do and for their reason: the point",
+            "is the PAIRING. White on black is what the channel opens on; black",
+            "on cyan, on pink and on yellow, and white on the red, are a button",
+            "away. Six is as many as justice-oclock offers, and the panel lays",
+            "them out without anything else changing.",
+
+            "Nothing stops the user setting black on black, or black on the",
+            "red, which is too dark to carry it. The two lists are independent",
+            "because the pairing is the feature, and the user can see the",
+            "caption has gone and presses another swatch.",
+
+            "`text` reaches the highlight as well as the block, as a row of",
+            "its own - see the note on `colors` in js/channels.js. Until that",
+            "row is pressed on a frame, picked words follow the block."
         ],
-        "panel": null,
+        "colors": {
+            "text": ["#000000", "#FFFFFF", "#5DF9ED", "#A70B0B", "#FF75D1", "#FAFF00"],
+            "panel": ["#000000", "#FFFFFF", "#5DF9ED", "#A70B0B", "#FF75D1", "#FAFF00"]
+        },
 
         "_comment_highlight": [
-            "None either, and it follows from the two decisions above rather",
-            "than being a decision of its own. A highlight under this heading",
-            "is one of three things: another colour, another cut of the face,",
-            "or a box. The type here is always pure white, so a colour is out;",
-            "Bebas Neue ships as a single cut, so a second weight is out; and",
-            "a box is a background, which is the one thing this channel does",
-            "not have.",
-            "",
-            "The word buttons in the panel stay where they are and go dead,",
-            "with a tooltip saying whose decision that was (see",
-            "editor.renderWordButtons) - a live button that produced no",
-            "visible change would read as the app ignoring the click."
+            "A picked word is set in Montserrat Regular, in the same white as",
+            "the rest of the block. The colour is stated and it is the block's,",
+            "so the recolour draws exactly what its neighbours are drawn in and",
+            "the FACE is the whole of the difference until the user gives the",
+            "picked words a colour of their own from the highlight row.",
+
+            "The move Conspiracy Central makes with Poppins, made with",
+            "Montserrat: Bebas is the block, and a picked word comes out wide,",
+            "round and lighter than the words either side of it, which changes",
+            "the shape of the line and not only its texture. Montserrat's",
+            "capitals are a touch wider and more geometric than Poppins', so",
+            "the picked word is if anything further from the block. That the",
+            "two faces set at one size come out at two apparent sizes costs",
+            "nothing here: the preset states `fontSize`, so there is no",
+            "per-line fit for the wider face to win (see the note on two faces",
+            "in content/README.md).",
+
+            "It also undoes the oldest decision in this pack. It used to have",
+            "no highlight at all, because Bebas Neue shipped as one cut and the",
+            "type was white on every frame; a second face is the answer it had",
+            "no room for then.",
+
+            "Colour mode, word scope and no shadow are the preset's and are",
+            "not restated."
         ],
-        "highlight": null
+        "highlight": {
+            "face": "montserrat-regular",
+            "color": "#FFFFFF"
+        },
+
+        "_comment_panel": [
+            "Black, and the fill is the one thing about the card this pack",
+            "decides: its shape, its padding, its corners and its shadow are",
+            "the Snapchat caption design and come from the preset.",
+
+            "Black because it is the first colour the show asked for and the",
+            "white type reads on it at once. The pack used to state `panel:",
+            "null` - the still was a card of its own and a slab on top of it",
+            "would have been a background in front of a background - and that",
+            "argument went with the photo card."
+        ],
+        "panel": { "fill": "#000000" },
+
+        "_comment_layout": [
+            "No `layout` of its own: the preset's block, stood on the foot of",
+            "the frame at its 120px margin, where every Snapchat caption",
+            "stands - Conspiracy Central's included, since that pack came down",
+            "from the head of the frame. The key is left out and the preset's",
+            "answer comes through whole, with the reasoning it gives for that",
+            "margin (the player's furniture along the bottom edge).",
+
+            "Stated by absence rather than by restating the preset's numbers,",
+            "for the reason the capture note gives: a pack that copies a shared",
+            "answer is a pack that can be left behind when the answer moves."
+        ]
+    },
+
+    "_comment_scrim": [
+        "Conspiracy Central's shade, number for number: black at 0.65 at the",
+        "foot of the frame, falling in a straight line to nothing at half its",
+        "height, over the photograph and under the card. That pack explains",
+        "why those two stops are the Thumbnail Maker's dark gradient turned",
+        "on its side, and what of the backend's ramp a fixed scrim cannot",
+        "copy; nothing about the numbers is different here.",
+
+        "The caption stands on the foot of the frame, as that pack's does,",
+        "so the shade rises from under the card and is a shadow behind the",
+        "caption as much as a darkening of the picture.",
+        "It ends on a fully transparent stop, so there is no line across the",
+        "picture where it stops."
+    ],
+    "scrim": {
+        "heightRatio": 0.5,
+        "stops": [
+            { "at": 0, "color": "rgba(0,0,0,0.65)" },
+            { "at": 1, "color": "rgba(0,0,0,0)" }
+        ]
     },
 
     "_comment_branding": [
-        "No dark gradient. It exists to hold a title legible against the",
-        "photograph, and this title is not over the photograph at all - it is",
-        "below the card, on the channel's own ground. Left on, the backend",
-        "would darken the foot of every still to solve a problem that is not",
-        "in the picture, and darken the exact part of it the tint is already",
-        "spoken for."
+        "`gradient` is false: the shade is OFFERED, not laid on. Every frame",
+        "arrives clean, and the Gradient button under the canvas switches",
+        "the scrim above on for the frame that wants it - instantly, on the",
+        "canvas, with no round trip (see editor.toggleGradient). The button",
+        "is there because the channel has a scrim, not because of this flag",
+        "(see editor.syncGradientButton), so off by default does not mean",
+        "out of reach.",
+
+        "Off where Conspiracy Central has it on, and that is the show's",
+        "call: the caption already sits on a solid card, so the shade is not",
+        "what keeps it legible, and the show wanted it as a choice per frame",
+        "rather than a look on every one.",
+
+        "On this channel the flag means the SCRIM rather than the backend's",
+        "side gradient, as on conspiracy-central and laugh-society-snapchat;",
+        "the backend is never asked for its ramp as well (see",
+        "state.backendPresentation), so a still is never darkened twice."
     ],
     "branding": { "gradient": false }
 }

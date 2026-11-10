@@ -103,10 +103,12 @@
         "",
         "A pack under this heading that drops the card overrides it, exactly as",
         "it overrides `shadow` above and for the same reason: over a photograph",
-        "a picked word needs the same lift its neighbours have. Conspiracy",
-        "Central and Expulsion Science both do, and both state the block's own",
-        "numbers rather than a second set, so a picked word is lit like the",
-        "words around it."
+        "a picked word needs the same lift its neighbours have, and it should",
+        "state the block's own numbers rather than a second set, so a picked",
+        "word is lit like the words around it. Conspiracy Central and",
+        "Expulsion Science used to; both have since taken the card back, and",
+        "so has noisy-dish. The one pack still without one (binge-us) has no",
+        "highlight to light."
     ],
     "highlight": {
         "mode": "color",
