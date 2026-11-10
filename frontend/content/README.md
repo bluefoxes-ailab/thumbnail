@@ -390,6 +390,34 @@ Three things follow besides the drawing:
   how somebody asks for a gap — for an emoji to sit in, say. `js/state.js`
   stops trimming freeform lines for this reason.
 
+### Picked lines may be boxed behind type that is spaced as type
+
+`title.highlight.joined` is the line-scope box highlight's version of
+`panel.joined`, and it is read in `"box"` mode at `"line"` scope only. False
+(absent) is what a box highlight has always been: a box is what its row is
+stacked by, so `lineGap` is the gap between two boxes, or between a box and the
+plain line beside it.
+
+True stacks the LINES instead, by their capitals, and lays the boxes behind
+them afterwards — which is what a design tool's "background" effect on a text
+box does. `canal-plus` is the pack that sets it, and it is why it exists: the
+show's brief is a line of white type on the picture sitting on a blue box
+behind the lines under it, at a line spacing of 1. Three things follow:
+
+- `lineGap` is the leading between capitals on every row with a box on either
+  side of it, so the plain opening line sits right on the box under it. Two
+  rows of plain type are still stacked by their ink.
+- two boxed rows in a row always overlap into one shape. If the padding is too
+  thin for the leading they are pulled together until they overlap by a pixel,
+  because two edges that only touch show a pale seam.
+- an accent overhangs its box into the one above instead of pushing its row
+  down. Unjoined, the acute on an É stood above a thin box and opened a stripe
+  of photograph between two boxes on every accented line.
+
+Because the boxes now reach under the neighbouring rows, they are all drawn
+before any of the type, as the sticker's slabs are (`joinedHighlight` in
+`js/text.js`).
+
 ### A background may have rounded corners
 
 `title.highlight.radius` rounds the boxes behind picked words or lines;

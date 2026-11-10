@@ -1,0 +1,84 @@
+{
+    "schema": 1,
+    "id": "futura-bold-oblique-canal",
+
+    "_comment_family": [
+        "Futura Bold, leaned and tightened for one channel: CANAL+. The",
+        "show's guidelines name a house face, 'Canalp', set bold, italic and",
+        "at a letter spacing of -50; the show supplied Futura Bold as the face",
+        "to stand in for it. The file it supplied is upright and has no",
+        "italic, and the renderer has neither an italic of its own nor a",
+        "letter-spacing control - so both are baked into THIS file instead,",
+        "and the renderer sees an ordinary face whose outlines and advances",
+        "already are what the guidelines ask for.",
+        "",
+        "Baked rather than taught to text.js on purpose. Every measurement",
+        "the layout takes - the width fit, the ink bounds, the cap band a box",
+        "is padded from - is read off the font through Fabric and through a",
+        "plain canvas context side by side, and a slant or a spacing applied",
+        "at the draw would have to be applied identically on both paths or",
+        "the boxes would be measured against letters nobody draws. In the",
+        "file, both paths read the same outlines and cannot disagree.",
+        "",
+        "How it was made, from the supplied 'Futura Bold.otf' (CFF outlines,",
+        "1000 units to the em, cap height 754), with fontTools:",
+        "",
+        "  - every outline skewed 12 degrees to the right, about half the",
+        "    cap height (x' = x + tan(12) * (y - 377)), so a capital leans",
+        "    round its own middle instead of sliding right as a whole. 12 is",
+        "    what the stems in the guidelines' own screenshots measure;",
+        "  - every advance reduced by 50 units, which is exactly what a",
+        "    letter spacing of -50 means in the editor the guidelines were",
+        "    written in (thousandths of an em, applied after every glyph,",
+        "    the space included). The GPOS kerning pairs are untouched and",
+        "    still apply on top of it;",
+        "  - the left side bearings recomputed from the skewed outlines, the",
+        "    italic angle set to -12, and the style bits set to bold italic;",
+        "  - renamed throughout (see below).",
+        "",
+        "The family is 'Futura Bold Oblique CANAL' in every name record and",
+        "the PostScript name 'FuturaBold-ObliqueCANAL'. A name of its own is",
+        "the point: a machine with a real Futura installed answers to",
+        "'Futura', and `registerFace` in js/channels.js skips a family that is",
+        "already present - so under the original name the channel would be",
+        "drawn in the machine's upright Futura, at its full spacing, and",
+        "fontguard would pass it because the family did arrive.",
+        "",
+        "The Latin accents a French or Portuguese caption needs are all in",
+        "the file."
+    ],
+    "family": "Futura Bold Oblique CANAL",
+    "weight": "700",
+
+    "file": "fonts/Futura Bold Oblique CANAL.otf",
+    "format": "opentype",
+
+    "_comment_css": [
+        "Not declared in styles.css. This face arrived with a channel and is",
+        "registered from this JSON at load time (see registerFace in",
+        "js/channels.js), which is the route content/README.md describes."
+    ],
+    "css": false,
+
+    "_comment_local": [
+        "What the machine may already know the face by, tried after the file",
+        "and used by the installer as the name it registers this face under",
+        "(see engine.install_fonts, which takes the first). The PostScript",
+        "name first, then the full name. 'Futura' and 'Futura Bold' are",
+        "deliberately absent: they name the upright, untracked original, and",
+        "a machine answering to either would hand back the wrong letters."
+    ],
+    "local": ["FuturaBold-ObliqueCANAL", "Futura Bold Oblique CANAL"],
+
+    "_comment_stack": [
+        "Damage limitation, never a design choice - a block laid out against",
+        "the wrong metrics is broken rather than merely different, which is",
+        "what fontguard exists to catch before anything is drawn.",
+        "",
+        "Geometric sans faces in falling order of likeness: the original",
+        "Futura where a machine has it (upright and loose, but the right",
+        "skeleton), then Century Gothic, which ships with Office on most of",
+        "the machines this runs on, then the floor."
+    ],
+    "stack": "'Futura Bold Oblique CANAL', 'Futura', 'Century Gothic', Arial, sans-serif"
+}

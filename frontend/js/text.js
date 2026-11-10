@@ -1284,6 +1284,34 @@ export function addTextOverlay(canvas, lines, hlIdx, mirror, opts = {}) {
      * slabs.
      */
     const joinedPanel = linePanel && panel.joined === true;
+    /**
+     * Whether the boxes behind picked LINES are spaced as type or as boxes —
+     * `highlight.joined`, line-scope box highlights only (see channels.js).
+     *
+     * Unjoined, which is every channel but one, a boxed row is stacked by its
+     * box: `lineGap` is the photograph between two boxes, or between a box and
+     * the plain line beside it, and an accent standing above a box pushes the
+     * row down by however far it stands. That is a stack of separate tags.
+     *
+     * Joined is the other reading, the one a design tool's "background" effect
+     * has: the boxes are a treatment laid behind the lines, and the LINES are
+     * what is spaced. Every row next to a boxed one is stacked by its cap band,
+     * so `lineGap` is the leading between capitals whether or not a box is
+     * behind them, the plain opening line of a caption sits on the blue under
+     * it, and an accent overhangs its box into the one above instead of
+     * opening a stripe of photograph between them. Two boxed rows in a row are
+     * never let part: if the padding is too thin for the leading, they are
+     * pulled together until they overlap by a pixel (see JOIN_OVERLAP).
+     *
+     * Two rows of plain type are still stacked by their ink. Nothing lies
+     * behind them, so the safe spacing — no accent ever touching the line
+     * above — costs nothing there.
+     *
+     * Because the boxes now reach under the neighbouring rows' letters, they
+     * are all drawn before any of the type, as the sticker's slabs are; drawn
+     * row by row, a box would be laid over the cedilla of the line above it.
+     */
+    const joinedHighlight = boxedHighlight && !wordScope && highlight.joined === true;
     const panelPad = panel ? panel.padding : 0;
     const panelBorder = panel ? panel.border.width : 0;
 
@@ -1628,9 +1656,25 @@ export function addTextOverlay(canvas, lines, hlIdx, mirror, opts = {}) {
             }
         }
 
+        // Under a joined highlight (see joinedHighlight), a pair of rows with a
+        // box on either side of the join is spaced by capitals rather than by
+        // what is drawn — and two boxes in a row are held overlapping, never
+        // merely touching: two edges that only meet are each antialiased
+        // against the photograph and show as a pale seam across the colour.
+        const JOIN_OVERLAP = 1;
+        const spacedAsType = (a, b) => joinedHighlight && !a.blank && !b.blank && (a.boxed || b.boxed);
+
         rows[0].T = 0;
         for (let i = 1; i < rows.length; i++) {
-            rows[i].T = rows[i - 1].T + rows[i - 1].bottomOffset + LINE_GAP - rows[i].topOffset;
+            const prev = rows[i - 1], row = rows[i];
+            if (!spacedAsType(prev, row)) {
+                row.T = prev.T + prev.bottomOffset + LINE_GAP - row.topOffset;
+                continue;
+            }
+            row.T = prev.T + capBand(prev.sz, prev.style).bottom + LINE_GAP - capBand(row.sz, row.style).top;
+            if (prev.boxed && row.boxed) {
+                row.T = Math.min(row.T, prev.T + prev.boxBottom - JOIN_OVERLAP - row.boxTop);
+            }
         }
 
         const topEdge0 = rows[0].T + rows[0].topOffset;
@@ -2168,6 +2212,31 @@ export function addTextOverlay(canvas, lines, hlIdx, mirror, opts = {}) {
         }
     }
 
+    // Under a joined highlight every box goes down before any type, and every
+    // box's shadow before any box: the boxes overlap the rows either side of
+    // them (see joinedHighlight), so one drawn with its own row would cover
+    // the foot of the line above, and one shadow cast across the box above it
+    // would darken a band through the middle of what is meant to read as one
+    // shape. Same geometry as addBoxes below, which then draws none.
+    if (joinedHighlight) {
+        const boxedRows = layout.rows.filter(row => row.boxed && !row.blank);
+        const rectOf = (row) => {
+            const width = row.vb.visualW + row.pad * 2;
+            const height = row.boxBottom - row.boxTop;
+            return {
+                left: inkLeft(row) - row.pad, top: row.T + offsetY + row.boxTop,
+                width, height, ...rounded(highlight.radius, width, height),
+                selectable: false, evented: false,
+            };
+        };
+        if (highlight.shadow) {
+            for (const row of boxedRows) {
+                add(new fabric.Rect({ ...rectOf(row), fill: "transparent", shadow: shadowOf(highlight.shadow) }));
+            }
+        }
+        for (const row of boxedRows) add(new fabric.Rect({ ...rectOf(row), fill: highlight.fill }));
+    }
+
     for (const row of layout.rows) {
         const { str, sz, vb, hl, boxed, pad } = row;
         if (row.blank) continue;
@@ -2317,7 +2386,7 @@ export function addTextOverlay(canvas, lines, hlIdx, mirror, opts = {}) {
         // Where the boxes go across the line: line scope is one box round all
         // of it, word scope one per run of picked words, each measured from
         // that run's own ink (see pickedSpans).
-        if (boxed) {
+        if (boxed && !joinedHighlight) {
             addBoxes(wordScope
                 ? row.words.map(w => ({ left: inkLeft(row) + w.start, width: w.end - w.start }))
                 : [{ left: inkLeft(row), width: vb.visualW }]);

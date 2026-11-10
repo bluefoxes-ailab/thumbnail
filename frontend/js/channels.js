@@ -389,6 +389,27 @@ const BASE_TITLE_STYLE = {
         // Clamped to half the box at the draw, so a radius larger than the box
         // it is rounding comes out as a capsule rather than as nothing.
         radius: 0,
+        // Whether the boxes behind picked lines are spaced as boxes or as
+        // type. Read in "box" mode at "line" scope only; ignored anywhere else.
+        //
+        //   false — a box is what its row is stacked by: `lineGap` is the gap
+        //           between two boxes, or between a box and the plain line
+        //           beside it, so picked lines are separate tags.
+        //   true  — the lines are what is stacked, by their capitals, with
+        //           `lineGap` as the leading whether a box is behind them or
+        //           not, and the boxes are laid behind afterwards. Two picked
+        //           lines in a row always overlap into one shape, a plain line
+        //           next to a picked one sits right on its box, and an accent
+        //           overhangs its box rather than pushing the line away. It is
+        //           what a design tool's "background" effect on a text box
+        //           does, and the one pack that sets it took its look from
+        //           exactly that (see content/README.md).
+        //
+        // Not the same key as `panel.joined`, though it is the same idea: a
+        // panel is behind every line, a highlight only behind the picked ones,
+        // so here the rows between plain and boxed have to be decided too. See
+        // joinedHighlight in text.js for what it changes besides the spacing.
+        joined: false,
         shadow: { color: "rgba(0,0,0,0.7)", blur: 20, offsetX: 0, offsetY: 0 },
     },
     // A halo behind every letter: the glyphs redrawn without their outline and
