@@ -211,9 +211,55 @@
         }
     },
 
-    "_comment_branding": [
-        "No gradient, like most of its siblings: the side gradient has",
-        "nothing to do on a vertical still, and the brief asks for none."
+    "_comment_scrim": [
+        "A heavy shade thrown up from the foot of the frame, over the",
+        "photograph and under the caption. It is not written anywhere in the",
+        "brief's text, but every worked example in it has one, and it is",
+        "half of the look: the picture runs clean down to about the middle",
+        "of the frame, darkens over the next fifth, and the bottom third is",
+        "nearly black, with the photograph only just showing through it -",
+        "the legs under the shirt in the PSG example are still there, faint,",
+        "so it is not a solid fill. The caption stands in that dark band,",
+        "which is what lets plain white type with only a 30% shadow read at",
+        "all.",
+
+        "The numbers are read off those screenshots. `heightRatio` 0.52:",
+        "the shade starts at 48% of the frame height, where the examples'",
+        "pictures are still untouched. The stops run from the floor up -",
+        "0.9 black at the bottom edge, 0.85 at 0.6 of the span (the top of",
+        "the near-black band, about 69% down the frame), then 0.5 at 0.8",
+        "and nothing at the top. The middle stop bends the ramp, so the",
+        "fade is soft where it meets the picture and steep where it meets",
+        "the band, which is how the examples fall off; a straight line",
+        "from 0.85 to 0 showed its top edge as a line across the frame.",
+
+        "It is the same mechanism conspiracy-central's shade uses (see",
+        "`scrim` in js/channels.js): drawn on the canvas, not baked into",
+        "the photograph, so nothing in the image pipeline changes and the",
+        "Gradient button switches it per frame - see `branding` below."
     ],
-    "branding": { "gradient": false }
+    "scrim": {
+        "heightRatio": 0.52,
+        "stops": [
+            { "at": 0, "color": "rgba(0,0,0,0.9)" },
+            { "at": 0.6, "color": "rgba(0,0,0,0.85)" },
+            { "at": 0.8, "color": "rgba(0,0,0,0.5)" },
+            { "at": 1, "color": "rgba(0,0,0,0)" }
+        ]
+    },
+
+    "_comment_branding": [
+        "`gradient` true, and on this channel it means the SCRIM above",
+        "rather than the backend's side gradient - as on conspiracy-central",
+        "and laugh-society-snapchat. A channel with a scrim draws its own",
+        "shade on the canvas; the Gradient button (Gradient On / Gradient",
+        "Off, under the caption's frame) switches it per frame with no",
+        "round trip, and the backend is never asked for its ramp as well",
+        "(see state.backendPresentation).",
+
+        "On arrival, because every example in the brief has it. The button",
+        "is for the frame whose foot is already dark, or where the shade",
+        "would bury something that has to stay visible."
+    ],
+    "branding": { "gradient": true }
 }
