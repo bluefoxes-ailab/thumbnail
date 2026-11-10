@@ -418,6 +418,14 @@ Because the boxes now reach under the neighbouring rows, they are all drawn
 before any of the type, as the sticker's slabs are (`joinedHighlight` in
 `js/text.js`).
 
+It pairs with `title.highlight.padYRatio`, the padding above the capitals and
+below the baseline when it is not the same as the sides (`padRatio`, which is
+all four sides when `padYRatio` is absent). A design tool's background is the
+line's box plus the spacing, so it stands much further off the type above and
+below than at the ends — `canal-plus` measures 0.36em against 0.15em. With
+`joined` on, a `padYRatio` larger than the `lineGap` in pixels is what makes
+the box rise up behind the foot of a plain line over it, as the brief's does.
+
 ### A background may have rounded corners
 
 `title.highlight.radius` rounds the boxes behind picked words or lines;

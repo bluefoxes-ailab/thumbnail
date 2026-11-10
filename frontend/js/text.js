@@ -1240,6 +1240,14 @@ export function addTextOverlay(canvas, lines, hlIdx, mirror, opts = {}) {
     // ...but never so much that the box would run off the left edge, which a
     // very short line (set enormous to reach TARGET_W) otherwise could.
     const padFor = (sz) => Math.min(Math.round(sz * HL_PAD_RATIO), LEFT);
+    // The padding above the capitals and below the baseline, where a pack
+    // states one apart from the sides (`highlight.padYRatio`, see
+    // channels.js), and the same as the sides everywhere else. Not clamped to
+    // LEFT: that ceiling is about the box running off the left EDGE, which
+    // nothing vertical can do.
+    const padYFor = (sz) => (highlight && highlight.padYRatio != null
+        ? Math.round(sz * highlight.padYRatio)
+        : padFor(sz));
 
     const cased = (l) => (style.uppercase ? l.toUpperCase() : l);
 
@@ -1582,9 +1590,12 @@ export function addTextOverlay(canvas, lines, hlIdx, mirror, opts = {}) {
             // band is what the box is padded from, and on a row of runs the
             // letters inside it are the highlight's.
             const band = boxed ? capBand(sz, runRows ? hlStyle : rowStyle) : null;
+            // `pad` is the sides, and is what everything that draws the box
+            // across the line reads; the top and bottom take `padY`.
             const pad = padFor(sz);
-            const boxTop = boxed ? band.top - pad : 0;
-            const boxBottom = boxed ? band.bottom + pad : 0;
+            const padY = padYFor(sz);
+            const boxTop = boxed ? band.top - padY : 0;
+            const boxBottom = boxed ? band.bottom + padY : 0;
             return {
                 i, quote, style: rowStyle, props: rowProps, segs, span,
                 str, sz, blank, vb, hl, words, clearWords, boxed, pad, boxTop, boxBottom,

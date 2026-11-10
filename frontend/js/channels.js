@@ -374,6 +374,17 @@ const BASE_TITLE_STYLE = {
         //   stops   [{at, color}, …], `at` running 0 to 1 from `from`.
         gradient: null,
         padRatio: 0.12,
+        // The padding above the capitals and below the baseline, in the same
+        // units as `padRatio`, for a box whose top and bottom stand further
+        // off the type than its sides do. `null` — every channel but one —
+        // means `padRatio` on all four sides.
+        //
+        // It exists because that is what a design tool's background effect on
+        // a text box draws: the box is the LINE's box, as tall as the line is
+        // spaced, plus the spacing, while across it the spacing alone is added
+        // to the ink. The brief of the one pack that sets it measures 0.36em
+        // above and below against 0.15em at the sides.
+        padYRatio: null,
         // How far the box's corners are rounded, in canvas pixels. Zero — a
         // hard rectangle — everywhere it is not stated.
         //
